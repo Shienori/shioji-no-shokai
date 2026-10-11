@@ -17,7 +17,8 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const remainingMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
+  const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
+  const remainingMs = remainingOperationMs / 6;
   const remainingDeadlineMs = contract ? Math.max(0, contract.deadlineAt - currentGameTime) : 0;
 
   return (
