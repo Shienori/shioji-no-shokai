@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AcceptedContract, GameState, Ship } from "../domain/types";
+import type { AcceptedContract, GameState, Ship, ShipStatus, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
 import { initialContractTemplate, getContractTemplateById } from "../data/contracts";
 import { getRouteById } from "../data/routes";
@@ -22,11 +22,17 @@ interface GameStore {
   settleContract: () => void;
 }
 
+function createInitialGameTime(): number {
+  const gameStart = new Date();
+  gameStart.setHours(8, 0, 0, 0);
+  return gameStart.getTime();
+}
+
 function createInitialGameState(): GameState {
   const now = Date.now();
   return {
     playerId: "player_001",
-    currentGameTime: now,
+    currentGameTime: createInitialGameTime(),
     lastRealTimeSyncedAt: now,
     money: STARTING_MONEY,
     ships: [{ ...initialShip }],
@@ -51,11 +57,25 @@ function advanceTime(state: GameState, currentRealTime: number): GameState {
   };
 }
 
+function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
+  if (phase === "loading") return "loading";
+  if (phase === "sailing") return "sailing";
+  return "unloading";
+}
+
 function progressVoyageIfActive(state: GameState): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
+
   const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.currentGameTime);
   if (voyage === state.activeVoyage) return state;
-  return { ...state, activeVoyage: voyage };
+
+  const ships = state.ships.map((ship): Ship =>
+    ship.activeContractId === voyage.contractId
+      ? { ...ship, status: getShipStatusForVoyage(voyage.phase) }
+      : ship
+  );
+
+  return { ...state, activeVoyage: voyage, ships };
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
