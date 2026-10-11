@@ -28,7 +28,9 @@ export function MainPage() {
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
   const canAccept = gameState.acceptedContract === null && gameState.ships[0].status === "docked" && gameState.ships[0].currentPortId === "port_selene";
   const voyage = gameState.activeVoyage;
-  const progress = voyage ? calculateVoyageProgress(voyage, gameState.currentGameTime) : 0;
+  const progress = voyage && gameState.acceptedContract
+    ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime)
+    : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
 
   const settlementResult = shouldShowSettlement && gameState.acceptedContract

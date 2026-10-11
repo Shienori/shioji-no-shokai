@@ -26,7 +26,7 @@ export function calculateLatePenalty(offeredReward: Gold, lateHours: number): Go
 }
 
 export function settleContract(contract: AcceptedContract, voyage: Voyage): SettlementResult {
-  const unloadingCompletedAt = voyage.unloadingCompletedAt ?? voyage.estimatedArrivalAt;
+  const unloadingCompletedAt = voyage.completedAtWorldTime ?? Date.now();
   const lateHours = calculateLateHours(unloadingCompletedAt, contract.deadlineAt);
   const isOnTime = lateHours <= 0;
   const latePenalty = calculateLatePenalty(contract.reward.offeredReward, lateHours);

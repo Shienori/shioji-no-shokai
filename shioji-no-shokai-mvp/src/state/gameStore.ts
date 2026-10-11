@@ -7,7 +7,7 @@ import { getCargoById } from "../data/cargos";
 import { createRewardBreakdown } from "../domain/reward";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
-import { advanceGameTime } from "../domain/time";
+import { advanceOperationTime } from "../domain/time";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
 
@@ -22,17 +22,12 @@ interface GameStore {
   settleContract: () => void;
 }
 
-function createInitialGameTime(): number {
-  const gameStart = new Date();
-  gameStart.setHours(8, 0, 0, 0);
-  return gameStart.getTime();
-}
-
 function createInitialGameState(): GameState {
   const now = Date.now();
   return {
     playerId: "player_001",
-    currentGameTime: createInitialGameTime(),
+    currentGameTime: now,
+    operationTime: 0,
     lastRealTimeSyncedAt: now,
     money: STARTING_MONEY,
     ships: [{ ...initialShip }],
@@ -49,24 +44,16 @@ function createInitialGameState(): GameState {
   };
 }
 
-function advanceTime(state: GameState, currentRealTime: number): GameState {
-  return {
-    ...state,
-    currentGameTime: advanceGameTime(state.currentGameTime, state.lastRealTimeSyncedAt, currentRealTime),
-    lastRealTimeSyncedAt: currentRealTime
-  };
-}
-
 function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
   if (phase === "loading") return "loading";
   if (phase === "sailing") return "sailing";
   return "unloading";
 }
 
-function progressVoyageIfActive(state: GameState): GameState {
+function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
 
-  const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.currentGameTime);
+  const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.operationTime, currentRealTime);
   if (voyage === state.activeVoyage) return state;
 
   const ships = state.ships.map((ship): Ship =>
@@ -86,8 +73,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tick: () => {
     const current = get().gameState;
     const currentRealTime = Date.now();
-    let next = advanceTime(current, currentRealTime);
-    next = progressVoyageIfActive(next);
+    let next: GameState = { ...current, currentGameTime: currentRealTime };
+
+    if (next.activeVoyage && next.acceptedContract) {
+      next.operationTime = advanceOperationTime(next.operationTime, next.lastRealTimeSyncedAt, currentRealTime);
+      next = progressVoyageIfActive(next, currentRealTime);
+    }
+
+    next.lastRealTimeSyncedAt = currentRealTime;
+
     if (next !== current) {
       saveGame(next);
       set({ gameState: next });
@@ -113,6 +107,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const requiredLoadUnits = cargo.loadUnitsPerUnit * template.quantity;
     if (ship.maxLoadUnits < requiredLoadUnits) return;
 
+    const loadingDurationMs = cargo.loadingTimeMsPerUnit * template.quantity;
+    const unloadingDurationMs = cargo.unloadingTimeMsPerUnit * template.quantity;
+    const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
+    const totalOperationDurationMs = loadingDurationMs + voyageDurationMs + unloadingDurationMs;
+    const contractTimeLimitMs = Math.round((totalOperationDurationMs / 6) * 1.2);
+
     const reward = createRewardBreakdown(cargo.unitPrice * template.quantity, route.distance <= 30 ? 20 : route.distance <= 60 ? 35 : 60);
 
     const acceptedContract: AcceptedContract = {
@@ -123,16 +123,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       cargoId: template.cargoId,
       quantity: template.quantity,
       reward,
-      acceptedAt: current.currentGameTime,
-      deadlineAt: current.currentGameTime + template.deadlineHours * 60 * 60 * 1000
+      acceptedAt: currentRealTime,
+      deadlineAt: currentRealTime + contractTimeLimitMs
     };
 
-    const voyage = createVoyage(acceptedContract, ship, current.currentGameTime);
+    const voyage = createVoyage(acceptedContract, ship, current.operationTime);
     const updatedShip = { ...ship, status: "loading" as const, activeContractId: acceptedContract.id };
 
     const next: GameState = {
       ...current,
-      currentGameTime: advanceGameTime(current.currentGameTime, current.lastRealTimeSyncedAt, currentRealTime),
+      currentGameTime: currentRealTime,
       lastRealTimeSyncedAt: currentRealTime,
       ships: [updatedShip],
       activeVoyage: voyage,
