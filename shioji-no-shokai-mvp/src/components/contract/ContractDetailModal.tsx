@@ -1,0 +1,43 @@
+import type { ContractTemplate } from "../../domain/types";
+import { getPortById } from "../../data/ports";
+import { getRouteById } from "../../data/routes";
+import { getCargoById } from "../../data/cargos";
+import { calculateExpense } from "../../domain/reward";
+
+interface ContractDetailModalProps {
+  contract: ContractTemplate | null;
+  canAccept: boolean;
+  onAccept: () => void;
+  onClose: () => void;
+}
+
+export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: ContractDetailModalProps) {
+  if (!contract) return null;
+
+  const route = getRouteById(contract.routeId);
+  const cargo = getCargoById(contract.cargoId);
+  const fromPort = getPortById(route.fromPortId);
+  const toPort = getPortById(route.toPortId);
+  const expense = calculateExpense(contract.offeredReward);
+  const netProfit = contract.offeredReward - expense;
+
+  return (
+    <div className="modal-backdrop open">
+      <div className="modal">
+        <button className="close" onClick={onClose}>×</button>
+        <h2>{cargo.name}の輸送</h2>
+        <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
+        <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
+        <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
+        <div className="kv"><span>納期</span><span>受注後{contract.deadlineHours}時間</span></div>
+        <div className="reward-row">
+          <div className="reward-item"><div className="label">提示報酬</div><div className="value">{contract.offeredReward}G</div></div>
+          <div className="reward-item net"><div className="label">見込純利益</div><div className="value">{netProfit}G</div></div>
+        </div>
+        <div className="kv"><span>経費</span><span>-{expense}G</span></div>
+        <button className="btn btn-primary" disabled={!canAccept} onClick={onAccept}>受注する</button>
+        <button className="btn btn-secondary" onClick={onClose}>断る</button>
+      </div>
+    </div>
+  );
+}

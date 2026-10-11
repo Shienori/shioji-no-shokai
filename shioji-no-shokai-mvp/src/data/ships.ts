@@ -1,0 +1,12 @@
+import type { Ship } from "../domain/types";
+
+export const initialShip: Ship = {
+  id: "ship_shionami",
+  name: "潮鳴号",
+  kind: "sailing",
+  maxLoadUnits: 30,
+  baseSpeedKnots: 6,
+  currentPortId: "port_selene",
+  status: "docked",
+  activeContractId: null
+};
