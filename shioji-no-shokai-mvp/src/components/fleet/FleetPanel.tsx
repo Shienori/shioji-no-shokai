@@ -9,15 +9,15 @@ interface FleetPanelProps {
   voyage: Voyage | null;
   contract: AcceptedContract | null;
   progress: number;
-  currentGameTime: number;
+  operationTime: number;
 }
 
-export function FleetPanel({ ship, voyage, contract, progress, currentGameTime }: FleetPanelProps) {
+export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const remainingMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - currentGameTime) : 0;
-  const remainingDeadlineMs = contract ? Math.max(0, contract.deadlineAt - currentGameTime) : 0;
+  const remainingMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
+  const remainingDeadlineMs = contract ? Math.max(0, contract.deadlineAt - Date.now()) : 0;
 
   return (
     <section>

@@ -73,19 +73,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tick: () => {
     const current = get().gameState;
     const currentRealTime = Date.now();
-    let next: GameState = { ...current, currentGameTime: currentRealTime };
 
-    if (next.activeVoyage && next.acceptedContract) {
-      next.operationTime = advanceOperationTime(next.operationTime, next.lastRealTimeSyncedAt, currentRealTime);
-      next = progressVoyageIfActive(next, currentRealTime);
+    if (!current.activeVoyage || !current.acceptedContract) {
+      set({
+        gameState: {
+          ...current,
+          currentGameTime: currentRealTime,
+          lastRealTimeSyncedAt: currentRealTime
+        }
+      });
+      return;
     }
 
+    let next: GameState = {
+      ...current,
+      currentGameTime: currentRealTime,
+      operationTime: advanceOperationTime(current.operationTime, current.lastRealTimeSyncedAt, currentRealTime)
+    };
+
+    next = progressVoyageIfActive(next, currentRealTime);
     next.lastRealTimeSyncedAt = currentRealTime;
 
-    if (next !== current) {
-      saveGame(next);
-      set({ gameState: next });
-    }
+    saveGame(next);
+    set({ gameState: next });
   },
 
   selectContract: (contractId) => set({ selectedContractId: contractId }),
@@ -111,7 +121,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const unloadingDurationMs = cargo.unloadingTimeMsPerUnit * template.quantity;
     const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
     const totalOperationDurationMs = loadingDurationMs + voyageDurationMs + unloadingDurationMs;
-    const contractTimeLimitMs = Math.round((totalOperationDurationMs / 6) * 1.2);
+    const contractTimeLimitMs = Math.round((totalOperationDurationMs / 6) * 1.5);
 
     const reward = createRewardBreakdown(cargo.unitPrice * template.quantity, route.distance <= 30 ? 20 : route.distance <= 60 ? 35 : 60);
 

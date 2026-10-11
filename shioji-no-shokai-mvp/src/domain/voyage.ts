@@ -48,7 +48,17 @@ function progressUnloading(voyage: Voyage, contract: AcceptedContract, operation
   const cargo = getCargoById(contract.cargoId);
   const unloadingCompletedAt = (voyage.unloadingStartedAt ?? 0) + cargo.unloadingTimeMsPerUnit * contract.quantity;
   if (operationTime < unloadingCompletedAt) return voyage;
-  return { ...voyage, phase: "completed", unloadingCompletedAt, completedAtWorldTime: currentRealTime, settled: false };
+
+  const elapsedOperationTime = unloadingCompletedAt - voyage.loadingStartedAt;
+  const completedAtWorldTime = contract.acceptedAt + elapsedOperationTime / 6;
+
+  return {
+    ...voyage,
+    phase: "completed",
+    unloadingCompletedAt,
+    completedAtWorldTime,
+    settled: false
+  };
 }
 
 export function calculateVoyageProgress(voyage: Voyage, contract: AcceptedContract, operationTime: number): number {
