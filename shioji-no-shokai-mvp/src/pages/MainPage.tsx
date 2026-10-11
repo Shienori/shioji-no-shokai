@@ -9,6 +9,7 @@ import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById } from "../data/contracts";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
+import { SAVE_KEY } from "../data/gameConstants";
 
 export function MainPage() {
   const gameState = useGameStore((state) => state.gameState);
@@ -37,6 +38,12 @@ export function MainPage() {
     ? settleContract(gameState.acceptedContract, voyage!)
     : null;
 
+  const resetGame = () => {
+    if (!window.confirm("デバッグ用にゲームを初期化しますか？\n現在のセーブデータは削除されます。")) return;
+    localStorage.removeItem(SAVE_KEY);
+    location.reload();
+  };
+
   return (
     <div className="phone">
       <AppHeader />
@@ -53,6 +60,8 @@ export function MainPage() {
       <ContractDetailModal contract={selectedContract} canAccept={canAccept} onAccept={() => selectedContract && acceptContract(selectedContract.id)} onClose={() => selectContract(null)} />
 
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
+
+      <button className="btn btn-secondary" onClick={resetGame}>デバッグ: 初期化</button>
     </div>
   );
 }
