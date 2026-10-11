@@ -1,9 +1,9 @@
 import { useState } from "react";
 
 export default function ContractBoard({ onStart }: { onStart: () => void }) {
+  const [accepted, setAccepted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [used, setUsed] = useState(false);
-  const remainingCount = used ? 0 : 1;
 
   return (
     <div className="screen">
@@ -11,9 +11,23 @@ export default function ContractBoard({ onStart }: { onStart: () => void }) {
 
       <div className="panel contract-card">
         <p>契約カード</p>
-        <button className="button-primary" onClick={onStart}>
-          出航
-        </button>
+
+        {accepted ? (
+          <p>受注済み</p>
+        ) : (
+          <button
+            className="button-primary"
+            onClick={() => setAccepted(true)}
+          >
+            受注する
+          </button>
+        )}
+
+        {accepted && (
+          <button className="button-primary" onClick={onStart}>
+            出航
+          </button>
+        )}
       </div>
 
       {used ? (
@@ -25,7 +39,7 @@ export default function ContractBoard({ onStart }: { onStart: () => void }) {
           className="refresh-available"
           onClick={() => setShowConfirm(true)}
         >
-          依頼を更新（残り{remainingCount}回）
+          依頼を更新
         </button>
       )}
 
