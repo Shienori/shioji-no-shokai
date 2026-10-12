@@ -10,7 +10,8 @@ import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
-import { getPortHexId } from "../data/hexMap";
+import { getPortHexId, hexMap } from "../data/hexMap";
+import { findShortestRoute, getCurrentHexFromRoute } from "../domain/hexMap";
 
 interface GameStore {
   gameState: GameState;
@@ -51,15 +52,56 @@ function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
   return "unloading";
 }
 
+function getRouteHexPath(fromPortId: string, toPortId: string) {
+  const startHexId = getPortHexId(fromPortId);
+  const goalHexId = getPortHexId(toPortId);
+  const startHex = hexMap.find((hex) => hex.id === startHexId)!;
+  const goalHex = hexMap.find((hex) => hex.id === goalHexId)!;
+
+  return findShortestRoute(
+    { q: startHex.q, r: startHex.r },
+    { q: goalHex.q, r: goalHex.r },
+    hexMap
+      .filter((hex) => hex.kind === "sea" || hex.id === startHexId || hex.id === goalHexId)
+      .map((hex) => ({ q: hex.q, r: hex.r }))
+  );
+}
+
+function getShipCurrentHexId(
+  contract: AcceptedContract,
+  voyage: { departedAt: number; estimatedArrivalAt: number },
+  operationTime: number
+): string | null {
+  const route = getRouteById(contract.routeId);
+  const hexRoute = getRouteHexPath(route.fromPortId, route.toPortId);
+
+  if (!hexRoute) {
+    return null;
+  }
+
+  const sailingDuration = voyage.estimatedArrivalAt - voyage.departedAt;
+  const progress = sailingDuration > 0
+    ? Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / sailingDuration))
+    : 1;
+  const currentHex = getCurrentHexFromRoute(hexRoute, progress);
+
+  return hexMap.find((hex) => hex.q === currentHex.q && hex.r === currentHex.r)?.id ?? null;
+}
+
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
 
   const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.operationTime, currentRealTime);
   if (voyage === state.activeVoyage) return state;
 
+  const currentHexId = getShipCurrentHexId(state.acceptedContract, voyage, state.operationTime);
   const ships = state.ships.map((ship): Ship =>
     ship.activeContractId === voyage.contractId
-      ? { ...ship, status: getShipStatusForVoyage(voyage.phase) }
+      ? {
+          ...ship,
+          status: getShipStatusForVoyage(voyage.phase),
+          currentHexId: currentHexId ?? ship.currentHexId
+        }
       : ship
   );
 

@@ -10,6 +10,7 @@ interface ShipMarker {
 interface HexMapProps {
   ships: ShipMarker[];
   routeHexIds?: string[];
+  currentHexId?: string;
 }
 
 const HEX_SIZE = 26;
@@ -40,7 +41,7 @@ function getSeaLabel(hexId: string) {
   return match ? `S${match[1].padStart(2, "0")}` : hexId;
 }
 
-export function HexMap({ ships, routeHexIds = [] }: HexMapProps) {
+export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
   const padding = HEX_SIZE + 18;
   const centers = hexMap.map((hex) => ({ hex, center: getHexCenter(hex) }));
   const minX = Math.min(...centers.map(({ center }) => center.x)) - padding;
@@ -51,6 +52,10 @@ export function HexMap({ ships, routeHexIds = [] }: HexMapProps) {
   const height = maxY - minY;
   const routeSet = new Set(routeHexIds);
   const shipByHexId = new Map(ships.map((ship) => [ship.hexId, ship]));
+  const routeCenters = routeHexIds
+    .map((hexId) => hexMap.find((hex) => hex.id === hexId))
+    .filter((hex): hex is MapHex => Boolean(hex))
+    .map(getHexCenter);
 
   return (
     <div className="hex-map">
@@ -59,12 +64,37 @@ export function HexMap({ ships, routeHexIds = [] }: HexMapProps) {
         role="img"
         aria-label="簡略HEX航路マップ"
       >
+        {routeCenters.length > 1 && (
+          <polyline
+            points={routeCenters.map((center) => `${center.x},${center.y}`).join(" ")}
+            fill="none"
+            stroke="#c98b12"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.8}
+          />
+        )}
+
         {centers.map(({ hex, center }) => {
           const isPort = hex.kind === "port";
           const isRoute = routeSet.has(hex.id);
+          const isCurrent = hex.id === currentHexId;
           const ship = shipByHexId.get(hex.id);
-          const fill = isPort ? "#8fd3ff" : isRoute ? "#ffe9a8" : "#dff1ff";
-          const stroke = isPort ? "#1f7fb8" : isRoute ? "#c98b12" : "#9db8c7";
+          const fill = isCurrent
+            ? "#ffd166"
+            : isPort
+              ? "#8fd3ff"
+              : isRoute
+                ? "#fff3cd"
+                : "#dff1ff";
+          const stroke = isCurrent
+            ? "#d97706"
+            : isPort
+              ? "#1f7fb8"
+              : isRoute
+                ? "#c98b12"
+                : "#9db8c7";
 
           return (
             <g key={hex.id}>
@@ -72,7 +102,7 @@ export function HexMap({ ships, routeHexIds = [] }: HexMapProps) {
                 points={getHexPoints(center)}
                 fill={fill}
                 stroke={stroke}
-                strokeWidth={isPort || isRoute ? 2 : 1}
+                strokeWidth={isCurrent ? 3 : isPort || isRoute ? 2 : 1}
               />
               <text
                 x={center.x}
