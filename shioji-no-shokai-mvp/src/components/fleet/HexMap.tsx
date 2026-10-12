@@ -50,7 +50,6 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
   const maxY = Math.max(...centers.map(({ center }) => center.y)) + padding;
   const width = maxX - minX;
   const height = maxY - minY;
-  const routeSet = new Set(routeHexIds);
   const shipByHexId = new Map(ships.map((ship) => [ship.hexId, ship]));
   const routeCenters = routeHexIds
     .map((hexId) => hexMap.find((hex) => hex.id === hexId))
@@ -78,23 +77,10 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
 
         {centers.map(({ hex, center }) => {
           const isPort = hex.kind === "port";
-          const isRoute = routeSet.has(hex.id);
           const isCurrent = hex.id === currentHexId;
           const ship = shipByHexId.get(hex.id);
-          const fill = isCurrent
-            ? "#fb923c"
-            : isPort
-              ? "#8fd3ff"
-              : isRoute
-                ? "#fff3cd"
-                : "#dff1ff";
-          const stroke = isCurrent
-            ? "#c2410c"
-            : isPort
-              ? "#1f7fb8"
-              : isRoute
-                ? "#c98b12"
-                : "#9db8c7";
+          const fill = isCurrent ? "#fb923c" : isPort ? "#8fd3ff" : "#dff1ff";
+          const stroke = isCurrent ? "#c2410c" : isPort ? "#1f7fb8" : "#9db8c7";
 
           return (
             <g key={hex.id}>
@@ -102,7 +88,7 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
                 points={getHexPoints(center)}
                 fill={fill}
                 stroke={stroke}
-                strokeWidth={isCurrent ? 3 : isPort || isRoute ? 2 : 1}
+                strokeWidth={isCurrent ? 3 : isPort ? 2 : 1}
               />
               <text
                 x={center.x}
