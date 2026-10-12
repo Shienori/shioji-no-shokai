@@ -3,6 +3,7 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { calculateExpense } from "../../domain/reward";
+import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractDetailModalProps {
   contract: ContractTemplate | null;
@@ -20,6 +21,14 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = contract.offeredReward - expense;
+  const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
+  const deadlineTime = new Date(Date.now() + realDeadlineMs);
+  const deadlineLabel = deadlineTime.toLocaleString([], {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="modal-backdrop open">
@@ -29,7 +38,7 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
         <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
         <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
         <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
-        <div className="kv"><span>納期</span><span>受注後{contract.deadlineHours}時間</span></div>
+        <div className="kv"><span>納期</span><span>{deadlineLabel}</span></div>
         <div className="reward-row">
           <div className="reward-item"><div className="label">提示報酬</div><div className="value">{contract.offeredReward}G</div></div>
           <div className="reward-item net"><div className="label">見込純利益</div><div className="value">{netProfit}G</div></div>

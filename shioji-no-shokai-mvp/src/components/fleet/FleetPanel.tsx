@@ -9,15 +9,25 @@ interface FleetPanelProps {
   voyage: Voyage | null;
   contract: AcceptedContract | null;
   progress: number;
+  operationTime: number;
   currentGameTime: number;
 }
 
-export function FleetPanel({ ship, voyage, contract, progress, currentGameTime }: FleetPanelProps) {
+export function FleetPanel({ ship, voyage, contract, progress, operationTime, currentGameTime }: FleetPanelProps) {
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const remainingMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - currentGameTime) : 0;
-  const remainingDeadlineMs = contract ? Math.max(0, contract.deadlineAt - currentGameTime) : 0;
+  const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
+  const remainingMs = remainingOperationMs / 6;
+  const deadlineTime = contract ? new Date(contract.deadlineAt) : null;
+  const deadlineLabel = deadlineTime
+    ? deadlineTime.toLocaleString([], {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
 
   return (
     <section>
@@ -31,7 +41,7 @@ export function FleetPanel({ ship, voyage, contract, progress, currentGameTime }
         {voyage && (
           <>
             <div className="kv"><span>残り時間</span><span>{formatDuration(remainingMs)}</span></div>
-            <div className="kv"><span>納期まで</span><span>{formatDuration(remainingDeadlineMs)}</span></div>
+            <div className="kv"><span>納期</span><span>{deadlineLabel}</span></div>
           </>
         )}
       </div>

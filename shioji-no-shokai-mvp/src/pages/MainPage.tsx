@@ -9,6 +9,7 @@ import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById } from "../data/contracts";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
+import { SAVE_KEY } from "../data/gameConstants";
 
 export function MainPage() {
   const gameState = useGameStore((state) => state.gameState);
@@ -28,12 +29,20 @@ export function MainPage() {
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
   const canAccept = gameState.acceptedContract === null && gameState.ships[0].status === "docked" && gameState.ships[0].currentPortId === "port_selene";
   const voyage = gameState.activeVoyage;
-  const progress = voyage ? calculateVoyageProgress(voyage, gameState.currentGameTime) : 0;
+  const progress = voyage && gameState.acceptedContract
+    ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime)
+    : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
 
   const settlementResult = shouldShowSettlement && gameState.acceptedContract
     ? settleContract(gameState.acceptedContract, voyage!)
     : null;
+
+  const resetGame = () => {
+    if (!window.confirm("デバッグ用にゲームを初期化しますか？\n現在のセーブデータは削除されます。")) return;
+    localStorage.removeItem(SAVE_KEY);
+    location.reload();
+  };
 
   return (
     <div className="phone">
@@ -44,13 +53,15 @@ export function MainPage() {
         {activeTab === "contracts" ? (
           <ContractBoard contracts={contracts} onSelectContract={selectContract} />
         ) : (
-          <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} currentGameTime={gameState.currentGameTime} />
+          <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} currentGameTime={gameState.currentGameTime} />
         )}
       </main>
 
       <ContractDetailModal contract={selectedContract} canAccept={canAccept} onAccept={() => selectedContract && acceptContract(selectedContract.id)} onClose={() => selectContract(null)} />
 
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
+
+      <button className="btn btn-secondary" onClick={resetGame}>デバッグ: 初期化</button>
     </div>
   );
 }

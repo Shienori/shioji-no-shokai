@@ -1,12 +1,12 @@
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 
-export function advanceGameTime(lastGameTime: number, lastRealTime: number, currentRealTime: number): number {
+export function advanceOperationTime(lastOperationTime: number, lastRealTime: number, currentRealTime: number): number {
   const realElapsed = Math.max(0, currentRealTime - lastRealTime);
-  return lastGameTime + realElapsed * GAME_TIME_MULTIPLIER;
+  return lastOperationTime + realElapsed * GAME_TIME_MULTIPLIER;
 }
 
-export function formatGameTime(gameTimeMs: number): string {
-  const date = new Date(gameTimeMs);
+export function formatGameTime(realTimeMs: number): string {
+  const date = new Date(realTimeMs);
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const hours = String(date.getHours()).padStart(2, "0");
