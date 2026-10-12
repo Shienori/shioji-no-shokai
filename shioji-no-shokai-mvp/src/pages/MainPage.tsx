@@ -39,7 +39,6 @@ export function MainPage() {
     : null;
 
   const resetGame = () => {
-    if (!window.confirm("デバッグ用にゲームを初期化しますか？\n現在のセーブデータは削除されます。")) return;
     localStorage.removeItem(SAVE_KEY);
     location.reload();
   };
