@@ -87,7 +87,7 @@ export function HexMap({ ships, routeHexIds = [], currentHexId, markerProgress }
     .map(getHexCenter);
 
   const activeShip = currentHexId ? shipByHexId.get(currentHexId) : undefined;
-  const interpolatedPosition = activeShip && markerProgress !== undefined
+  const interpolatedPosition = currentHexId && markerProgress !== undefined
     ? getInterpolatedMarkerPosition(routeHexIds, currentHexId, markerProgress)
     : null;
 
