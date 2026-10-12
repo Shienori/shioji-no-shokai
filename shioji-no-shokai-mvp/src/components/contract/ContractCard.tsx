@@ -15,6 +15,7 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
   const netProfit = Math.floor(contract.offeredReward * 0.7);
+  const requiredLoadUnits = cargo.loadUnitsPerUnit * contract.quantity;
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = new Date(Date.now() + realDeadlineMs);
   const deadlineLabel = deadlineTime.toLocaleString([], {
@@ -25,17 +26,36 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   });
 
   return (
-    <button className="card" onClick={onSelect}>
-      <h3>{cargo.name}の輸送</h3>
-      <p className="route">{fromPort.name} → {toPort.name}</p>
-      <div className="meta">
-        <span>{cargo.name} ×{contract.quantity}</span>
-        <span>{cargo.loadUnitsPerUnit * contract.quantity}LU</span>
-        <span>納期：{deadlineLabel}</span>
+    <button className="contract-card" onClick={onSelect}>
+      <div className="contract-card-heading">
+        <h3>{cargo.name}の輸送</h3>
+        <span className="contract-card-detail">詳細 ›</span>
       </div>
-      <div className="reward-row">
-        <div className="reward-item"><div className="label">提示報酬</div><div className="value">{contract.offeredReward}G</div></div>
-        <div className="reward-item net"><div className="label">見込純利益</div><div className="value">{netProfit}G</div></div>
+      <p className="contract-card-route">
+        {fromPort.name}
+        <span className="contract-route-arrow">→</span>
+        {toPort.name}
+      </p>
+      <div className="contract-facts">
+        <div className="contract-fact">
+          <span className="contract-fact-label">貨物</span>
+          <span className="contract-fact-value">{cargo.name} ×{contract.quantity}</span>
+        </div>
+        <div className="contract-fact">
+          <span className="contract-fact-label">必要積載量</span>
+          <span className="contract-fact-value">{requiredLoadUnits}LU</span>
+        </div>
+      </div>
+      <p className="contract-deadline">納期：{deadlineLabel}</p>
+      <div className="contract-reward">
+        <div className="contract-reward-item">
+          <span className="contract-fact-label">提示報酬</span>
+          <span className="contract-fact-value reward-gold">{contract.offeredReward}G</span>
+        </div>
+        <div className="contract-reward-item">
+          <span className="contract-fact-label">見込純利益</span>
+          <span className="contract-fact-value reward-green">{netProfit}G</span>
+        </div>
       </div>
     </button>
   );

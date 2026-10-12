@@ -2,11 +2,11 @@
 
 ## 最終更新
 
-- 日時: 2026-10-12 18:10
+- 日時: 2026-10-12 19:20
 - リポジトリ: `Shienori/shioji-no-shokai`
-- 作業ブランチ: `feature/fleet-position-hex-map`
+- 作業ブランチ: `main`
 - プロジェクトルート: `shioji-no-shokai-mvp`
-- 状態: 契約板UI再設計が未Push
+- 状態: 契約板UI再設計を実装済み・Push済み
 
 ## 次スレッド用の冒頭指示
 
@@ -72,16 +72,18 @@ shioji-no-shokai/
 
 ## 現在のブランチ状況
 
-### Push済み最新コミット
+### 直前のマージコミット
 
 ```text
-e78b61140ab38f7a0273dcd33aee7029eb27cc8a
+4f50071523abe33df90da9921b27e9c989ded069
 ```
 
 コミットメッセージ:
 
 ```text
-docs: 開発引き継ぎサマリーを追加
+Merge pull request #9 from Shienori/feature/fleet-position-hex-map
+
+艦隊のHEXマップ船位置表示をmainへ統合
 ```
 
 ### 直前の機能コミット
@@ -94,10 +96,6 @@ c89b089f324e4745f6667f7a6f5de155236de344
 
 ```text
 艦隊画面のモバイル幅と余白を固定
-
-- 艦隊セクションを親幅100%に固定
-- 航路マップSVGをカード幅に追従
-- 船情報とカードの間隔を縮小
 ```
 
 ## 開発履歴
@@ -207,6 +205,19 @@ c89b089f324e4745f6667f7a6f5de155236de344
 - 次スレッドは必ず本ファイルを最初に読み込む。
 - Git履歴により、過去の引き継ぎ状態も追跡できる。
 
+### 13. 艦隊HEXマップ機能をmainへ統合
+
+- `feature/fleet-position-hex-map` をPR #9経由でmainへマージ。
+- マージコミット: `4f50071523abe33df90da9921b27e9c989ded069`。
+- 航海進捗に応じた船位置表示、BFS経路計算の共通化、モバイル対応を統合。
+
+### 14. 契約板UI再設計
+
+- `ContractBoard.tsx` に契約板ヘッダーと契約件数を追加。
+- `ContractCard.tsx` を航路・運行条件・納期・報酬の情報階層へ再構成。
+- `globals.css` に契約板専用のモバイルCSSを追加。
+- 既存の報酬・必要積載量・納期計算ロジックは維持。
+
 ## ゲームデザインの確定事項
 
 ### 中核ループ
@@ -288,98 +299,22 @@ seed = hash(日付 + 時間帯 + プレイヤーID + 港ID)
 
 ## 未完了タスク
 
-### 契約板UI再設計
+### Vercelプレビュー確認
 
-契約板UIをスマホ向けの情報階層へ再設計する変更が未Pushです。
+- 契約板UI再設計後の表示・タップ・詳細モーダルを確認する。
+- 契約受注から積載、航海、到着、報酬受取までの一連フローを検証する。
 
-対象ファイル:
+### 9契約生成システム
 
-- `shioji-no-shokai-mvp/src/components/contract/ContractBoard.tsx`
-- `shioji-no-shokai-mvp/src/components/contract/ContractCard.tsx`
-- `shioji-no-shokai-mvp/src/styles/globals.css`
-
-### コミットメッセージ
-
-```text
-契約板をスマホ向け情報階層に再設計
-
-- 契約板ヘッダーに港名と件数を追加
-- 契約カードを航路・運行条件・報酬の構成に整理
-- 詳細導線とタップ領域を明確化
-- 契約板専用のモバイルCSSを追加
-
-Refs #5
-Refs #6
-```
-
-### ContractBoard.tsx の仕様
-
-- `section` 要素に `contract-board` クラスを設定する。
-- ヘッダーに以下を表示する。
-  - `契約板`
-  - `セレネ港発の輸送依頼`
-  - 契約件数
-- 契約カード一覧を `contract-list` で囲む。
-
-### ContractCard.tsx の仕様
-
-契約カードは以下の順で表示する。
-
-1. 貨物名タイトル
-2. 右側に `詳細 ›`
-3. 出発港 → 到着港
-4. 貨物と必要積載量の2列
-5. 納期
-6. 提示報酬と見込純利益の2列
-
-計算ロジックは維持する。
-
-```ts
-const netProfit = Math.floor(contract.offeredReward * 0.7);
-const requiredLoadUnits = cargo.loadUnitsPerUnit * contract.quantity;
-```
-
-納期は `GAME_TIME_MULTIPLIER` を考慮して実時間へ変換する。
-
-### globals.css の仕様
-
-以下の契約板専用クラスを追加する。
-
-- `contract-board`
-- `contract-board-header`
-- `contract-count`
-- `contract-list`
-- `contract-card`
-- `contract-card-heading`
-- `contract-card-detail`
-- `contract-card-route`
-- `contract-route-arrow`
-- `contract-facts`
-- `contract-fact-label`
-- `contract-fact-value`
-- `contract-deadline`
-- `contract-reward`
-- `contract-reward-item`
-
-契約カードは以下の条件を満たす。
-
-- 幅100%
-- 最小高さ48px
-- パディング14px
-- カード全体をタップ対象にする
-- ホバー時は青系ボーダー
-- 押下時はわずかに縮小
-- 報酬ブロックは2列構成
-- 提示報酬は金色、見込純利益は緑色
+- 契約板の6時間更新、各港3件の契約生成、決定的シード生成、手動更新を本格実装する。
 
 ## 今後の開発方針
 
-1. 契約板UI再設計をPushする。
-2. Vercelプレビューで契約板の表示・タップ・詳細モーダルを確認する。
-3. 契約受注から積載、航海、到着、報酬受取までの一連フローを検証する。
-4. 9契約生成システムを本格実装する。
-5. 船団・貨物・契約・経済バランスの拡張を進める。
-6. 各作業完了後に `HANDOFF.md` を更新する。
+1. Vercelプレビューで契約板の表示・タップ・詳細モーダルを確認する。
+2. 契約受注から積載、航海、到着、報酬受取までの一連フローを検証する。
+3. 9契約生成システムを本格実装する。
+4. 船団・貨物・契約・経済バランスの拡張を進める。
+5. 各作業完了後に `HANDOFF.md` を更新する。
 
 ## MVP後の拡張順序
 
