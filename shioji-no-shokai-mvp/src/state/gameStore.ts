@@ -69,23 +69,29 @@ function getRouteHexPath(fromPortId: string, toPortId: string) {
 
 function getShipCurrentHexId(
   contract: AcceptedContract,
-  voyage: { departedAt: number; estimatedArrivalAt: number },
+  voyage: { phase: VoyagePhase; departedAt: number; estimatedArrivalAt: number },
   operationTime: number
 ): string | null {
   const route = getRouteById(contract.routeId);
+  const startHexId = getPortHexId(route.fromPortId);
+
+  if (voyage.phase === "loading") {
+    return startHexId;
+  }
+
   const hexRoute = getRouteHexPath(route.fromPortId, route.toPortId);
 
   if (!hexRoute) {
-    return null;
+    return startHexId;
   }
 
   const sailingDuration = voyage.estimatedArrivalAt - voyage.departedAt;
-  const progress = sailingDuration > 0
+  const progress = voyage.phase === "sailing" && sailingDuration > 0
     ? Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / sailingDuration))
     : 1;
   const currentHex = getCurrentHexFromRoute(hexRoute, progress);
 
-  return hexMap.find((hex) => hex.q === currentHex.q && hex.r === currentHex.r)?.id ?? null;
+  return hexMap.find((hex) => hex.q === currentHex.q && hex.r === currentHex.r)?.id ?? startHexId;
 }
 
 function syncActiveShipPosition(state: GameState): GameState {
