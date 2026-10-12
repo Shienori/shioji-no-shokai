@@ -38,13 +38,6 @@ export const hexMap: MapHex[] = [
   { id: "hex_sea_027", q: 4, r: 3, kind: "sea", regionId: "eastern_open_sea" }
 ];
 
-export const seaConditionWeights: Record<string, Record<SeaCondition, number>> = {
-  kingdom_coast: { calm: 50, followingWind: 30, headwind: 20 },
-  western_open_sea: { calm: 30, followingWind: 40, headwind: 30 },
-  central_sea: { calm: 35, followingWind: 35, headwind: 30 },
-  eastern_open_sea: { calm: 20, followingWind: 40, headwind: 40 }
-};
-
 export function getHexById(id: string): MapHex {
   const hex = hexMap.find((item) => item.id === id);
   if (!hex) throw new Error(`Unknown hex: ${id}`);
@@ -55,8 +48,4 @@ export function getPortHexId(portId: string): string {
   const hex = hexMap.find((item) => item.kind === "port" && item.portId === portId);
   if (!hex) throw new Error(`Unknown port hex: ${portId}`);
   return hex.id;
-}
-
-export function getMapHexesAsAxial(): AxialHex[] {
-  return hexMap.map(({ q, r }) => ({ q, r }));
 }
