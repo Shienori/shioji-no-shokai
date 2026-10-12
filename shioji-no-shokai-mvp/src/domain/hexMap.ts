@@ -109,3 +109,26 @@ export function getVoyageHours(
 
   return distanceNm / effectiveSpeed;
 }
+
+export function getCurrentHexFromRoute(
+  route: AxialHex[],
+  progress: number
+): AxialHex {
+  if (route.length === 0) {
+    throw new Error("Route must not be empty");
+  }
+
+  const seaHexCount = getSeaHexCount(route);
+
+  if (seaHexCount === 0) {
+    return route[0];
+  }
+
+  const clampedProgress = Math.min(1, Math.max(0, progress));
+  const routeIndex = Math.min(
+    seaHexCount,
+    Math.floor(clampedProgress * seaHexCount)
+  );
+
+  return route[routeIndex];
+}

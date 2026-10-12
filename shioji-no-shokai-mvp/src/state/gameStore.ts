@@ -10,6 +10,7 @@ import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
+import { getPortHexId } from "../data/hexMap";
 
 interface GameStore {
   gameState: GameState;
@@ -138,7 +139,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     const voyage = createVoyage(acceptedContract, ship, current.operationTime);
-    const updatedShip = { ...ship, status: "loading" as const, activeContractId: acceptedContract.id };
+    const updatedShip = {
+      ...ship,
+      status: "loading" as const,
+      currentHexId: getPortHexId(route.fromPortId),
+      activeContractId: acceptedContract.id
+    };
 
     const next: GameState = {
       ...current,
@@ -164,7 +170,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const result = settleContract(contract, voyage);
     const ship = current.ships[0];
     const route = getRouteById(contract.routeId);
-    const updatedShip = { ...ship, status: "docked" as const, currentPortId: route.toPortId, activeContractId: null };
+    const updatedShip = {
+      ...ship,
+      status: "docked" as const,
+      currentPortId: route.toPortId,
+      currentHexId: getPortHexId(route.toPortId),
+      activeContractId: null
+    };
 
     const updatedReputations = current.reputations.map((reputation) =>
       reputation.shipperId === contract.shipperId

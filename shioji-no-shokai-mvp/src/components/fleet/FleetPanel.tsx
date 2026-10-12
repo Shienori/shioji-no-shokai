@@ -3,6 +3,13 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { formatDuration } from "../../domain/time";
+import {
+  findShortestRoute,
+  getCurrentHexFromRoute,
+  type AxialHex
+} from "../../domain/hexMap";
+import { getPortHexId, hexMap } from "../../data/hexMap";
+import { HexMap } from "./HexMap";
 
 interface FleetPanelProps {
   ship: Ship;
@@ -11,6 +18,18 @@ interface FleetPanelProps {
   progress: number;
   operationTime: number;
   currentGameTime: number;
+}
+
+function toAxialHexes(hexIds: string[]): AxialHex[] {
+  return hexIds.map((hexId) => {
+    const hex = hexMap.find((item) => item.id === hexId);
+
+    if (!hex) {
+      throw new Error(`Unknown hex: ${hexId}`);
+    }
+
+    return { q: hex.q, r: hex.r };
+  });
 }
 
 export function FleetPanel({ ship, voyage, contract, progress, operationTime, currentGameTime }: FleetPanelProps) {
@@ -29,6 +48,40 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
       })
     : "";
 
+  const hexRoute = route
+    ? findShortestRoute(
+        toAxialHexes([getPortHexId(route.fromPortId)])[0],
+        toAxialHexes([getPortHexId(route.toPortId)])[0],
+        toAxialHexes(hexMap.map((hex) => hex.id))
+      )
+    : null;
+
+  const sailingProgress =
+    voyage && voyage.phase === "sailing" && voyage.estimatedArrivalAt > voyage.departedAt
+      ? Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / (voyage.estimatedArrivalAt - voyage.departedAt)))
+      : 0;
+
+  const currentHex =
+    voyage && voyage.phase === "sailing" && hexRoute
+      ? getCurrentHexFromRoute(hexRoute, sailingProgress)
+      : null;
+
+  const currentHexData = currentHex
+    ? hexMap.find((hex) => hex.q === currentHex.q && hex.r === currentHex.r)
+    : hexMap.find((hex) => hex.id === ship.currentHexId);
+
+  const currentHexId = currentHexData?.id ?? ship.currentHexId;
+  const currentHexLabel = currentHexData
+    ? currentHexData.kind === "port"
+      ? getPortById(currentHexData.portId!).name
+      : `海域 ${getSeaLabel(currentHexData.id)}`
+    : currentHexId;
+
+  const routeHexIds =
+    voyage && voyage.phase === "sailing" && hexRoute
+      ? hexRoute.map((hex) => hexMap.find((item) => item.q === hex.q && item.r === hex.r)!.id)
+      : [];
+
   return (
     <section>
       <div className="ship">
@@ -37,6 +90,8 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           <span className="badge warn">{ship.status}</span>
           <span>積載 {contract ? contract.quantity : 0} / {ship.maxLoadUnits}LU</span>
         </div>
+        <div className="kv"><span>現在地</span><span>{currentHexLabel}</span></div>
+        <div className="kv"><span>HEX座標</span><span>{currentHexId}</span></div>
         <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
         {voyage && (
           <>
@@ -45,6 +100,15 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           </>
         )}
       </div>
+
+      <div className="card">
+        <h3>航路マップ</h3>
+        <HexMap
+          ships={[{ name: ship.name, hexId: currentHexId }]}
+          routeHexIds={routeHexIds}
+        />
+      </div>
+
       {contract && route && fromPort && toPort && (
         <div className="card">
           <h3>進行中契約</h3>
@@ -54,4 +118,9 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
       )}
     </section>
   );
+}
+
+function getSeaLabel(hexId: string) {
+  const match = hexId.match(/(\d+)$/);
+  return match ? `S${match[1].padStart(2, "0")}` : hexId;
 }
