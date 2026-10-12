@@ -52,7 +52,7 @@ export function MainPage() {
         {activeTab === "contracts" ? (
           <ContractBoard contracts={contracts} onSelectContract={selectContract} />
         ) : (
-          <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} currentGameTime={gameState.currentGameTime} />
+          <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
         )}
       </main>
 

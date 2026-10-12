@@ -10,8 +10,8 @@ import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
-import { getPortHexId, hexMap } from "../data/hexMap";
-import { findShortestRoute } from "../domain/hexMap";
+import { getPortHexId } from "../data/hexMap";
+import { getRouteHexIds } from "../domain/routePath";
 
 interface GameStore {
   gameState: GameState;
@@ -50,31 +50,6 @@ function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
   if (phase === "loading") return "loading";
   if (phase === "sailing") return "sailing";
   return "unloading";
-}
-
-function getRouteHexIds(fromPortId: string, toPortId: string): string[] | null {
-  const startHexId = getPortHexId(fromPortId);
-  const goalHexId = getPortHexId(toPortId);
-  const startHex = hexMap.find((hex) => hex.id === startHexId);
-  const goalHex = hexMap.find((hex) => hex.id === goalHexId);
-
-  if (!startHex || !goalHex) return null;
-
-  const route = findShortestRoute(
-    { q: startHex.q, r: startHex.r },
-    { q: goalHex.q, r: goalHex.r },
-    hexMap
-      .filter((hex) => hex.kind === "sea" || hex.id === startHexId || hex.id === goalHexId)
-      .map((hex) => ({ q: hex.q, r: hex.r }))
-  );
-
-  if (!route) return null;
-
-  return route.map((point) => {
-    const hex = hexMap.find((item) => item.q === point.q && item.r === point.r);
-    if (!hex) throw new Error(`Route hex not found at ${point.q},${point.r}`);
-    return hex.id;
-  });
 }
 
 function getShipCurrentHexId(

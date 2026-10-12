@@ -4,10 +4,7 @@ import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { formatDuration } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
-import {
-  findShortestRoute,
-  type AxialHex
-} from "../../domain/hexMap";
+import { getRouteHexIds } from "../../domain/routePath";
 import { getPortHexId, hexMap } from "../../data/hexMap";
 import { HexMap } from "./HexMap";
 
@@ -17,17 +14,6 @@ interface FleetPanelProps {
   contract: AcceptedContract | null;
   progress: number;
   operationTime: number;
-  currentGameTime: number;
-}
-
-function toAxialHex(hexId: string): AxialHex {
-  const hex = hexMap.find((item) => item.id === hexId);
-
-  if (!hex) {
-    throw new Error(`Unknown hex: ${hexId}`);
-  }
-
-  return { q: hex.q, r: hex.r };
 }
 
 function getSeaLabel(hexId: string) {
@@ -39,7 +25,7 @@ function formatOperationTime(operationTime: number) {
   return `${(operationTime / 1000).toFixed(1)}秒`;
 }
 
-export function FleetPanel({ ship, voyage, contract, progress, operationTime, currentGameTime }: FleetPanelProps) {
+export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
@@ -54,19 +40,6 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
         minute: "2-digit",
       })
     : "";
-
-  const startHexId = route ? getPortHexId(route.fromPortId) : null;
-  const goalHexId = route ? getPortHexId(route.toPortId) : null;
-
-  const hexRoute = route && startHexId && goalHexId
-    ? findShortestRoute(
-        toAxialHex(startHexId),
-        toAxialHex(goalHexId),
-        hexMap
-          .filter((hex) => hex.kind === "sea" || hex.id === startHexId || hex.id === goalHexId)
-          .map((hex) => toAxialHex(hex.id))
-      )
-    : null;
 
   const voyageProgress = voyage && contract
     ? calculateVoyageProgress(voyage, contract, operationTime)
@@ -87,9 +60,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
       : `海域 ${getSeaLabel(currentHexData.id)}`
     : currentHexId;
 
-  const routeHexIds = hexRoute
-    ? hexRoute.map((hex) => hexMap.find((item) => item.q === hex.q && item.r === hex.r)!.id)
-    : [];
+  const routeHexIds = route ? getRouteHexIds(route.fromPortId, route.toPortId) ?? [] : [];
 
   return (
     <section>
