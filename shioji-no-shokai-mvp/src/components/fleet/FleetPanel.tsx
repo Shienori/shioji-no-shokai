@@ -76,16 +76,8 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
         ? 1
         : 0;
 
-  const currentAxialHex =
-    voyage && hexRoute
-      ? getCurrentHexFromRoute(hexRoute, sailingProgress)
-      : null;
-
-  const currentHexData = currentAxialHex
-    ? hexMap.find((hex) => hex.q === currentAxialHex.q && hex.r === currentAxialHex.r)
-    : hexMap.find((hex) => hex.id === ship.currentHexId);
-
-  const currentHexId = currentHexData?.id ?? ship.currentHexId;
+  const currentHexId = ship.currentHexId;
+  const currentHexData = hexMap.find((hex) => hex.id === currentHexId);
   const currentHexLabel = currentHexData
     ? currentHexData.kind === "port"
       ? getPortById(currentHexData.portId!).name
