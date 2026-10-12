@@ -11,6 +11,7 @@ interface HexMapProps {
   ships: ShipMarker[];
   routeHexIds?: string[];
   currentHexId?: string;
+  markerProgress?: number;
 }
 
 const HEX_SIZE = 26;
@@ -41,7 +42,36 @@ function getSeaLabel(hexId: string) {
   return match ? `S${match[1].padStart(2, "0")}` : hexId;
 }
 
-export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
+function getInterpolatedMarkerPosition(
+  routeHexIds: string[],
+  currentHexId: string,
+  markerProgress: number
+) {
+  if (routeHexIds.length < 2) return null;
+
+  const currentIndex = routeHexIds.indexOf(currentHexId);
+  if (currentIndex < 0) return null;
+
+  const routeProgress = markerProgress * (routeHexIds.length - 1);
+  const fromIndex = Math.min(currentIndex, Math.floor(routeProgress));
+  const toIndex = Math.min(routeHexIds.length - 1, fromIndex + 1);
+  const ratio = Math.min(1, Math.max(0, routeProgress - fromIndex));
+
+  const fromHex = hexMap.find((hex) => hex.id === routeHexIds[fromIndex]);
+  const toHex = hexMap.find((hex) => hex.id === routeHexIds[toIndex]);
+
+  if (!fromHex || !toHex) return null;
+
+  const from = getHexCenter(fromHex);
+  const to = getHexCenter(toHex);
+
+  return {
+    x: from.x + (to.x - from.x) * ratio,
+    y: from.y + (to.y - from.y) * ratio
+  };
+}
+
+export function HexMap({ ships, routeHexIds = [], currentHexId, markerProgress }: HexMapProps) {
   const padding = HEX_SIZE + 18;
   const centers = hexMap.map((hex) => ({ hex, center: getHexCenter(hex) }));
   const minX = Math.min(...centers.map(({ center }) => center.x)) - padding;
@@ -55,6 +85,11 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
     .map((hexId) => hexMap.find((hex) => hex.id === hexId))
     .filter((hex): hex is MapHex => Boolean(hex))
     .map(getHexCenter);
+
+  const activeShip = currentHexId ? shipByHexId.get(currentHexId) : undefined;
+  const interpolatedPosition = activeShip && markerProgress !== undefined
+    ? getInterpolatedMarkerPosition(routeHexIds, currentHexId, markerProgress)
+    : null;
 
   return (
     <div className="hex-map">
@@ -79,6 +114,7 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
           const isPort = hex.kind === "port";
           const isCurrent = hex.id === currentHexId;
           const ship = shipByHexId.get(hex.id);
+          const showHexMarker = Boolean(ship) && !interpolatedPosition;
           const fill = isCurrent ? "#fb923c" : isPort ? "#8fd3ff" : "#dff1ff";
           const stroke = isCurrent ? "#c2410c" : isPort ? "#1f7fb8" : "#9db8c7";
 
@@ -92,7 +128,7 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
               />
               <text
                 x={center.x}
-                y={center.y - (ship ? 7 : 2)}
+                y={center.y - (showHexMarker ? 7 : 2)}
                 textAnchor="middle"
                 fontSize={isPort ? 10 : 8}
                 fontWeight={isPort ? 700 : 400}
@@ -100,7 +136,7 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
               >
                 {isPort ? getPortById(hex.portId!).name : getSeaLabel(hex.id)}
               </text>
-              {ship && (
+              {showHexMarker && ship && (
                 <text
                   x={center.x}
                   y={center.y + 11}
@@ -115,6 +151,19 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
             </g>
           );
         })}
+
+        {interpolatedPosition && activeShip && (
+          <text
+            x={interpolatedPosition.x}
+            y={interpolatedPosition.y + 11}
+            textAnchor="middle"
+            fontSize={11}
+            fontWeight={700}
+            fill="#b3402a"
+          >
+            ⛵{activeShip.name}
+          </text>
+        )}
       </svg>
     </div>
   );

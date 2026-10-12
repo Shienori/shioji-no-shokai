@@ -117,6 +117,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           ships={[{ name: ship.name, hexId: currentHexId }]}
           routeHexIds={routeHexIds}
           currentHexId={currentHexId}
+          markerProgress={sailingProgress}
         />
       </div>
 
