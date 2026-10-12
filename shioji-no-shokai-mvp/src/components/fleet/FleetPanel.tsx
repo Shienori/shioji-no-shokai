@@ -3,6 +3,7 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { formatDuration } from "../../domain/time";
+import { calculateVoyageProgress } from "../../domain/voyage";
 import {
   findShortestRoute,
   getCurrentHexFromRoute,
@@ -64,10 +65,16 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
       )
     : null;
 
+  const voyageProgress = voyage && contract
+    ? calculateVoyageProgress(voyage, contract, operationTime)
+    : 0;
+
   const sailingProgress =
-    voyage && hexRoute && voyage.estimatedArrivalAt > voyage.departedAt
-      ? Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / (voyage.estimatedArrivalAt - voyage.departedAt)))
-      : 0;
+    voyage?.phase === "sailing"
+      ? voyageProgress
+      : voyage && (voyage.phase === "unloading" || voyage.phase === "completed")
+        ? 1
+        : 0;
 
   const currentAxialHex =
     voyage && hexRoute
@@ -99,6 +106,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
         </div>
         <div className="kv"><span>現在地</span><span>{currentHexLabel}</span></div>
         <div className="kv"><span>HEX座標</span><span>{currentHexId}</span></div>
+        <div className="kv"><span>航海進捗</span><span>{Math.round(sailingProgress * 100)}%</span></div>
         <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
         {voyage && (
           <>

@@ -88,20 +88,37 @@ function getShipCurrentHexId(
   return hexMap.find((hex) => hex.q === currentHex.q && hex.r === currentHex.r)?.id ?? null;
 }
 
+function syncActiveShipPosition(state: GameState): GameState {
+  if (!state.activeVoyage || !state.acceptedContract) return state;
+
+  const voyage = state.activeVoyage;
+  const currentHexId = getShipCurrentHexId(state.acceptedContract, voyage, state.operationTime);
+
+  if (!currentHexId) return state;
+
+  let changed = false;
+  const ships = state.ships.map((ship): Ship => {
+    if (ship.activeContractId !== voyage.contractId || ship.currentHexId === currentHexId) {
+      return ship;
+    }
+
+    changed = true;
+    return { ...ship, currentHexId };
+  });
+
+  return changed ? { ...state, ships } : state;
+}
+
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
 
   const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.operationTime, currentRealTime);
+
   if (voyage === state.activeVoyage) return state;
 
-  const currentHexId = getShipCurrentHexId(state.acceptedContract, voyage, state.operationTime);
   const ships = state.ships.map((ship): Ship =>
     ship.activeContractId === voyage.contractId
-      ? {
-          ...ship,
-          status: getShipStatusForVoyage(voyage.phase),
-          currentHexId: currentHexId ?? ship.currentHexId
-        }
+      ? { ...ship, status: getShipStatusForVoyage(voyage.phase) }
       : ship
   );
 
@@ -135,6 +152,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     next = progressVoyageIfActive(next, currentRealTime);
+    next = syncActiveShipPosition(next);
     next.lastRealTimeSyncedAt = currentRealTime;
 
     saveGame(next);

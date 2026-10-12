@@ -82,14 +82,14 @@ export function HexMap({ ships, routeHexIds = [], currentHexId }: HexMapProps) {
           const isCurrent = hex.id === currentHexId;
           const ship = shipByHexId.get(hex.id);
           const fill = isCurrent
-            ? "#ffd166"
+            ? "#fb923c"
             : isPort
               ? "#8fd3ff"
               : isRoute
                 ? "#fff3cd"
                 : "#dff1ff";
           const stroke = isCurrent
-            ? "#d97706"
+            ? "#c2410c"
             : isPort
               ? "#1f7fb8"
               : isRoute
