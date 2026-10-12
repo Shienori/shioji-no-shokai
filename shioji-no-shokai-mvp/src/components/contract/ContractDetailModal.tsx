@@ -23,7 +23,12 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
   const netProfit = contract.offeredReward - expense;
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = new Date(Date.now() + realDeadlineMs);
-  const deadlineLabel = deadlineTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const deadlineLabel = deadlineTime.toLocaleString([], {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="modal-backdrop open">
