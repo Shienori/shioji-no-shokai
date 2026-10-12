@@ -6,7 +6,6 @@ import { formatDuration } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import {
   findShortestRoute,
-  getCurrentHexFromRoute,
   type AxialHex
 } from "../../domain/hexMap";
 import { getPortHexId, hexMap } from "../../data/hexMap";
@@ -34,6 +33,10 @@ function toAxialHex(hexId: string): AxialHex {
 function getSeaLabel(hexId: string) {
   const match = hexId.match(/(\d+)$/);
   return match ? `S${match[1].padStart(2, "0")}` : hexId;
+}
+
+function formatOperationTime(operationTime: number) {
+  return `${(operationTime / 1000).toFixed(1)}秒`;
 }
 
 export function FleetPanel({ ship, voyage, contract, progress, operationTime, currentGameTime }: FleetPanelProps) {
@@ -124,6 +127,16 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           <p className="route">{fromPort.name} → {toPort.name}</p>
         </div>
       )}
+
+      <details className="card">
+        <summary>デバッグ: 航海位置</summary>
+        <div className="kv"><span>フェーズ</span><span>{voyage?.phase ?? "待機"}</span></div>
+        <div className="kv"><span>操作時間</span><span>{formatOperationTime(operationTime)}</span></div>
+        <div className="kv"><span>出発時刻</span><span>{voyage ? formatOperationTime(voyage.departedAt) : "-"}</span></div>
+        <div className="kv"><span>到着予定</span><span>{voyage ? formatOperationTime(voyage.estimatedArrivalAt) : "-"}</span></div>
+        <div className="kv"><span>保存中HEX</span><span>{ship.currentHexId}</span></div>
+        <div className="kv"><span>経路HEX</span><span>{routeHexIds.join(" → ") || "-"}</span></div>
+      </details>
     </section>
   );
 }
