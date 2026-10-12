@@ -90,18 +90,22 @@ function getShipCurrentHexId(
   if (voyage.phase === "unloading" || voyage.phase === "completed") return goalHexId;
 
   const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId);
-  if (!routeHexIds || routeHexIds.length === 0) return startHexId;
+  if (!routeHexIds || routeHexIds.length < 2) return startHexId;
 
   const sailingDuration = voyage.estimatedArrivalAt - voyage.departedAt;
   const progress = sailingDuration <= 0
     ? 1
     : Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / sailingDuration));
-  const routeIndex = Math.min(
-    routeHexIds.length - 1,
-    Math.floor(progress * (routeHexIds.length - 1))
-  );
 
-  return routeHexIds[routeIndex];
+  const intermediateHexCount = routeHexIds.length - 2;
+  const intermediateIndex = intermediateHexCount <= 0
+    ? 0
+    : Math.min(
+        intermediateHexCount - 1,
+        Math.floor(progress * intermediateHexCount)
+      );
+
+  return routeHexIds[1 + intermediateIndex];
 }
 
 function syncActiveShipPosition(state: GameState): GameState {
