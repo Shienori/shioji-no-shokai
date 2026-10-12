@@ -11,7 +11,6 @@ export const hexMap: MapHex[] = [
   { id: "hex_sea_003", q: 1, r: -1, kind: "sea", regionId: "western_open_sea" },
   { id: "hex_sea_004", q: -2, r: 1, kind: "sea", regionId: "western_open_sea" },
   { id: "hex_sea_005", q: -1, r: 0, kind: "sea", regionId: "kingdom_coast" },
-  { id: "hex_sea_006", q: 0, r: 0, kind: "sea", regionId: "kingdom_coast" },
   { id: "hex_sea_007", q: 1, r: 0, kind: "sea", regionId: "western_open_sea" },
   { id: "hex_sea_008", q: -2, r: 2, kind: "sea", regionId: "western_open_sea" },
   { id: "hex_sea_009", q: -1, r: 1, kind: "sea", regionId: "central_sea" },
