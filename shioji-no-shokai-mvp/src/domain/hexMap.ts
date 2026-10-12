@@ -79,33 +79,3 @@ export function findShortestRoute(
 
   return null;
 }
-
-export function getSeaHexCount(route: AxialHex[]): number {
-  return Math.max(0, route.length - 1);
-}
-
-export function getRouteDistanceNm(route: AxialHex[]): number {
-  return getSeaHexCount(route) * HEX_DISTANCE_NM;
-}
-
-export function getEffectiveSpeedKnots(
-  baseSpeedKnots: number,
-  condition: SeaCondition
-): number {
-  return baseSpeedKnots * seaConditionSpeedMultiplier[condition];
-}
-
-export function getVoyageHours(
-  route: AxialHex[],
-  baseSpeedKnots: number,
-  condition: SeaCondition
-): number {
-  const distanceNm = getRouteDistanceNm(route);
-  const effectiveSpeed = getEffectiveSpeedKnots(baseSpeedKnots, condition);
-
-  if (effectiveSpeed <= 0) {
-    throw new Error("Effective ship speed must be greater than zero");
-  }
-
-  return distanceNm / effectiveSpeed;
-}

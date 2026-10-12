@@ -39,7 +39,6 @@ export function MainPage() {
     : null;
 
   const resetGame = () => {
-    if (!window.confirm("デバッグ用にゲームを初期化しますか？\n現在のセーブデータは削除されます。")) return;
     localStorage.removeItem(SAVE_KEY);
     location.reload();
   };
@@ -53,7 +52,7 @@ export function MainPage() {
         {activeTab === "contracts" ? (
           <ContractBoard contracts={contracts} onSelectContract={selectContract} />
         ) : (
-          <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} currentGameTime={gameState.currentGameTime} />
+          <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
         )}
       </main>
 

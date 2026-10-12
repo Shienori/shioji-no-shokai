@@ -3,6 +3,10 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { formatDuration } from "../../domain/time";
+import { calculateVoyageProgress } from "../../domain/voyage";
+import { getRouteHexIds } from "../../domain/routePath";
+import { getPortHexId, hexMap } from "../../data/hexMap";
+import { HexMap } from "./HexMap";
 
 interface FleetPanelProps {
   ship: Ship;
@@ -10,10 +14,18 @@ interface FleetPanelProps {
   contract: AcceptedContract | null;
   progress: number;
   operationTime: number;
-  currentGameTime: number;
 }
 
-export function FleetPanel({ ship, voyage, contract, progress, operationTime, currentGameTime }: FleetPanelProps) {
+function getSeaLabel(hexId: string) {
+  const match = hexId.match(/(\d+)$/);
+  return match ? `S${match[1].padStart(2, "0")}` : hexId;
+}
+
+function formatOperationTime(operationTime: number) {
+  return `${(operationTime / 1000).toFixed(1)}秒`;
+}
+
+export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
@@ -29,6 +41,27 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
       })
     : "";
 
+  const voyageProgress = voyage && contract
+    ? calculateVoyageProgress(voyage, contract, operationTime)
+    : 0;
+
+  const sailingProgress =
+    voyage?.phase === "sailing"
+      ? voyageProgress
+      : voyage && (voyage.phase === "unloading" || voyage.phase === "completed")
+        ? 1
+        : 0;
+
+  const currentHexId = ship.currentHexId;
+  const currentHexData = hexMap.find((hex) => hex.id === currentHexId);
+  const currentHexLabel = currentHexData
+    ? currentHexData.kind === "port"
+      ? getPortById(currentHexData.portId!).name
+      : `海域 ${getSeaLabel(currentHexData.id)}`
+    : currentHexId;
+
+  const routeHexIds = route ? getRouteHexIds(route.fromPortId, route.toPortId) ?? [] : [];
+
   return (
     <section>
       <div className="ship">
@@ -37,6 +70,9 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           <span className="badge warn">{ship.status}</span>
           <span>積載 {contract ? contract.quantity : 0} / {ship.maxLoadUnits}LU</span>
         </div>
+        <div className="kv"><span>現在地</span><span>{currentHexLabel}</span></div>
+        <div className="kv"><span>HEX座標</span><span>{currentHexId}</span></div>
+        <div className="kv"><span>航海進捗</span><span>{Math.round(sailingProgress * 100)}%</span></div>
         <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
         {voyage && (
           <>
@@ -45,6 +81,16 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           </>
         )}
       </div>
+
+      <div className="card">
+        <h3>航路マップ</h3>
+        <HexMap
+          ships={[{ name: ship.name, hexId: currentHexId }]}
+          routeHexIds={routeHexIds}
+          currentHexId={currentHexId}
+        />
+      </div>
+
       {contract && route && fromPort && toPort && (
         <div className="card">
           <h3>進行中契約</h3>
@@ -52,6 +98,16 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime, cu
           <p className="route">{fromPort.name} → {toPort.name}</p>
         </div>
       )}
+
+      <details className="card">
+        <summary>デバッグ: 航海位置</summary>
+        <div className="kv"><span>フェーズ</span><span>{voyage?.phase ?? "待機"}</span></div>
+        <div className="kv"><span>操作時間</span><span>{formatOperationTime(operationTime)}</span></div>
+        <div className="kv"><span>出発時刻</span><span>{voyage ? formatOperationTime(voyage.departedAt) : "-"}</span></div>
+        <div className="kv"><span>到着予定</span><span>{voyage ? formatOperationTime(voyage.estimatedArrivalAt) : "-"}</span></div>
+        <div className="kv"><span>保存中HEX</span><span>{ship.currentHexId}</span></div>
+        <div className="kv"><span>経路HEX</span><span>{routeHexIds.join(" → ") || "-"}</span></div>
+      </details>
     </section>
   );
 }

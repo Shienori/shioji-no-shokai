@@ -7,6 +7,7 @@ export const initialShip: Ship = {
   maxLoadUnits: 30,
   baseSpeedKnots: 6,
   currentPortId: "port_selene",
+  currentHexId: "hex_port_selene",
   status: "docked",
   activeContractId: null
 };

@@ -10,6 +10,8 @@ import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
+import { getPortHexId } from "../data/hexMap";
+import { getRouteHexIds } from "../domain/routePath";
 
 interface GameStore {
   gameState: GameState;
@@ -50,11 +52,70 @@ function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
   return "unloading";
 }
 
+function getShipCurrentHexId(
+  contract: AcceptedContract,
+  voyage: { phase: VoyagePhase; departedAt: number; estimatedArrivalAt: number },
+  operationTime: number
+): string | null {
+  const route = getRouteById(contract.routeId);
+  const startHexId = getPortHexId(route.fromPortId);
+  const goalHexId = getPortHexId(route.toPortId);
+
+  if (voyage.phase === "loading") return startHexId;
+  if (voyage.phase === "unloading" || voyage.phase === "completed") return goalHexId;
+
+  const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId);
+  if (!routeHexIds || routeHexIds.length < 2) return startHexId;
+
+  const sailingDuration = voyage.estimatedArrivalAt - voyage.departedAt;
+  const progress = sailingDuration <= 0
+    ? 1
+    : Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / sailingDuration));
+
+  const intermediateHexCount = routeHexIds.length - 2;
+  const intermediateIndex = intermediateHexCount <= 0
+    ? 0
+    : Math.min(
+        intermediateHexCount - 1,
+        Math.floor(progress * intermediateHexCount)
+      );
+
+  return routeHexIds[1 + intermediateIndex];
+}
+
+function syncActiveShipPosition(state: GameState): GameState {
+  if (!state.activeVoyage || !state.acceptedContract) return state;
+
+  const currentHexId = getShipCurrentHexId(
+    state.acceptedContract,
+    state.activeVoyage,
+    state.operationTime
+  );
+
+  if (!currentHexId) return state;
+
+  let changed = false;
+  const ships = state.ships.map((ship): Ship => {
+    if (ship.activeContractId !== state.activeVoyage!.contractId || ship.currentHexId === currentHexId) {
+      return ship;
+    }
+
+    changed = true;
+    return { ...ship, currentHexId };
+  });
+
+  return changed ? { ...state, ships } : state;
+}
+
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
 
-  const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.operationTime, currentRealTime);
-  if (voyage === state.activeVoyage) return state;
+  const voyage = progressVoyage(
+    state.activeVoyage,
+    state.acceptedContract,
+    state.operationTime,
+    currentRealTime
+  );
 
   const ships = state.ships.map((ship): Ship =>
     ship.activeContractId === voyage.contractId
@@ -92,6 +153,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     next = progressVoyageIfActive(next, currentRealTime);
+    next = syncActiveShipPosition(next);
     next.lastRealTimeSyncedAt = currentRealTime;
 
     saveGame(next);
@@ -138,7 +200,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     const voyage = createVoyage(acceptedContract, ship, current.operationTime);
-    const updatedShip = { ...ship, status: "loading" as const, activeContractId: acceptedContract.id };
+    const updatedShip = {
+      ...ship,
+      status: "loading" as const,
+      currentHexId: getPortHexId(route.fromPortId),
+      activeContractId: acceptedContract.id
+    };
 
     const next: GameState = {
       ...current,
@@ -164,7 +231,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const result = settleContract(contract, voyage);
     const ship = current.ships[0];
     const route = getRouteById(contract.routeId);
-    const updatedShip = { ...ship, status: "docked" as const, currentPortId: route.toPortId, activeContractId: null };
+    const updatedShip = {
+      ...ship,
+      status: "docked" as const,
+      currentPortId: route.toPortId,
+      currentHexId: getPortHexId(route.toPortId),
+      activeContractId: null
+    };
 
     const updatedReputations = current.reputations.map((reputation) =>
       reputation.shipperId === contract.shipperId
