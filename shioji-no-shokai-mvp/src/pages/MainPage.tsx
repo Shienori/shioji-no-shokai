@@ -3,7 +3,7 @@ import { useGameStore } from "../state/gameStore";
 import { AppHeader } from "../components/layout/AppHeader";
 import { TabBar } from "../components/layout/TabBar";
 import { ContractBoard } from "../components/contract/ContractBoard";
-import { ContractDetailModal } from "../components/contract/ContractDetailModal";
+import { ContractDetailScreen } from "../components/contract/ContractDetailScreen";
 import { FleetPanel } from "../components/fleet/FleetPanel";
 import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById } from "../data/contracts";
@@ -43,6 +43,19 @@ export function MainPage() {
     location.reload();
   };
 
+  if (selectedContract) {
+    return (
+      <div className="phone">
+        <ContractDetailScreen
+          contract={selectedContract}
+          canAccept={canAccept}
+          onAccept={() => acceptContract(selectedContract.id)}
+          onClose={() => selectContract(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="phone">
       <AppHeader />
@@ -55,8 +68,6 @@ export function MainPage() {
           <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
         )}
       </main>
-
-      <ContractDetailModal contract={selectedContract} canAccept={canAccept} onAccept={() => selectedContract && acceptContract(selectedContract.id)} onClose={() => selectContract(null)} />
 
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
 
