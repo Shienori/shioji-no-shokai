@@ -6,7 +6,7 @@ import { getCargoById } from "../../data/cargos";
 import { formatDateTime, formatDuration } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
-import { getPortHexId, hexMap } from "../../data/hexMap";
+import { hexMap } from "../../data/hexMap";
 import { HexMap } from "./HexMap";
 import { ShipDetailModal } from "./ShipDetailModal";
 
@@ -29,6 +29,7 @@ function formatOperationTime(operationTime: number) {
 
 export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
   const [showShipDetail, setShowShipDetail] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
@@ -60,7 +61,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
 
   return (
     <section>
-      <div className="ship">
+      <div className="ship fleet-compact">
         <div className="ship-status">
           <span className="badge warn ship-status-badge">{ship.status}</span>
           <span className="ship-load">積載 {contract ? contract.quantity : 0} / {ship.maxLoadUnits}LU</span>
@@ -76,42 +77,36 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
           </div>
           <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
         </div>
-        <div className="kv"><span>現在地</span><span>{currentHexLabel}</span></div>
-        <div className="kv"><span>HEX座標</span><span>{currentHexId}</span></div>
-        {voyage && (
-          <>
-            {voyage.phase === "sailing" && (
-              <div className="kv"><span>到着までの所要時間</span><span>{formatDuration(remainingMs)}</span></div>
-            )}
-            {voyage.phase === "sailing" && (
-              <div className="kv"><span>予定到着時間</span><span>{estimatedArrivalLabel}</span></div>
-            )}
-            <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
-            {voyage.phase !== "sailing" && voyage.phase !== "loading" && (
-              <div className="kv"><span>到着判定</span><span>{voyage.isOnTime ? "期限内到着" : `${voyage.arrivalLateHours}時間遅延`}</span></div>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="card">
-        <h3>航路マップ</h3>
-        <HexMap
-          ships={[{ name: ship.name, hexId: currentHexId }]}
-          routeHexIds={routeHexIds}
-          currentHexId={currentHexId}
-        />
+        <div className="fleet-summary">
+          <div><span>現在地</span><strong>{currentHexLabel}</strong></div>
+          <div><span>到着期限</span><strong>{deadlineLabel || "-"}</strong></div>
+        </div>
       </div>
 
       {contract && route && fromPort && toPort && (
-        <div className="card">
+        <div className="card active-contract">
           <h3>進行中契約</h3>
-          <p>{getCargoById(contract.cargoId).name} ×{contract.quantity}</p>
+          <p className="active-contract-cargo">{getCargoById(contract.cargoId).name} ×{contract.quantity}</p>
           <p className="route">{fromPort.name} → {toPort.name}</p>
+          <div className="fleet-summary">
+            <div><span>到着まで</span><strong>{voyage?.phase === "sailing" ? formatDuration(remainingMs) : "-"}</strong></div>
+            <div><span>予定到着</span><strong>{voyage?.phase === "sailing" ? estimatedArrivalLabel : "-"}</strong></div>
+          </div>
         </div>
       )}
 
-      <details className="card">
+      <details className="card map-card" open={showMap} onToggle={(event) => setShowMap((event.target as HTMLDetailsElement).open)}>
+        <summary>航路マップ</summary>
+        {showMap && (
+          <HexMap
+            ships={[{ name: ship.name, hexId: currentHexId }]}
+            routeHexIds={routeHexIds}
+            currentHexId={currentHexId}
+          />
+        )}
+      </details>
+
+      <details className="card debug-card">
         <summary>デバッグ: 航海位置</summary>
         <div className="kv"><span>フェーズ</span><span>{voyage?.phase ?? "待機"}</span></div>
         <div className="kv"><span>操作時間</span><span>{formatOperationTime(operationTime)}</span></div>
