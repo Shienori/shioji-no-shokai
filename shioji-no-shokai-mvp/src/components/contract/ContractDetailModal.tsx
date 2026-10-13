@@ -23,7 +23,14 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
   const netProfit = contract.offeredReward - expense;
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = new Date(Date.now() + realDeadlineMs);
+  const estimatedDeliveryTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
   const deadlineLabel = deadlineTime.toLocaleString([], {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const estimatedDeliveryLabel = estimatedDeliveryTime.toLocaleString([], {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -38,7 +45,9 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
         <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
         <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
         <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
-        <div className="kv"><span>納期</span><span>{deadlineLabel}</span></div>
+        <div className="kv"><span>所要時間</span><span>{route.baseVoyageHours / GAME_TIME_MULTIPLIER}時間</span></div>
+        <div className="kv"><span>予定納品時間</span><span>{estimatedDeliveryLabel}</span></div>
+        <div className="kv"><span>納品期限</span><span>{deadlineLabel}</span></div>
         <div className="reward-row">
           <div className="reward-item"><div className="label">提示報酬</div><div className="value">{contract.offeredReward}G</div></div>
           <div className="reward-item net"><div className="label">見込純利益</div><div className="value">{netProfit}G</div></div>

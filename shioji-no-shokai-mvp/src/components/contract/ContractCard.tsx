@@ -18,7 +18,14 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const requiredLoadUnits = cargo.loadUnitsPerUnit * contract.quantity;
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = new Date(Date.now() + realDeadlineMs);
+  const estimatedDeliveryTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
   const deadlineLabel = deadlineTime.toLocaleString([], {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const estimatedDeliveryLabel = estimatedDeliveryTime.toLocaleString([], {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -46,7 +53,8 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
           <span className="contract-fact-value">{requiredLoadUnits}LU</span>
         </div>
       </div>
-      <p className="contract-deadline">納期：{deadlineLabel}</p>
+      <p className="contract-deadline">納品期限：{deadlineLabel}</p>
+      <p className="contract-estimated-delivery">予定納品時間：{estimatedDeliveryLabel}</p>
       <div className="contract-reward">
         <div className="contract-reward-item">
           <span className="contract-fact-label">提示報酬</span>
