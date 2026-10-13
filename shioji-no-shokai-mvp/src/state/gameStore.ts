@@ -180,10 +180,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (ship.maxLoadUnits < requiredLoadUnits) return;
 
     const loadingDurationMs = cargo.loadingTimeMsPerUnit * template.quantity;
-    const unloadingDurationMs = cargo.unloadingTimeMsPerUnit * template.quantity;
     const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
-    const totalOperationDurationMs = loadingDurationMs + voyageDurationMs + unloadingDurationMs;
-    const contractTimeLimitMs = Math.round((totalOperationDurationMs / 6) * 1.5);
+    const arrivalOperationDurationMs = loadingDurationMs + voyageDurationMs;
+    const contractTimeLimitMs = Math.round((arrivalOperationDurationMs / 6) * 1.5);
 
     const reward = createRewardBreakdown(cargo.unitPrice * template.quantity, route.distance <= 30 ? 20 : route.distance <= 60 ? 35 : 60);
 

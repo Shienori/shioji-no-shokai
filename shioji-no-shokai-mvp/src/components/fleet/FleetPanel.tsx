@@ -41,9 +41,9 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
   const deadlineTime = contract ? new Date(contract.deadlineAt) : null;
-  const estimatedDeliveryTime = new Date(Date.now() + remainingMs);
+  const estimatedArrivalTime = new Date(Date.now() + remainingMs);
   const deadlineLabel = deadlineTime ? formatClock(deadlineTime.getTime()) : "";
-  const estimatedDeliveryLabel = voyage ? formatClock(estimatedDeliveryTime.getTime()) : "";
+  const estimatedArrivalLabel = voyage ? formatClock(estimatedArrivalTime.getTime()) : "";
 
   const voyageProgress = voyage && contract
     ? calculateVoyageProgress(voyage, contract, operationTime)
@@ -85,9 +85,16 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         <div className="kv"><span>HEX座標</span><span>{currentHexId}</span></div>
         {voyage && (
           <>
-            <div className="kv"><span>所要時間</span><span>{formatDuration(remainingMs)}</span></div>
-            <div className="kv"><span>予定納品時間</span><span>{estimatedDeliveryLabel}</span></div>
-            <div className="kv"><span>納品期限</span><span>{deadlineLabel}</span></div>
+            {voyage.phase === "sailing" && (
+              <div className="kv"><span>到着までの所要時間</span><span>{formatDuration(remainingMs)}</span></div>
+            )}
+            {voyage.phase === "sailing" && (
+              <div className="kv"><span>予定到着時間</span><span>{estimatedArrivalLabel}</span></div>
+            )}
+            <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
+            {voyage.phase !== "sailing" && voyage.phase !== "loading" && (
+              <div className="kv"><span>到着判定</span><span>{voyage.isOnTime ? "期限内到着" : `${voyage.arrivalLateHours}時間遅延`}</span></div>
+            )}
           </>
         )}
       </div>
@@ -115,6 +122,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         <div className="kv"><span>操作時間</span><span>{formatOperationTime(operationTime)}</span></div>
         <div className="kv"><span>出発時刻</span><span>{voyage ? formatOperationTime(voyage.departedAt) : "-"}</span></div>
         <div className="kv"><span>到着予定</span><span>{voyage ? formatOperationTime(voyage.estimatedArrivalAt) : "-"}</span></div>
+        <div className="kv"><span>到着期限</span><span>{voyage ? formatOperationTime(voyage.arrivalDeadlineAt) : "-"}</span></div>
         <div className="kv"><span>保存中HEX</span><span>{ship.currentHexId}</span></div>
         <div className="kv"><span>経路HEX</span><span>{routeHexIds.join(" → ") || "-"}</span></div>
       </details>
