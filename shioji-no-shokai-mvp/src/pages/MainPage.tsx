@@ -43,13 +43,19 @@ export function MainPage() {
     location.reload();
   };
 
+  const handleAccept = (contractId: string) => {
+    acceptContract(contractId);
+    selectContract(null);
+    setActiveTab("fleet");
+  };
+
   if (selectedContract) {
     return (
       <div className="phone">
         <ContractDetailScreen
           contract={selectedContract}
           canAccept={canAccept}
-          onAccept={() => acceptContract(selectedContract.id)}
+          onAccept={() => handleAccept(selectedContract.id)}
           onClose={() => selectContract(null)}
         />
       </div>
