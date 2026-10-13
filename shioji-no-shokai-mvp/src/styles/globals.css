@@ -40,6 +40,8 @@ main>section{width:100%;min-width:0}
 .progress>div{height:100%;background:var(--blue)}
 .ship{width:100%;background:linear-gradient(135deg,#1c3242,#152633);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px}
 .ship h3{margin:8px 0 10px;font-size:17px}
+.ship-heading{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ship-detail-button{flex-shrink:0;padding:7px 12px;border:1px solid var(--blue);border-radius:999px;background:rgba(111,179,224,.12);color:var(--blue);font-size:12px;font-weight:700;cursor:pointer}
 .ship-status{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ship-status-badge{padding:5px 11px;font-size:13px;font-weight:700}
 .ship-load{font-size:13px;color:var(--sub)}

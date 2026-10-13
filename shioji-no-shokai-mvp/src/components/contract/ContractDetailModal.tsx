@@ -3,6 +3,7 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { calculateExpense } from "../../domain/reward";
+import { formatDateTime, formatDuration } from "../../domain/time";
 import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractDetailModalProps {
@@ -24,18 +25,9 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = new Date(Date.now() + realDeadlineMs);
   const estimatedArrivalTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = deadlineTime.toLocaleString([], {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const estimatedArrivalLabel = estimatedArrivalTime.toLocaleString([], {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const deadlineLabel = formatDateTime(deadlineTime.getTime());
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
+  const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
 
   return (
     <div className="modal-backdrop open">
@@ -45,7 +37,7 @@ export function ContractDetailModal({ contract, canAccept, onAccept, onClose }: 
         <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
         <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
         <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
-        <div className="kv"><span>航海所要時間</span><span>{route.baseVoyageHours / GAME_TIME_MULTIPLIER}時間</span></div>
+        <div className="kv"><span>航海所要時間</span><span>{voyageDurationLabel}</span></div>
         <div className="kv"><span>予定到着時間</span><span>{estimatedArrivalLabel}</span></div>
         <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
         <div className="reward-row">

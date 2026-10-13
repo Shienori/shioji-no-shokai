@@ -1,12 +1,14 @@
+import { useState } from "react";
 import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { formatDuration } from "../../domain/time";
+import { formatDateTime, formatDuration } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
 import { getPortHexId, hexMap } from "../../data/hexMap";
 import { HexMap } from "./HexMap";
+import { ShipDetailModal } from "./ShipDetailModal";
 
 interface FleetPanelProps {
   ship: Ship;
@@ -25,25 +27,15 @@ function formatOperationTime(operationTime: number) {
   return `${(operationTime / 1000).toFixed(1)}秒`;
 }
 
-function formatClock(realTimeMs: number) {
-  return new Date(realTimeMs).toLocaleString([], {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
+  const [showShipDetail, setShowShipDetail] = useState(false);
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
-  const deadlineTime = contract ? new Date(contract.deadlineAt) : null;
-  const estimatedArrivalTime = new Date(Date.now() + remainingMs);
-  const deadlineLabel = deadlineTime ? formatClock(deadlineTime.getTime()) : "";
-  const estimatedArrivalLabel = voyage ? formatClock(estimatedArrivalTime.getTime()) : "";
+  const deadlineLabel = contract ? formatDateTime(contract.deadlineAt) : "";
+  const estimatedArrivalLabel = voyage ? formatDateTime(Date.now() + remainingMs) : "";
 
   const voyageProgress = voyage && contract
     ? calculateVoyageProgress(voyage, contract, operationTime)
@@ -73,7 +65,10 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
           <span className="badge warn ship-status-badge">{ship.status}</span>
           <span className="ship-load">積載 {contract ? contract.quantity : 0} / {ship.maxLoadUnits}LU</span>
         </div>
-        <h3>{ship.name}</h3>
+        <div className="ship-heading">
+          <h3>{ship.name}</h3>
+          <button className="ship-detail-button" onClick={() => setShowShipDetail(true)}>船の詳細</button>
+        </div>
         <div className="progress-block">
           <div className="progress-heading">
             <span>進捗状況</span>
@@ -126,6 +121,8 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         <div className="kv"><span>保存中HEX</span><span>{ship.currentHexId}</span></div>
         <div className="kv"><span>経路HEX</span><span>{routeHexIds.join(" → ") || "-"}</span></div>
       </details>
+
+      <ShipDetailModal ship={ship} open={showShipDetail} onClose={() => setShowShipDetail(false)} />
     </section>
   );
 }

@@ -2,6 +2,7 @@ import type { ContractTemplate } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { formatDateTime, formatDuration } from "../../domain/time";
 import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractCardProps {
@@ -19,18 +20,9 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = new Date(Date.now() + realDeadlineMs);
   const estimatedArrivalTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = deadlineTime.toLocaleString([], {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const estimatedArrivalLabel = estimatedArrivalTime.toLocaleString([], {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const deadlineLabel = formatDateTime(deadlineTime.getTime());
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
+  const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
 
   return (
     <button className="contract-card" onClick={onSelect}>
@@ -53,7 +45,8 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
           <span className="contract-fact-value">{requiredLoadUnits}LU</span>
         </div>
       </div>
-      <p className="contract-deadline">到着期限：{deadlineLabel}</p>
+      <p className="contract-deadline">航海所要時間：{voyageDurationLabel}</p>
+      <p className="contract-estimated-delivery">到着期限：{deadlineLabel}</p>
       <p className="contract-estimated-delivery">予定到着時間：{estimatedArrivalLabel}</p>
       <div className="contract-reward">
         <div className="contract-reward-item">
