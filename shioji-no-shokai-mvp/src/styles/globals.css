@@ -89,5 +89,6 @@ main>section{width:100%;min-width:0}
 /* Fleet画面を受注前契約板基準へ統一 */
 .fleet-board .fleet-card{cursor:default}
 .fleet-board .fleet-card .ship-detail-button{margin-top:10px}
-.fleet-board .map-card summary,.fleet-board .debug-card summary{cursor:pointer;font-weight:700}
-.fleet-board .map-card[open] summary,.fleet-board .debug-card[open] summary{margin-bottom:8px}
+.fleet-board .map-card .hex-map{margin-top:8px}
+.fleet-board .debug-card summary{cursor:pointer;font-weight:700}
+.fleet-board .debug-card[open] summary{margin-bottom:8px}

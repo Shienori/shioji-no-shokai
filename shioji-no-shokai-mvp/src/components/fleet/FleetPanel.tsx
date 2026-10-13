@@ -29,7 +29,6 @@ function formatOperationTime(operationTime: number) {
 
 export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
   const [showShipDetail, setShowShipDetail] = useState(false);
-  const [showMap, setShowMap] = useState(false);
   const route = contract ? getRouteById(contract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
@@ -75,16 +74,19 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
             <h3>{ship.name}</h3>
             <span className="contract-card-detail">積載 {contract ? contract.quantity : 0}/{ship.maxLoadUnits}LU</span>
           </div>
+          <div className="progress-block">
+            <div className="progress-heading">
+              <span>進捗状況</span>
+              <span>{Math.round(sailingProgress * 100)}%</span>
+            </div>
+            <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+          </div>
           <div className="contract-card-route">
             <span>現在地</span>
             <span className="contract-route-arrow">→</span>
             <span>{currentHexLabel}</span>
           </div>
           <div className="contract-facts">
-            <div>
-              <span className="contract-fact-label">進捗</span>
-              <span className="contract-fact-value">{Math.round(sailingProgress * 100)}%</span>
-            </div>
             <div>
               <span className="contract-fact-label">到着期限</span>
               <span className="contract-fact-value">{deadlineLabel || "-"}</span>
@@ -117,16 +119,14 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
           </div>
         )}
 
-        <details className="contract-card fleet-card map-card">
-          <summary>航路マップ</summary>
-          {showMap && (
-            <HexMap
-              ships={[{ name: ship.name, hexId: currentHexId }]}
-              routeHexIds={routeHexIds}
-              currentHexId={currentHexId}
-            />
-          )}
-        </details>
+        <div className="contract-card fleet-card map-card">
+          <h3>航路マップ</h3>
+          <HexMap
+            ships={[{ name: ship.name, hexId: currentHexId }]}
+            routeHexIds={routeHexIds}
+            currentHexId={currentHexId}
+          />
+        </div>
 
         <details className="contract-card fleet-card debug-card">
           <summary>デバッグ: 航海位置</summary>
