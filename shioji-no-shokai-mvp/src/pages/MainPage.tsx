@@ -46,7 +46,7 @@ export function MainPage() {
   const handleAccept = (contractId: string) => {
     acceptContract(contractId);
     selectContract(null);
-    setActiveTab("fleet");
+    setActiveTab("contracts");
   };
 
   if (selectedContract) {
@@ -70,7 +70,14 @@ export function MainPage() {
       <main className="page">
         <div className="page-body">
           {activeTab === "contracts" ? (
-            <ContractBoard contracts={contracts} onSelectContract={selectContract} />
+            <ContractBoard
+              contracts={contracts}
+              acceptedContract={gameState.acceptedContract}
+              voyage={voyage}
+              progress={progress}
+              operationTime={gameState.operationTime}
+              onSelectContract={selectContract}
+            />
           ) : (
             <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
           )}
