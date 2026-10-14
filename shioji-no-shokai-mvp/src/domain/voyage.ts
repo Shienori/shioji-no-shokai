@@ -2,12 +2,15 @@ import type { AcceptedContract, Route, Ship, Voyage } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 
+const HOUR_MS = 60 * 60 * 1000;
+
 export function createVoyage(contract: AcceptedContract, ship: Ship, operationTime: number): Voyage {
   const cargo = getCargoById(contract.cargoId);
   const route = getRouteById(contract.routeId);
   const loadingDurationMs = cargo.loadingTimeMsPerUnit * contract.quantity;
   const loadingCompletedAt = operationTime + loadingDurationMs;
   const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
+  const arrivalDeadlineAt = operationTime + Math.round((loadingDurationMs + voyageDurationMs) * 1.5);
 
   return {
     id: `voyage_${contract.id}`,
@@ -18,7 +21,10 @@ export function createVoyage(contract: AcceptedContract, ship: Ship, operationTi
     loadingCompletedAt,
     departedAt: loadingCompletedAt,
     estimatedArrivalAt: loadingCompletedAt + voyageDurationMs,
+    arrivalDeadlineAt,
     arrivedAt: null,
+    arrivalLateHours: 0,
+    isOnTime: true,
     unloadingStartedAt: null,
     unloadingCompletedAt: null,
     completedAtWorldTime: null,
@@ -40,7 +46,18 @@ function progressLoading(voyage: Voyage, operationTime: number): Voyage {
 
 function progressSailing(voyage: Voyage, operationTime: number): Voyage {
   if (voyage.phase !== "sailing" || operationTime < voyage.estimatedArrivalAt) return voyage;
-  return { ...voyage, phase: "unloading", arrivedAt: voyage.estimatedArrivalAt, unloadingStartedAt: voyage.estimatedArrivalAt };
+
+  const arrivedAt = voyage.estimatedArrivalAt;
+  const lateHours = calculateArrivalLateHours(arrivedAt, voyage.arrivalDeadlineAt);
+
+  return {
+    ...voyage,
+    phase: "unloading",
+    arrivedAt,
+    arrivalLateHours: lateHours,
+    isOnTime: lateHours <= 0,
+    unloadingStartedAt: arrivedAt
+  };
 }
 
 function progressUnloading(voyage: Voyage, contract: AcceptedContract, operationTime: number, currentRealTime: number): Voyage {
@@ -59,6 +76,11 @@ function progressUnloading(voyage: Voyage, contract: AcceptedContract, operation
     completedAtWorldTime,
     settled: false
   };
+}
+
+export function calculateArrivalLateHours(arrivedAt: number, arrivalDeadlineAt: number): number {
+  if (arrivedAt <= arrivalDeadlineAt) return 0;
+  return Math.floor((arrivedAt - arrivalDeadlineAt) / HOUR_MS);
 }
 
 export function calculateVoyageProgress(voyage: Voyage, contract: AcceptedContract, operationTime: number): number {
