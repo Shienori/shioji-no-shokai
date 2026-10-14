@@ -3,7 +3,7 @@ import { ContractCard } from "./ContractCard";
 import { ports, getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { formatDateTime, formatDuration } from "../../domain/time";
+import { formatDateTime, formatDuration, floorTo30Minutes } from "../../domain/time";
 
 interface ContractBoardProps {
   selectedPortId: PortId;
@@ -47,7 +47,7 @@ export function ContractBoard({
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
   const deadlineLabel = acceptedContract ? formatDateTime(acceptedContract.deadlineAt) : "";
-  const estimatedArrivalLabel = voyage ? formatDateTime(Date.now() + remainingMs) : "";
+  const estimatedArrivalLabel = voyage ? formatDateTime(floorTo30Minutes(Date.now() + remainingMs)) : "";
   const sailingProgress = voyage?.phase === "sailing"
     ? progress
     : voyage && (voyage.phase === "unloading" || voyage.phase === "completed")

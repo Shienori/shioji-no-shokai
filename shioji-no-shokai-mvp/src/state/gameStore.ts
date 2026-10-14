@@ -8,7 +8,7 @@ import { getCargoById } from "../data/cargos";
 import { createRewardBreakdown } from "../domain/reward";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
-import { advanceOperationTime } from "../domain/time";
+import { advanceOperationTime, floorTo30Minutes } from "../domain/time";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
 import { getPortHexId } from "../data/hexMap";
@@ -263,7 +263,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       quantity: template.quantity,
       reward,
       acceptedAt: currentRealTime,
-      deadlineAt: currentRealTime + contractTimeLimitMs
+      deadlineAt: floorTo30Minutes(currentRealTime + contractTimeLimitMs)
     };
 
     const voyage = createVoyage(acceptedContract, ship, current.operationTime);

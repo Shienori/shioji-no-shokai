@@ -7,6 +7,11 @@ export function advanceOperationTime(lastOperationTime: number, lastRealTime: nu
   return lastOperationTime + realElapsed * GAME_TIME_MULTIPLIER;
 }
 
+export function floorTo30Minutes(realTimeMs: number): number {
+  const intervalMs = 30 * 60 * 1000;
+  return Math.floor(realTimeMs / intervalMs) * intervalMs;
+}
+
 export function formatDateTime(realTimeMs: number): string {
   const date = new Date(realTimeMs);
   const year = date.getFullYear();
@@ -15,8 +20,7 @@ export function formatDateTime(realTimeMs: number): string {
   const weekday = WEEKDAY_LABELS[date.getDay()];
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}/${month}/${day}（${weekday}）${hours}:${minutes}:${seconds}`;
+  return `${year}/${month}/${day}（${weekday}）${hours}:${minutes}`;
 }
 
 export function formatGameTime(realTimeMs: number): string {
