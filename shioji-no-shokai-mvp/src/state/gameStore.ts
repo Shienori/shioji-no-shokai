@@ -177,15 +177,15 @@ function refreshContractsIfDue(state: GameState, currentRealTime: number): GameS
   };
 }
 
-const loadedSave = loadGame();
+const loadedGameState = loadGame();
 const defaultGameState = createInitialGameState();
-const initialGameState = loadedSave
+const initialGameState = loadedGameState
   ? {
       ...defaultGameState,
-      ...loadedSave.gameState,
-      selectedPortId: loadedSave.gameState.selectedPortId ?? defaultGameState.selectedPortId,
-      portOffers: loadedSave.gameState.portOffers ?? defaultGameState.portOffers,
-      nextRefreshAt: loadedSave.gameState.nextRefreshAt ?? defaultGameState.nextRefreshAt
+      ...loadedGameState,
+      selectedPortId: loadedGameState.selectedPortId ?? defaultGameState.selectedPortId,
+      portOffers: loadedGameState.portOffers ?? defaultGameState.portOffers,
+      nextRefreshAt: loadedGameState.nextRefreshAt ?? defaultGameState.nextRefreshAt
     }
   : defaultGameState;
 
