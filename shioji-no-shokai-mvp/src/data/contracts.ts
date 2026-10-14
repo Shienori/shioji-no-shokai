@@ -1,4 +1,5 @@
 import type { ContractTemplate, PortId } from "../domain/types";
+import { routesById } from "./routes";
 
 export const tutorialWheatContract: ContractTemplate = {
   id: "contract_tutorial_001",
