@@ -6,7 +6,8 @@ import { ContractBoard } from "../components/contract/ContractBoard";
 import { ContractDetailScreen } from "../components/contract/ContractDetailScreen";
 import { FleetPanel } from "../components/fleet/FleetPanel";
 import { SettlementModal } from "../components/settlement/SettlementModal";
-import { getContractTemplateById } from "../data/contracts";
+import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
+import { getRouteById } from "../data/routes";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { SAVE_KEY } from "../data/gameConstants";
@@ -18,6 +19,7 @@ export function MainPage() {
   const tick = useGameStore((state) => state.tick);
   const setActiveTab = useGameStore((state) => state.setActiveTab);
   const selectContract = useGameStore((state) => state.selectContract);
+  const selectPort = useGameStore((state) => state.selectPort);
   const acceptContract = useGameStore((state) => state.acceptContract);
 
   useEffect(() => {
@@ -25,9 +27,19 @@ export function MainPage() {
     return () => clearInterval(interval);
   }, [tick]);
 
-  const contracts = gameState.offeredContractIds.map(getContractTemplateById);
+  const selectedPortId = gameState.selectedPortId;
+  const ship = gameState.ships[0];
+  const contracts = (gameState.portOffers[selectedPortId] ?? []).map(getContractTemplateById);
+  const fixedContract = selectedPortId === "port_selene" ? tutorialWheatContract : null;
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
-  const canAccept = gameState.acceptedContract === null && gameState.ships[0].status === "docked" && gameState.ships[0].currentPortId === "port_selene";
+
+  const canAcceptContract = (contract: NonNullable<typeof selectedContract>) => {
+    const route = getRouteById(contract.routeId);
+    return gameState.acceptedContract === null
+      && ship.status === "docked"
+      && ship.currentPortId === route.fromPortId;
+  };
+
   const voyage = gameState.activeVoyage;
   const progress = voyage && gameState.acceptedContract
     ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime)
@@ -54,7 +66,7 @@ export function MainPage() {
       <div className="phone">
         <ContractDetailScreen
           contract={selectedContract}
-          canAccept={canAccept}
+          canAccept={canAcceptContract(selectedContract)}
           onAccept={() => handleAccept(selectedContract.id)}
           onClose={() => selectContract(null)}
         />
@@ -71,7 +83,12 @@ export function MainPage() {
         <div className="page-body">
           {activeTab === "contracts" ? (
             <ContractBoard
+              selectedPortId={selectedPortId}
+              onSelectPort={selectPort}
+              fixedContract={fixedContract}
               contracts={contracts}
+              nextRefreshAt={gameState.nextRefreshAt}
+              currentTime={Date.now()}
               acceptedContract={gameState.acceptedContract}
               voyage={voyage}
               progress={progress}
@@ -79,7 +96,7 @@ export function MainPage() {
               onSelectContract={selectContract}
             />
           ) : (
-            <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
+            <FleetPanel ship={ship} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
           )}
         </div>
       </main>

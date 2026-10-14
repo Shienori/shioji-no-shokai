@@ -1,13 +1,17 @@
-import type { AcceptedContract, ContractTemplate, Voyage } from "../../domain/types";
+import type { AcceptedContract, ContractTemplate, PortId, Voyage } from "../../domain/types";
 import { ContractCard } from "./ContractCard";
-import { getPortById } from "../../data/ports";
+import { ports, getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { formatDateTime, formatDuration } from "../../domain/time";
-import { calculateVoyageProgress } from "../../domain/voyage";
 
 interface ContractBoardProps {
+  selectedPortId: PortId;
+  onSelectPort: (portId: PortId) => void;
+  fixedContract: ContractTemplate | null;
   contracts: ContractTemplate[];
+  nextRefreshAt: number;
+  currentTime: number;
   acceptedContract: AcceptedContract | null;
   voyage: Voyage | null;
   progress: number;
@@ -15,7 +19,27 @@ interface ContractBoardProps {
   onSelectContract: (contractId: string) => void;
 }
 
-export function ContractBoard({ contracts, acceptedContract, voyage, progress, operationTime, onSelectContract }: ContractBoardProps) {
+function formatRefreshCountdown(remainingMs: number): string {
+  const totalMinutes = Math.max(0, Math.ceil(remainingMs / (60 * 1000)));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}時間${minutes}分` : `${minutes}分`;
+}
+
+export function ContractBoard({
+  selectedPortId,
+  onSelectPort,
+  fixedContract,
+  contracts,
+  nextRefreshAt,
+  currentTime,
+  acceptedContract,
+  voyage,
+  progress,
+  operationTime,
+  onSelectContract
+}: ContractBoardProps) {
+  const selectedPort = getPortById(selectedPortId);
   const route = acceptedContract ? getRouteById(acceptedContract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
@@ -29,16 +53,35 @@ export function ContractBoard({ contracts, acceptedContract, voyage, progress, o
     : voyage && (voyage.phase === "unloading" || voyage.phase === "completed")
       ? 1
       : 0;
+  const refreshRemainingMs = Math.max(0, nextRefreshAt - currentTime);
 
   return (
     <section className="contract-board">
       <header className="contract-board-header">
         <div>
           <h2>契約板</h2>
-          <p className="contract-board-subtitle">セレネ港発の輸送依頼</p>
+          <p className="contract-board-subtitle">{selectedPort.name}発の輸送依頼</p>
         </div>
-        <span className="contract-count">{contracts.length}件</span>
+        <span className="contract-count">{contracts.length + (fixedContract ? 1 : 0)}件</span>
       </header>
+
+      <div className="port-tabs">
+        {ports.map((port) => (
+          <button
+            key={port.id}
+            type="button"
+            className={`port-tab${port.id === selectedPortId ? " active" : ""}`}
+            onClick={() => onSelectPort(port.id)}
+          >
+            {port.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="refresh-note">
+        <span>契約更新</span>
+        <span>次まで {formatRefreshCountdown(refreshRemainingMs)}</span>
+      </div>
 
       <div className="contract-list">
         {acceptedContract && route && fromPort && toPort && cargo && (
@@ -79,6 +122,16 @@ export function ContractBoard({ contracts, acceptedContract, voyage, progress, o
                 <span className="contract-fact-value">{voyage?.phase === "sailing" ? estimatedArrivalLabel : "-"}</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {fixedContract && (
+          <div className="contract-card fixed-contract-card">
+            <div className="contract-card-heading">
+              <h3>固定契約</h3>
+              <span className="contract-card-detail">チュートリアル</span>
+            </div>
+            <ContractCard contract={fixedContract} onSelect={() => onSelectContract(fixedContract.id)} />
           </div>
         )}
 
