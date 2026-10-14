@@ -25,7 +25,7 @@ interface GameStore {
   selectContract: (id: string | null) => void;
   setActiveTab: (tab: "contracts" | "fleet") => void;
   selectPort: (portId: PortId) => void;
-  acceptContract: (id: string) => void;
+  acceptContract: (contractId: string, shipId: string) => void;
   settleContract: () => void;
 }
 
@@ -229,13 +229,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }),
 
-  acceptContract: (contractId) => {
+  acceptContract: (contractId, shipId) => {
     const current = get().gameState;
     const currentRealTime = Date.now();
     if (current.acceptedContract) return;
 
     const template = getContractTemplateById(contractId);
-    const ship = current.ships[0];
+    const ship = current.ships.find((item) => item.id === shipId);
+    if (!ship) return;
     if (ship.status !== "docked") return;
 
     const route = getRouteById(template.routeId);
@@ -277,7 +278,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...current,
       currentGameTime: currentRealTime,
       lastRealTimeSyncedAt: currentRealTime,
-      ships: [updatedShip],
+      ships: current.ships.map((item) => (item.id === shipId ? updatedShip : item)),
       activeVoyage: voyage,
       acceptedContract,
       acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id]
@@ -294,15 +295,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!voyage || !contract || voyage.settled || voyage.phase !== "completed") return;
 
     const result = settleContract(contract, voyage);
-    const ship = current.ships[0];
     const route = getRouteById(contract.routeId);
-    const updatedShip = {
-      ...ship,
-      status: "docked" as const,
-      currentPortId: route.toPortId,
-      currentHexId: getPortHexId(route.toPortId),
-      activeContractId: null
-    };
+    const updatedShips = current.ships.map((ship) =>
+      ship.activeContractId === contract.id
+        ? {
+            ...ship,
+            status: "docked" as const,
+            currentPortId: route.toPortId,
+            currentHexId: getPortHexId(route.toPortId),
+            activeContractId: null
+          }
+        : ship
+    );
 
     const updatedReputations = current.reputations.map((reputation) =>
       reputation.shipperId === contract.shipperId
@@ -313,7 +317,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const next: GameState = {
       ...current,
       money: current.money + result.finalPayout,
-      ships: [updatedShip],
+      ships: updatedShips,
       activeVoyage: null,
       acceptedContract: null,
       reputations: updatedReputations,
