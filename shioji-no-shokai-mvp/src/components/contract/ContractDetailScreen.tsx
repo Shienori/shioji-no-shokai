@@ -1,4 +1,5 @@
-import type { ContractTemplate } from "../../domain/types";
+import { useEffect, useState } from "react";
+import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
@@ -8,12 +9,27 @@ import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
-  canAccept: boolean;
-  onAccept: () => void;
+  ships: Ship[];
+  eligibleShips: Ship[];
+  acceptReason: string | null;
+  onAccept: (shipId: string) => void;
   onClose: () => void;
 }
 
-export function ContractDetailScreen({ contract, canAccept, onAccept, onClose }: ContractDetailScreenProps) {
+export function ContractDetailScreen({
+  contract,
+  ships,
+  eligibleShips,
+  acceptReason,
+  onAccept,
+  onClose
+}: ContractDetailScreenProps) {
+  const [showShipSelect, setShowShipSelect] = useState(false);
+
+  useEffect(() => {
+    setShowShipSelect(false);
+  }, [contract?.id]);
+
   if (!contract) return null;
 
   const route = getRouteById(contract.routeId);
@@ -28,6 +44,7 @@ export function ContractDetailScreen({ contract, canAccept, onAccept, onClose }:
   const deadlineLabel = formatDateTime(deadlineTime.getTime());
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
   const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
+  const canAccept = eligibleShips.length > 0;
 
   return (
     <div className="contract-detail-screen">
@@ -53,10 +70,44 @@ export function ContractDetailScreen({ contract, canAccept, onAccept, onClose }:
           </div>
           <div className="kv"><span>経費</span><span>-{expense}G</span></div>
         </div>
+
+        {showShipSelect && (
+          <div className="card detail-card ship-select-card">
+            <h3>積載する船を選択</h3>
+            <div className="ship-select-list">
+              {ships.map((ship) => {
+                const isEligible = eligibleShips.some((item) => item.id === ship.id);
+                return (
+                  <button
+                    key={ship.id}
+                    type="button"
+                    className="ship-select-item"
+                    disabled={!isEligible}
+                    onClick={() => onAccept(ship.id)}
+                  >
+                    <span className="ship-select-name">{ship.name}</span>
+                    <span className="ship-select-meta">
+                      積載量 {ship.maxLoadUnits}LU／状態 {ship.status}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <footer className="detail-footer">
-        <button className="btn btn-primary" disabled={!canAccept} onClick={onAccept}>受注する</button>
+        {acceptReason && <p className="accept-reason">{acceptReason}</p>}
+        {!showShipSelect && (
+          <button
+            className="btn btn-primary"
+            disabled={!canAccept}
+            onClick={() => setShowShipSelect(true)}
+          >
+            受注する
+          </button>
+        )}
         <button className="btn btn-secondary" onClick={onClose}>断る</button>
       </footer>
     </div>

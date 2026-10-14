@@ -4,7 +4,7 @@ export const initialShip: Ship = {
   id: "ship_shionami",
   name: "潮鳴号",
   kind: "sailing",
-  maxLoadUnits: 30,
+  maxLoadUnits: 10,
   cruisingSpeedKnots: 6,
   maxSpeedKnots: 8,
   engineType: "帆走",

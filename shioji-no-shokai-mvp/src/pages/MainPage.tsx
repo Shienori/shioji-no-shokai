@@ -8,6 +8,7 @@ import { FleetPanel } from "../components/fleet/FleetPanel";
 import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
+import { getCargoById } from "../data/cargos";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { SAVE_KEY } from "../data/gameConstants";
@@ -28,17 +29,34 @@ export function MainPage() {
   }, [tick]);
 
   const selectedPortId = gameState.selectedPortId;
-  const ship = gameState.ships[0];
   const contracts = (gameState.portOffers[selectedPortId] ?? []).map(getContractTemplateById);
   const fixedContract = selectedPortId === "port_selene" ? tutorialWheatContract : null;
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
 
-  const canAcceptContract = (contract: NonNullable<typeof selectedContract>) => {
-    const route = getRouteById(contract.routeId);
-    return gameState.acceptedContract === null
-      && ship.status === "docked"
-      && ship.currentPortId === route.fromPortId;
-  };
+  const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
+  const requiredLoadUnits = selectedContract
+    ? getCargoById(selectedContract.cargoId).loadUnitsPerUnit * selectedContract.quantity
+    : 0;
+
+  const eligibleShips = selectedRoute
+    ? gameState.ships.filter((ship) =>
+        ship.status === "docked"
+        && ship.currentPortId === selectedRoute.fromPortId
+        && ship.maxLoadUnits >= requiredLoadUnits
+      )
+    : [];
+
+  const acceptReason = !selectedContract || !selectedRoute
+    ? null
+    : gameState.acceptedContract
+      ? "すでに契約を受注しています"
+      : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
+        ? "船が仕出港にいません"
+        : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
+          ? "船がフリーではありません"
+          : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.maxLoadUnits >= requiredLoadUnits)
+            ? "積載量が足りません"
+            : null;
 
   const voyage = gameState.activeVoyage;
   const progress = voyage && gameState.acceptedContract
@@ -55,8 +73,8 @@ export function MainPage() {
     location.reload();
   };
 
-  const handleAccept = (contractId: string) => {
-    acceptContract(contractId);
+  const handleAccept = (contractId: string, shipId: string) => {
+    acceptContract(contractId, shipId);
     selectContract(null);
     setActiveTab("contracts");
   };
@@ -66,8 +84,10 @@ export function MainPage() {
       <div className="phone">
         <ContractDetailScreen
           contract={selectedContract}
-          canAccept={canAcceptContract(selectedContract)}
-          onAccept={() => handleAccept(selectedContract.id)}
+          ships={gameState.ships}
+          eligibleShips={eligibleShips}
+          acceptReason={acceptReason}
+          onAccept={(shipId) => handleAccept(selectedContract.id, shipId)}
           onClose={() => selectContract(null)}
         />
       </div>
@@ -96,7 +116,7 @@ export function MainPage() {
               onSelectContract={selectContract}
             />
           ) : (
-            <FleetPanel ship={ship} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
+            <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
           )}
         </div>
       </main>
