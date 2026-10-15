@@ -36,18 +36,20 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
         <span className="contract-route-arrow">→</span>
         {toPort.name}
       </p>
+      <div className="requirement-grid card-requirement-grid">
+        <div className="requirement-item">
+          <span className="requirement-label">必要スペース</span>
+          <span className="requirement-value">{requiredCargoVolume}</span>
+        </div>
+        <div className="requirement-item">
+          <span className="requirement-label">必要積載量</span>
+          <span className="requirement-value">{requiredCargoWeight}</span>
+        </div>
+      </div>
       <div className="contract-facts">
         <div className="contract-fact">
           <span className="contract-fact-label">貨物</span>
           <span className="contract-fact-value">{cargo.name} ×{contract.quantity}</span>
-        </div>
-        <div className="contract-fact">
-          <span className="contract-fact-label">必要スペース</span>
-          <span className="contract-fact-value">{requiredCargoVolume}</span>
-        </div>
-        <div className="contract-fact">
-          <span className="contract-fact-label">必要積載量</span>
-          <span className="contract-fact-value">{requiredCargoWeight}</span>
         </div>
       </div>
       <p className="contract-deadline">航海所要時間：{voyageDurationLabel}</p>
