@@ -9,6 +9,7 @@ import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
+import { getContractCargoRequirements } from "../domain/contractOffer";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { SAVE_KEY } from "../data/gameConstants";
@@ -35,12 +36,9 @@ export function MainPage() {
 
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
   const selectedCargo = selectedContract ? getCargoById(selectedContract.cargoId) : null;
-  const requiredCargoVolume = selectedCargo && selectedContract
-    ? selectedCargo.unitVolume * selectedContract.quantity
-    : 0;
-  const requiredCargoWeight = selectedCargo && selectedContract
-    ? selectedCargo.weightPerUnit * selectedContract.quantity
-    : 0;
+  const { requiredCargoVolume, requiredCargoWeight } = selectedCargo && selectedContract
+    ? getContractCargoRequirements(selectedContract, selectedCargo)
+    : { requiredCargoVolume: 0, requiredCargoWeight: 0 };
 
   const eligibleShips = selectedRoute
     ? gameState.ships.filter((ship) =>
