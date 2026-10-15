@@ -60,14 +60,14 @@ export function ContractDetailScreen({
           <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
           <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
           <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
-          <div className="requirement-row" style={{ display: "flex", gap: "16px", color: "yellow" }}>
-            <div className="kv" style={{ color: "yellow" }}>
-              <span>必要スペース</span>
-              <span>{requiredCargoVolume}</span>
+          <div className="requirement-grid">
+            <div className="requirement-item">
+              <span className="requirement-label">必要スペース</span>
+              <span className="requirement-value">{requiredCargoVolume}</span>
             </div>
-            <div className="kv" style={{ color: "yellow" }}>
-              <span>必要積載量</span>
-              <span>{requiredCargoWeight}</span>
+            <div className="requirement-item">
+              <span className="requirement-label">必要積載量</span>
+              <span className="requirement-value">{requiredCargoWeight}</span>
             </div>
           </div>
           <div className="kv"><span>航海所要時間</span><span>{voyageDurationLabel}</span></div>
@@ -89,18 +89,37 @@ export function ContractDetailScreen({
             <div className="ship-select-list">
               {ships.map((ship) => {
                 const isEligible = eligibleShips.some((item) => item.id === ship.id);
+                const volumeRatio = Math.min(1, requiredCargoVolume / ship.maxCargoVolume);
+                const weightRatio = Math.min(1, requiredCargoWeight / ship.maxCargoWeight);
                 return (
                   <button
                     key={ship.id}
                     type="button"
-                    className="ship-select-item"
+                    className={`ship-select-item${isEligible ? " eligible" : ""}`}
                     disabled={!isEligible}
                     onClick={() => onAccept(ship.id)}
                   >
                     <span className="ship-select-name">{ship.name}</span>
-                    <span className="ship-select-meta">
-                      スペース {ship.maxCargoVolume}／積載量 {ship.maxCargoWeight}／状態 {ship.status}
-                    </span>
+                    <div className="ship-capacity">
+                      <div className="capacity-row">
+                        <span className="capacity-label">最大スペース</span>
+                        <span className="capacity-value">{ship.maxCargoVolume}</span>
+                      </div>
+                      <div className="capacity-gauge">
+                        <div className="capacity-gauge-fill" style={{ width: `${Math.round(volumeRatio * 100)}%` }} />
+                      </div>
+                      <div className="capacity-note">必要 {requiredCargoVolume}</div>
+                    </div>
+                    <div className="ship-capacity">
+                      <div className="capacity-row">
+                        <span className="capacity-label">最大積載量</span>
+                        <span className="capacity-value">{ship.maxCargoWeight}</span>
+                      </div>
+                      <div className="capacity-gauge">
+                        <div className="capacity-gauge-fill" style={{ width: `${Math.round(weightRatio * 100)}%` }} />
+                      </div>
+                      <div className="capacity-note">必要 {requiredCargoWeight}</div>
+                    </div>
                   </button>
                 );
               })}
@@ -113,11 +132,11 @@ export function ContractDetailScreen({
         {acceptReason && <p className="accept-reason">{acceptReason}</p>}
         {!showShipSelect && (
           <button
-            className="btn btn-primary"
+            className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`}
             disabled={!canAccept}
             onClick={() => setShowShipSelect(true)}
           >
-            依頼を受注
+            {canAccept ? "受注可能" : "受注不可"}
           </button>
         )}
         <button className="btn btn-secondary" onClick={onClose}>断る</button>
