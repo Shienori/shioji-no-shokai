@@ -34,15 +34,20 @@ export function MainPage() {
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
 
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
-  const requiredLoadUnits = selectedContract
-    ? getCargoById(selectedContract.cargoId).loadUnitsPerUnit * selectedContract.quantity
+  const selectedCargo = selectedContract ? getCargoById(selectedContract.cargoId) : null;
+  const requiredCargoVolume = selectedCargo
+    ? selectedCargo.unitVolume * selectedContract.quantity
+    : 0;
+  const requiredCargoWeight = selectedCargo
+    ? selectedCargo.weightPerUnit * selectedContract.quantity
     : 0;
 
   const eligibleShips = selectedRoute
     ? gameState.ships.filter((ship) =>
         ship.status === "docked"
         && ship.currentPortId === selectedRoute.fromPortId
-        && ship.maxLoadUnits >= requiredLoadUnits
+        && ship.maxCargoVolume >= requiredCargoVolume
+        && ship.maxCargoWeight >= requiredCargoWeight
       )
     : [];
 
@@ -54,8 +59,12 @@ export function MainPage() {
         ? "船が仕出港にいません"
         : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
           ? "船がフリーではありません"
-          : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.maxLoadUnits >= requiredLoadUnits)
-            ? "積載量が足りません"
+          : !gameState.ships.some((ship) =>
+              ship.currentPortId === selectedRoute.fromPortId
+              && ship.maxCargoVolume >= requiredCargoVolume
+              && ship.maxCargoWeight >= requiredCargoWeight
+            )
+            ? "容積または積載重量が不足しています"
             : null;
 
   const voyage = gameState.activeVoyage;
