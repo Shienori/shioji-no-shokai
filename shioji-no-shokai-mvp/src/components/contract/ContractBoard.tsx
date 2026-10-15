@@ -3,7 +3,7 @@ import { ContractCard } from "./ContractCard";
 import { ports, getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { formatDateTime, formatDuration, floorTo30Minutes } from "../../domain/time";
+import { formatDateTime, formatDuration } from "../../domain/time";
 
 interface ContractBoardProps {
   selectedPortId: PortId;
@@ -47,7 +47,7 @@ export function ContractBoard({
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
   const deadlineLabel = acceptedContract ? formatDateTime(acceptedContract.deadlineAt) : "";
-  const estimatedArrivalLabel = voyage ? formatDateTime(floorTo30Minutes(Date.now() + remainingMs)) : "";
+  const estimatedArrivalLabel = voyage ? formatDateTime(Date.now() + remainingMs) : "";
   const sailingProgress = voyage?.phase === "sailing"
     ? progress
     : voyage && (voyage.phase === "unloading" || voyage.phase === "completed")
@@ -59,7 +59,7 @@ export function ContractBoard({
     <section className="contract-board">
       <header className="contract-board-header">
         <div>
-          <h2>契約板</h2>
+          <h2>依頼板</h2>
           <p className="contract-board-subtitle">{selectedPort.name}発の輸送依頼</p>
         </div>
         <span className="contract-count">{contracts.length + (fixedContract ? 1 : 0)}件</span>
@@ -79,7 +79,7 @@ export function ContractBoard({
       </div>
 
       <div className="refresh-note">
-        <span>契約更新</span>
+        <span>依頼更新</span>
         <span>次まで {formatRefreshCountdown(refreshRemainingMs)}</span>
       </div>
 
@@ -87,7 +87,7 @@ export function ContractBoard({
         {acceptedContract && route && fromPort && toPort && cargo && (
           <div className="contract-card active-contract-card">
             <div className="contract-card-heading">
-              <h3>進行中契約</h3>
+              <h3>進行中の依頼</h3>
               <span className="contract-card-detail">{voyage?.phase ?? "loading"}</span>
             </div>
             <p className="contract-card-route">
@@ -118,7 +118,7 @@ export function ContractBoard({
                 <span className="contract-fact-value">{voyage?.phase === "sailing" ? formatDuration(remainingMs) : "-"}</span>
               </div>
               <div>
-                <span className="contract-fact-label">予定到着</span>
+                <span className="contract-fact-label">ETA</span>
                 <span className="contract-fact-value">{voyage?.phase === "sailing" ? estimatedArrivalLabel : "-"}</span>
               </div>
             </div>
@@ -128,7 +128,7 @@ export function ContractBoard({
         {fixedContract && (
           <div className="contract-card fixed-contract-card">
             <div className="contract-card-heading">
-              <h3>固定契約</h3>
+              <h3>固定依頼</h3>
               <span className="contract-card-detail">チュートリアル</span>
             </div>
             <ContractCard contract={fixedContract} onSelect={() => onSelectContract(fixedContract.id)} />

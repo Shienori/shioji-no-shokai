@@ -52,7 +52,7 @@ export function ContractDetailScreen({
     <div className="contract-detail-screen">
       <header className="detail-header">
         <button className="back-btn" onClick={onClose}>← 戻る</button>
-        <h2>{cargo.name}の輸送</h2>
+        <h2>{cargo.name}の輸送依頼</h2>
       </header>
 
       <div className="detail-body">
@@ -117,7 +117,7 @@ export function ContractDetailScreen({
             disabled={!canAccept}
             onClick={() => setShowShipSelect(true)}
           >
-            受注する
+            依頼を受注
           </button>
         )}
         <button className="btn btn-secondary" onClick={onClose}>断る</button>

@@ -54,7 +54,7 @@ export function MainPage() {
   const acceptReason = !selectedContract || !selectedRoute
     ? null
     : gameState.acceptedContract
-      ? "すでに契約を受注しています"
+      ? "すでに依頼を受注しています"
       : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
         ? "船が仕出港にいません"
         : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
@@ -64,7 +64,7 @@ export function MainPage() {
               && ship.maxCargoVolume >= requiredCargoVolume
               && ship.maxCargoWeight >= requiredCargoWeight
             )
-            ? "容積または積載重量が不足しています"
+            ? "スペースまたは積載量が不足しています"
             : null;
 
   const voyage = gameState.activeVoyage;

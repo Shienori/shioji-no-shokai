@@ -11,7 +11,7 @@ export function SettlementModal({ result, onConfirm }: SettlementModalProps) {
   return (
     <div className="modal-backdrop open">
       <div className="modal">
-        <h2>契約完了</h2>
+        <h2>依頼完了</h2>
         <div className="kv"><span>提示報酬</span><span>{result.offeredReward}G</span></div>
         <div className="kv"><span>到着遅延</span><span>{result.lateHours > 0 ? `${result.lateHours}時間` : "なし"}</span></div>
         <div className="kv"><span>経費</span><span>-{result.expense}G</span></div>

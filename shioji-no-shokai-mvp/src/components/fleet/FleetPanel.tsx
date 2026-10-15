@@ -98,7 +98,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         {contract && route && fromPort && toPort && (
           <div className="contract-card fleet-card">
             <div className="contract-card-heading">
-              <h3>進行中契約</h3>
+              <h3>進行中の依頼</h3>
               <span className="contract-card-detail">{getCargoById(contract.cargoId).name} ×{contract.quantity}</span>
             </div>
             <div className="contract-card-route">
