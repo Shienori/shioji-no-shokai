@@ -16,7 +16,8 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
   const netProfit = Math.floor(contract.offeredReward * 0.7);
-  const requiredLoadUnits = cargo.loadUnitsPerUnit * contract.quantity;
+  const requiredCargoVolume = cargo.unitVolume * contract.quantity;
+  const requiredCargoWeight = cargo.weightPerUnit * contract.quantity;
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
   const deadlineTime = floorTo30Minutes(Date.now() + realDeadlineMs);
   const estimatedArrivalTime = floorTo30Minutes(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
@@ -41,8 +42,12 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
           <span className="contract-fact-value">{cargo.name} ×{contract.quantity}</span>
         </div>
         <div className="contract-fact">
-          <span className="contract-fact-label">必要積載量</span>
-          <span className="contract-fact-value">{requiredLoadUnits}LU</span>
+          <span className="contract-fact-label">必要容積</span>
+          <span className="contract-fact-value">{requiredCargoVolume}</span>
+        </div>
+        <div className="contract-fact">
+          <span className="contract-fact-label">必要積載重量</span>
+          <span className="contract-fact-value">{requiredCargoWeight}t</span>
         </div>
       </div>
       <p className="contract-deadline">航海所要時間：{voyageDurationLabel}</p>

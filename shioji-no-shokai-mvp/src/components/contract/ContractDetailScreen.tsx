@@ -44,6 +44,8 @@ export function ContractDetailScreen({
   const deadlineLabel = formatDateTime(deadlineTime.getTime());
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
   const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
+  const requiredCargoVolume = cargo.unitVolume * contract.quantity;
+  const requiredCargoWeight = cargo.weightPerUnit * contract.quantity;
   const canAccept = eligibleShips.length > 0;
 
   return (
@@ -58,6 +60,8 @@ export function ContractDetailScreen({
           <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
           <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
           <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
+          <div className="kv"><span>必要容積</span><span>{requiredCargoVolume}</span></div>
+          <div className="kv"><span>必要積載重量</span><span>{requiredCargoWeight}t</span></div>
           <div className="kv"><span>航海所要時間</span><span>{voyageDurationLabel}</span></div>
           <div className="kv"><span>予定到着時間</span><span>{estimatedArrivalLabel}</span></div>
           <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
@@ -87,7 +91,7 @@ export function ContractDetailScreen({
                   >
                     <span className="ship-select-name">{ship.name}</span>
                     <span className="ship-select-meta">
-                      積載量 {ship.maxLoadUnits}LU／状態 {ship.status}
+                      容積 {ship.maxCargoVolume}／積載重量 {ship.maxCargoWeight}t／状態 {ship.status}
                     </span>
                   </button>
                 );

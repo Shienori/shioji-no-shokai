@@ -72,7 +72,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         <div className="contract-card fleet-card">
           <div className="contract-card-heading">
             <h3>{ship.name}</h3>
-            <span className="contract-card-detail">積載 {contract ? contract.quantity : 0}/{ship.maxLoadUnits}LU</span>
+            <span className="contract-card-detail">容積 {ship.maxCargoVolume}／積載重量 {ship.maxCargoWeight}t</span>
           </div>
           <div className="progress-block">
             <div className="progress-heading">
