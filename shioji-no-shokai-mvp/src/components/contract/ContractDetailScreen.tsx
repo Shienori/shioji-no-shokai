@@ -6,6 +6,7 @@ import { getCargoById } from "../../data/cargos";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
+import { CapacityGauge } from "./CapacityGauge";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -44,12 +45,6 @@ export function ContractDetailScreen({
   const voyageDurationLabel = formatDuration(voyageDurationMs);
   const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const canAccept = eligibleShips.length > 0;
-
-  const getFilledBlocks = (required: number, maximum: number) => {
-    if (maximum <= 0) return 0;
-    const ratio = Math.min(1, required / maximum);
-    return Math.round(ratio * 20);
-  };
 
   return (
     <div className="contract-detail-screen">
@@ -92,8 +87,6 @@ export function ContractDetailScreen({
             <div className="ship-select-list">
               {ships.map((ship) => {
                 const isEligible = eligibleShips.some((item) => item.id === ship.id);
-                const volumeBlocks = getFilledBlocks(requiredCargoVolume, ship.maxCargoVolume);
-                const weightBlocks = getFilledBlocks(requiredCargoWeight, ship.maxCargoWeight);
                 return (
                   <button
                     key={ship.id}
@@ -103,42 +96,18 @@ export function ContractDetailScreen({
                     onClick={() => onAccept(ship.id)}
                   >
                     <span className="ship-select-name">{ship.name}</span>
-                    <div className="ship-capacity">
-                      <div className="capacity-required">
-                        <span className="capacity-required-label">必要スペース</span>
-                        <span className="capacity-required-value">{requiredCargoVolume}</span>
-                      </div>
-                      <div className="capacity-gauge">
-                        {Array.from({ length: 20 }, (_, index) => (
-                          <span
-                            key={index}
-                            className={`capacity-block${index < volumeBlocks ? " filled" : ""}`}
-                          />
-                        ))}
-                      </div>
-                      <div className="capacity-maximum">
-                        <span className="capacity-label">最大スペース</span>
-                        <span className="capacity-value">{ship.maxCargoVolume}</span>
-                      </div>
-                    </div>
-                    <div className="ship-capacity">
-                      <div className="capacity-required">
-                        <span className="capacity-required-label">必要積載量</span>
-                        <span className="capacity-required-value">{requiredCargoWeight}</span>
-                      </div>
-                      <div className="capacity-gauge">
-                        {Array.from({ length: 20 }, (_, index) => (
-                          <span
-                            key={index}
-                            className={`capacity-block${index < weightBlocks ? " filled" : ""}`}
-                          />
-                        ))}
-                      </div>
-                      <div className="capacity-maximum">
-                        <span className="capacity-label">最大積載量</span>
-                        <span className="capacity-value">{ship.maxCargoWeight}</span>
-                      </div>
-                    </div>
+                    <CapacityGauge
+                      requiredLabel="必要スペース"
+                      maximumLabel="最大スペース"
+                      required={requiredCargoVolume}
+                      maximum={ship.maxCargoVolume}
+                    />
+                    <CapacityGauge
+                      requiredLabel="必要積載量"
+                      maximumLabel="最大積載量"
+                      required={requiredCargoWeight}
+                      maximum={ship.maxCargoWeight}
+                    />
                   </button>
                 );
               })}
