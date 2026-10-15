@@ -1,3 +1,7 @@
 /* 既存CSSの末尾に追記 */
-.card-requirement-grid{margin:10px 0;padding:10px;border:1px solid rgba(244,201,93,.55);border-radius:12px;background:rgba(244,201,93,.08)}
-.card-requirement-grid .requirement-value{font-size:22px}
+.capacity-required{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}
+.capacity-required-label{font-size:13px;color:var(--sub)}
+.capacity-required-value{font-size:26px;font-weight:800;color:var(--gold);line-height:1}
+.capacity-maximum{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px}
+.capacity-maximum .capacity-label{font-size:11px;color:var(--sub)}
+.capacity-maximum .capacity-value{font-size:14px;font-weight:700;color:var(--text)}
