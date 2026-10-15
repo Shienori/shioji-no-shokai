@@ -244,8 +244,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (ship.currentPortId !== route.fromPortId) return;
 
     const cargo = getCargoById(template.cargoId);
-    const requiredLoadUnits = cargo.loadUnitsPerUnit * template.quantity;
-    if (ship.maxLoadUnits < requiredLoadUnits) return;
+    const requiredCargoVolume = cargo.unitVolume * template.quantity;
+    const requiredCargoWeight = cargo.weightPerUnit * template.quantity;
+
+    if (
+      ship.maxCargoVolume < requiredCargoVolume ||
+      ship.maxCargoWeight < requiredCargoWeight
+    ) {
+      return;
+    }
 
     const loadingDurationMs = cargo.loadingTimeMsPerUnit * template.quantity;
     const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
