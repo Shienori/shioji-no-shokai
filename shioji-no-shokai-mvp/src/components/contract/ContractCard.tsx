@@ -2,8 +2,8 @@ import type { ContractTemplate } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { formatDateTime, formatDuration } from "../../domain/time";
-import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractCardProps {
   contract: ContractTemplate;
@@ -16,14 +16,11 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
   const netProfit = Math.floor(contract.offeredReward * 0.7);
-  const requiredCargoVolume = cargo.unitVolume * contract.quantity;
-  const requiredCargoWeight = cargo.weightPerUnit * contract.quantity;
-  const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
-  const deadlineTime = new Date(Date.now() + realDeadlineMs);
-  const estimatedArrivalTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = formatDateTime(deadlineTime.getTime());
-  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
-  const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
+  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
+  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
+  const deadlineLabel = formatDateTime(deadlineAt);
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
+  const voyageDurationLabel = formatDuration(voyageDurationMs);
 
   return (
     <button className="contract-card" onClick={onSelect}>

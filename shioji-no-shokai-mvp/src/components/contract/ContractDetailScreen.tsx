@@ -3,9 +3,9 @@ import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
-import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -38,14 +38,11 @@ export function ContractDetailScreen({
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = contract.offeredReward - expense;
-  const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
-  const deadlineTime = new Date(Date.now() + realDeadlineMs);
-  const estimatedArrivalTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = formatDateTime(deadlineTime.getTime());
-  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
-  const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const requiredCargoVolume = cargo.unitVolume * contract.quantity;
-  const requiredCargoWeight = cargo.weightPerUnit * contract.quantity;
+  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
+  const deadlineLabel = formatDateTime(deadlineAt);
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
+  const voyageDurationLabel = formatDuration(voyageDurationMs);
+  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const canAccept = eligibleShips.length > 0;
 
   const getFilledBlocks = (required: number, maximum: number) => {
