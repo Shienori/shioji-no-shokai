@@ -2,7 +2,7 @@ import type { ContractTemplate } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { formatDateTime, formatDuration, floorTo30Minutes } from "../../domain/time";
+import { formatDateTime, formatDuration } from "../../domain/time";
 import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 interface ContractCardProps {
@@ -19,10 +19,10 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const requiredCargoVolume = cargo.unitVolume * contract.quantity;
   const requiredCargoWeight = cargo.weightPerUnit * contract.quantity;
   const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
-  const deadlineTime = floorTo30Minutes(Date.now() + realDeadlineMs);
-  const estimatedArrivalTime = floorTo30Minutes(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = formatDateTime(deadlineTime);
-  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime);
+  const deadlineTime = new Date(Date.now() + realDeadlineMs);
+  const estimatedArrivalTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
+  const deadlineLabel = formatDateTime(deadlineTime.getTime());
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
   const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
 
   return (
@@ -42,17 +42,17 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
           <span className="contract-fact-value">{cargo.name} ×{contract.quantity}</span>
         </div>
         <div className="contract-fact">
-          <span className="contract-fact-label">必要容積</span>
+          <span className="contract-fact-label">必要スペース</span>
           <span className="contract-fact-value">{requiredCargoVolume}</span>
         </div>
         <div className="contract-fact">
-          <span className="contract-fact-label">必要積載重量</span>
-          <span className="contract-fact-value">{requiredCargoWeight}t</span>
+          <span className="contract-fact-label">必要積載量</span>
+          <span className="contract-fact-value">{requiredCargoWeight}</span>
         </div>
       </div>
       <p className="contract-deadline">航海所要時間：{voyageDurationLabel}</p>
       <p className="contract-estimated-delivery">到着期限：{deadlineLabel}</p>
-      <p className="contract-estimated-delivery">予定到着時間：{estimatedArrivalLabel}</p>
+      <p className="contract-estimated-delivery">ETA：{estimatedArrivalLabel}</p>
       <div className="contract-reward">
         <div className="contract-reward-item">
           <span className="contract-fact-label">提示報酬</span>

@@ -60,10 +60,18 @@ export function ContractDetailScreen({
           <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
           <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
           <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
-          <div className="kv"><span>必要容積</span><span>{requiredCargoVolume}</span></div>
-          <div className="kv"><span>必要積載重量</span><span>{requiredCargoWeight}t</span></div>
+          <div className="requirement-row" style={{ display: "flex", gap: "16px", color: "yellow" }}>
+            <div className="kv" style={{ color: "yellow" }}>
+              <span>必要スペース</span>
+              <span>{requiredCargoVolume}</span>
+            </div>
+            <div className="kv" style={{ color: "yellow" }}>
+              <span>必要積載量</span>
+              <span>{requiredCargoWeight}</span>
+            </div>
+          </div>
           <div className="kv"><span>航海所要時間</span><span>{voyageDurationLabel}</span></div>
-          <div className="kv"><span>予定到着時間</span><span>{estimatedArrivalLabel}</span></div>
+          <div className="kv"><span>ETA</span><span>{estimatedArrivalLabel}</span></div>
           <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
         </div>
 
@@ -91,7 +99,7 @@ export function ContractDetailScreen({
                   >
                     <span className="ship-select-name">{ship.name}</span>
                     <span className="ship-select-meta">
-                      容積 {ship.maxCargoVolume}／積載重量 {ship.maxCargoWeight}t／状態 {ship.status}
+                      スペース {ship.maxCargoVolume}／積載量 {ship.maxCargoWeight}／状態 {ship.status}
                     </span>
                   </button>
                 );
