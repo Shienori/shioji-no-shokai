@@ -6,8 +6,8 @@ interface TabBarProps {
 export function TabBar({ activeTab, onChange }: TabBarProps) {
   return (
     <div className="tabs">
-      <button className={`tab ${activeTab === "contracts" ? "active" : ""}`} onClick={() => onChange("contracts")}>契約板</button>
-      <button className={`tab ${activeTab === "fleet" ? "active" : ""}`} onClick={() => onChange("fleet")}>Fleet</button>
+      <button className={`tab ${activeTab === "contracts" ? "active" : ""}`} onClick={() => onChange("contracts")}>依頼</button>
+      <button className={`tab ${activeTab === "fleet" ? "active" : ""}`} onClick={() => onChange("fleet")}>船団</button>
     </div>
   );
 }
