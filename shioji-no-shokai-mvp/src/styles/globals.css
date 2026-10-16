@@ -1,6 +1,7 @@
 :root{--bg:#0e1a24;--panel:#152633;--panel2:#1c3242;--line:#2c4a5e;--text:#e8f1f5;--sub:#9db4c0;--gold:#f4c95d;--green:#69d19c;--blue:#6fb3e0;--red:#e57373;--app-max-width:420px;--screen-padding:16px;--card-gap:8px;--card-padding:14px;--card-radius:12px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);display:flex;justify-content:center;min-height:100vh}
+#root{width:100%;max-width:var(--app-max-width);min-width:0;min-height:100vh}
 .phone{width:100%;max-width:var(--app-max-width);min-height:100vh;background:linear-gradient(180deg,#0e1a24,#122735);display:flex;flex-direction:column;position:relative}
 .app-header{padding:14px var(--screen-padding);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:rgba(21,38,51,.9);position:sticky;top:0;z-index:5}
 .app-header h1{font-size:16px}
@@ -116,3 +117,20 @@ main>section{width:100%;min-width:0}
 .ship-select-name{display:block;font-size:14px;font-weight:700}
 .ship-select-meta{display:block;margin-top:4px;font-size:12px;color:var(--sub)}
 .accept-reason{margin:0;font-size:12px;color:var(--red);text-align:center}
+
+/* 受注要件と船積載ゲージ */
+.requirement-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;padding:12px;border:1px solid var(--gold);border-radius:12px;background:rgba(244,201,93,.08)}
+.requirement-item{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.requirement-label{font-size:12px;color:var(--sub)}
+.requirement-value{font-size:28px;font-weight:800;color:var(--gold);line-height:1}
+.ship-capacity{margin-top:10px}
+.capacity-required{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}
+.capacity-required-label{font-size:13px;color:var(--sub)}
+.capacity-required-value{font-size:26px;font-weight:800;color:var(--gold);line-height:1}
+.capacity-gauge{display:grid;grid-template-columns:repeat(20,1fr);gap:2px;height:10px;margin-top:6px;border-radius:4px;background:var(--panel2);overflow:hidden}
+.capacity-block{background:rgba(105,209,156,.18);border-radius:2px}
+.capacity-block.filled{background:var(--green)}
+.capacity-maximum{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px}
+.capacity-maximum .capacity-label{font-size:11px;color:var(--sub)}
+.capacity-maximum .capacity-value{font-size:14px;font-weight:700;color:var(--text)}
+.ship-select-item.eligible{border-color:var(--green)}

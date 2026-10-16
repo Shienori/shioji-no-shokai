@@ -19,7 +19,8 @@ export function ShipDetailModal({ ship, open, onClose }: ShipDetailModalProps) {
         <div className="kv"><span>常用速力</span><span>{ship.cruisingSpeedKnots}ノット</span></div>
         <div className="kv"><span>機関種類</span><span>{ship.engineType}</span></div>
         <div className="kv"><span>機関出力</span><span>{ship.engineOutput}</span></div>
-        <div className="kv"><span>積載力</span><span>{ship.maxLoadUnits}LU</span></div>
+        <div className="kv"><span>スペース</span><span>{ship.maxCargoVolume}</span></div>
+        <div className="kv"><span>積載量</span><span>{ship.maxCargoWeight}</span></div>
         <button className="btn btn-primary" onClick={onClose}>閉じる</button>
       </div>
     </div>

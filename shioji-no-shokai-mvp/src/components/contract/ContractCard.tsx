@@ -2,8 +2,9 @@ import type { ContractTemplate } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { formatDateTime, formatDuration, floorTo30Minutes } from "../../domain/time";
-import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
+import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
+import { calculateExpense, calculateNetProfit } from "../../domain/reward";
+import { formatDateTime, formatDuration } from "../../domain/time";
 
 interface ContractCardProps {
   contract: ContractTemplate;
@@ -15,14 +16,13 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const cargo = getCargoById(contract.cargoId);
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
-  const netProfit = Math.floor(contract.offeredReward * 0.7);
-  const requiredLoadUnits = cargo.loadUnitsPerUnit * contract.quantity;
-  const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
-  const deadlineTime = floorTo30Minutes(Date.now() + realDeadlineMs);
-  const estimatedArrivalTime = floorTo30Minutes(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = formatDateTime(deadlineTime);
-  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime);
-  const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
+  const expense = calculateExpense(contract.offeredReward);
+  const netProfit = calculateNetProfit(contract.offeredReward, expense);
+  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
+  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
+  const deadlineLabel = formatDateTime(deadlineAt);
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
+  const voyageDurationLabel = formatDuration(voyageDurationMs);
 
   return (
     <button className="contract-card" onClick={onSelect}>
@@ -35,19 +35,25 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
         <span className="contract-route-arrow">→</span>
         {toPort.name}
       </p>
+      <div className="requirement-grid card-requirement-grid">
+        <div className="requirement-item">
+          <span className="requirement-label">必要スペース</span>
+          <span className="requirement-value">{requiredCargoVolume}</span>
+        </div>
+        <div className="requirement-item">
+          <span className="requirement-label">必要積載量</span>
+          <span className="requirement-value">{requiredCargoWeight}</span>
+        </div>
+      </div>
       <div className="contract-facts">
         <div className="contract-fact">
           <span className="contract-fact-label">貨物</span>
           <span className="contract-fact-value">{cargo.name} ×{contract.quantity}</span>
         </div>
-        <div className="contract-fact">
-          <span className="contract-fact-label">必要積載量</span>
-          <span className="contract-fact-value">{requiredLoadUnits}LU</span>
-        </div>
       </div>
       <p className="contract-deadline">航海所要時間：{voyageDurationLabel}</p>
       <p className="contract-estimated-delivery">到着期限：{deadlineLabel}</p>
-      <p className="contract-estimated-delivery">予定到着時間：{estimatedArrivalLabel}</p>
+      <p className="contract-estimated-delivery">ETA：{estimatedArrivalLabel}</p>
       <div className="contract-reward">
         <div className="contract-reward-item">
           <span className="contract-fact-label">提示報酬</span>

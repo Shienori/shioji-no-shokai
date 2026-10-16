@@ -12,6 +12,11 @@ export function floorTo30Minutes(realTimeMs: number): number {
   return Math.floor(realTimeMs / intervalMs) * intervalMs;
 }
 
+export function ceilTo30Minutes(realTimeMs: number): number {
+  const intervalMs = 30 * 60 * 1000;
+  return Math.ceil(realTimeMs / intervalMs) * intervalMs;
+}
+
 export function formatDateTime(realTimeMs: number): string {
   const date = new Date(realTimeMs);
   const year = date.getFullYear();

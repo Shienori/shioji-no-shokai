@@ -5,10 +5,10 @@ import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract }
 import { ports } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
-import { createRewardBreakdown } from "../domain/reward";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
-import { advanceOperationTime, floorTo30Minutes } from "../domain/time";
+import { advanceOperationTime } from "../domain/time";
+import { createAcceptedContract } from "../domain/contractSchedule";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
 import { getPortHexId } from "../data/hexMap";
@@ -62,8 +62,8 @@ function createInitialGameState(): GameState {
     acceptedContractIds: [],
     reputations: [
       { shipperId: "shipper_selene_farmers", value: 0 },
-      { shipperId: "shipper_rigel_forge", value: 0 },
-      { shipperId: "shipper_aldera_merchants", value: 0 }
+      { shipperId: "shipper_aldera_merchants", value: 0 },
+      { shipperId: "shipper_rigel_forge", value: 0 }
     ],
     tutorialCompleted: false,
     selectedPortId: "port_selene",
@@ -244,27 +244,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (ship.currentPortId !== route.fromPortId) return;
 
     const cargo = getCargoById(template.cargoId);
-    const requiredLoadUnits = cargo.loadUnitsPerUnit * template.quantity;
-    if (ship.maxLoadUnits < requiredLoadUnits) return;
+    const requiredCargoVolume = cargo.unitVolume * template.quantity;
+    const requiredCargoWeight = cargo.weightPerUnit * template.quantity;
 
-    const loadingDurationMs = cargo.loadingTimeMsPerUnit * template.quantity;
-    const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
-    const arrivalOperationDurationMs = loadingDurationMs + voyageDurationMs;
-    const contractTimeLimitMs = Math.round((arrivalOperationDurationMs / 6) * 1.5);
+    if (
+      ship.maxCargoVolume < requiredCargoVolume ||
+      ship.maxCargoWeight < requiredCargoWeight
+    ) {
+      return;
+    }
 
-    const reward = createRewardBreakdown(cargo.unitPrice * template.quantity, route.distance <= 30 ? 20 : route.distance <= 60 ? 35 : 60);
-
-    const acceptedContract: AcceptedContract = {
-      id: template.id,
-      templateId: template.id,
-      shipperId: template.shipperId,
-      routeId: template.routeId,
-      cargoId: template.cargoId,
-      quantity: template.quantity,
-      reward,
-      acceptedAt: currentRealTime,
-      deadlineAt: floorTo30Minutes(currentRealTime + contractTimeLimitMs)
-    };
+    const acceptedContract = createAcceptedContract(
+      template,
+      route,
+      cargo,
+      currentRealTime
+    );
 
     const voyage = createVoyage(acceptedContract, ship, current.operationTime);
     const updatedShip = {

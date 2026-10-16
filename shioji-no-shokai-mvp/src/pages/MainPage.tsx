@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useGameStore } from "../state/gameStore";
+import { debugSkipThirtyMinutes } from "../state/debugTimeSkip";
 import { AppHeader } from "../components/layout/AppHeader";
 import { TabBar } from "../components/layout/TabBar";
 import { ContractBoard } from "../components/contract/ContractBoard";
@@ -9,6 +10,7 @@ import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
+import { getContractCargoRequirements } from "../domain/contractOffer";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { SAVE_KEY } from "../data/gameConstants";
@@ -34,28 +36,34 @@ export function MainPage() {
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
 
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
-  const requiredLoadUnits = selectedContract
-    ? getCargoById(selectedContract.cargoId).loadUnitsPerUnit * selectedContract.quantity
-    : 0;
+  const selectedCargo = selectedContract ? getCargoById(selectedContract.cargoId) : null;
+  const { requiredCargoVolume, requiredCargoWeight } = selectedCargo && selectedContract
+    ? getContractCargoRequirements(selectedContract, selectedCargo)
+    : { requiredCargoVolume: 0, requiredCargoWeight: 0 };
 
   const eligibleShips = selectedRoute
     ? gameState.ships.filter((ship) =>
         ship.status === "docked"
         && ship.currentPortId === selectedRoute.fromPortId
-        && ship.maxLoadUnits >= requiredLoadUnits
+        && ship.maxCargoVolume >= requiredCargoVolume
+        && ship.maxCargoWeight >= requiredCargoWeight
       )
     : [];
 
   const acceptReason = !selectedContract || !selectedRoute
     ? null
     : gameState.acceptedContract
-      ? "すでに契約を受注しています"
+      ? "すでに依頼を受注しています"
       : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
         ? "船が仕出港にいません"
         : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
           ? "船がフリーではありません"
-          : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.maxLoadUnits >= requiredLoadUnits)
-            ? "積載量が足りません"
+          : !gameState.ships.some((ship) =>
+              ship.currentPortId === selectedRoute.fromPortId
+              && ship.maxCargoVolume >= requiredCargoVolume
+              && ship.maxCargoWeight >= requiredCargoWeight
+            )
+            ? "スペースまたは積載量が不足しています"
             : null;
 
   const voyage = gameState.activeVoyage;
@@ -123,6 +131,7 @@ export function MainPage() {
 
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
 
+      <button className="btn btn-secondary" type="button" onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
       <button className="btn btn-secondary" onClick={resetGame}>デバッグ: 初期化</button>
     </div>
   );

@@ -72,7 +72,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         <div className="contract-card fleet-card">
           <div className="contract-card-heading">
             <h3>{ship.name}</h3>
-            <span className="contract-card-detail">積載 {contract ? contract.quantity : 0}/{ship.maxLoadUnits}LU</span>
+            <span className="contract-card-detail">スペース {ship.maxCargoVolume}／積載量 {ship.maxCargoWeight}</span>
           </div>
           <div className="progress-block">
             <div className="progress-heading">
@@ -98,7 +98,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         {contract && route && fromPort && toPort && (
           <div className="contract-card fleet-card">
             <div className="contract-card-heading">
-              <h3>進行中契約</h3>
+              <h3>進行中の依頼</h3>
               <span className="contract-card-detail">{getCargoById(contract.cargoId).name} ×{contract.quantity}</span>
             </div>
             <div className="contract-card-route">
@@ -112,7 +112,7 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
                 <span className="contract-fact-value">{voyage?.phase === "sailing" ? formatDuration(remainingMs) : "-"}</span>
               </div>
               <div>
-                <span className="contract-fact-label">予定到着</span>
+                <span className="contract-fact-label">ETA</span>
                 <span className="contract-fact-value">{voyage?.phase === "sailing" ? estimatedArrivalLabel : "-"}</span>
               </div>
             </div>

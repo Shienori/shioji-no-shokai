@@ -3,9 +3,10 @@ import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
-import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
+import { CapacityGauge } from "./CapacityGauge";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -38,19 +39,18 @@ export function ContractDetailScreen({
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = contract.offeredReward - expense;
-  const realDeadlineMs = (contract.deadlineHours * 60 * 60 * 1000) / GAME_TIME_MULTIPLIER;
-  const deadlineTime = new Date(Date.now() + realDeadlineMs);
-  const estimatedArrivalTime = new Date(Date.now() + route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
-  const deadlineLabel = formatDateTime(deadlineTime.getTime());
-  const estimatedArrivalLabel = formatDateTime(estimatedArrivalTime.getTime());
-  const voyageDurationLabel = formatDuration(route.baseVoyageHours * 60 * 60 * 1000 / GAME_TIME_MULTIPLIER);
+  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
+  const deadlineLabel = formatDateTime(deadlineAt);
+  const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
+  const voyageDurationLabel = formatDuration(voyageDurationMs);
+  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const canAccept = eligibleShips.length > 0;
 
   return (
     <div className="contract-detail-screen">
       <header className="detail-header">
         <button className="back-btn" onClick={onClose}>← 戻る</button>
-        <h2>{cargo.name}の輸送</h2>
+        <h2>{cargo.name}の輸送依頼</h2>
       </header>
 
       <div className="detail-body">
@@ -58,8 +58,18 @@ export function ContractDetailScreen({
           <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
           <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
           <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
+          <div className="requirement-grid">
+            <div className="requirement-item">
+              <span className="requirement-label">必要スペース</span>
+              <span className="requirement-value">{requiredCargoVolume}</span>
+            </div>
+            <div className="requirement-item">
+              <span className="requirement-label">必要積載量</span>
+              <span className="requirement-value">{requiredCargoWeight}</span>
+            </div>
+          </div>
           <div className="kv"><span>航海所要時間</span><span>{voyageDurationLabel}</span></div>
-          <div className="kv"><span>予定到着時間</span><span>{estimatedArrivalLabel}</span></div>
+          <div className="kv"><span>ETA</span><span>{estimatedArrivalLabel}</span></div>
           <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
         </div>
 
@@ -81,14 +91,23 @@ export function ContractDetailScreen({
                   <button
                     key={ship.id}
                     type="button"
-                    className="ship-select-item"
+                    className={`ship-select-item${isEligible ? " eligible" : ""}`}
                     disabled={!isEligible}
                     onClick={() => onAccept(ship.id)}
                   >
                     <span className="ship-select-name">{ship.name}</span>
-                    <span className="ship-select-meta">
-                      積載量 {ship.maxLoadUnits}LU／状態 {ship.status}
-                    </span>
+                    <CapacityGauge
+                      requiredLabel="必要スペース"
+                      maximumLabel="最大スペース"
+                      required={requiredCargoVolume}
+                      maximum={ship.maxCargoVolume}
+                    />
+                    <CapacityGauge
+                      requiredLabel="必要積載量"
+                      maximumLabel="最大積載量"
+                      required={requiredCargoWeight}
+                      maximum={ship.maxCargoWeight}
+                    />
                   </button>
                 );
               })}
@@ -101,11 +120,11 @@ export function ContractDetailScreen({
         {acceptReason && <p className="accept-reason">{acceptReason}</p>}
         {!showShipSelect && (
           <button
-            className="btn btn-primary"
+            className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`}
             disabled={!canAccept}
             onClick={() => setShowShipSelect(true)}
           >
-            受注する
+            {canAccept ? "受注可能" : "受注不可"}
           </button>
         )}
         <button className="btn btn-secondary" onClick={onClose}>断る</button>

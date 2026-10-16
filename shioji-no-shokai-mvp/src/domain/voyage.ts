@@ -1,6 +1,7 @@
 import type { AcceptedContract, Route, Ship, Voyage } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
+import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -10,7 +11,7 @@ export function createVoyage(contract: AcceptedContract, ship: Ship, operationTi
   const loadingDurationMs = cargo.loadingTimeMsPerUnit * contract.quantity;
   const loadingCompletedAt = operationTime + loadingDurationMs;
   const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
-  const arrivalDeadlineAt = operationTime + Math.round((loadingDurationMs + voyageDurationMs) * 1.5);
+  const arrivalDeadlineAt = operationTime + (contract.deadlineAt - contract.acceptedAt) * GAME_TIME_MULTIPLIER;
 
   return {
     id: `voyage_${contract.id}`,
@@ -80,7 +81,7 @@ function progressUnloading(voyage: Voyage, contract: AcceptedContract, operation
 
 export function calculateArrivalLateHours(arrivedAt: number, arrivalDeadlineAt: number): number {
   if (arrivedAt <= arrivalDeadlineAt) return 0;
-  return Math.floor((arrivedAt - arrivalDeadlineAt) / HOUR_MS);
+  return (arrivedAt - arrivalDeadlineAt) / HOUR_MS;
 }
 
 export function calculateVoyageProgress(voyage: Voyage, contract: AcceptedContract, operationTime: number): number {
