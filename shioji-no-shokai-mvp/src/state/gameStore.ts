@@ -5,10 +5,10 @@ import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract }
 import { ports } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
-import { calculateCargoValue, calculateVoyageDistanceAllowance } from "../domain/reward";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
-import { advanceOperationTime, floorTo30Minutes } from "../domain/time";
+import { advanceOperationTime } from "../domain/time";
+import { createAcceptedContract } from "../domain/contractSchedule";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
 import { getPortHexId } from "../data/hexMap";
@@ -254,31 +254,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    const loadingDurationMs = cargo.loadingTimeMsPerUnit * template.quantity;
-    const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
-    const arrivalOperationDurationMs = loadingDurationMs + voyageDurationMs;
-    const contractTimeLimitMs = Math.round((arrivalOperationDurationMs / 6) * 1.5);
-
-    const cargoValue = calculateCargoValue(cargo.unitPrice, template.quantity);
-    const voyageDistanceAllowance = calculateVoyageDistanceAllowance(route.distance);
-    const reward = {
-      cargoValue,
-      voyageDistanceAllowance,
-      otherAdjustment: template.offeredReward - cargoValue - voyageDistanceAllowance,
-      offeredReward: template.offeredReward
-    };
-
-    const acceptedContract: AcceptedContract = {
-      id: template.id,
-      templateId: template.id,
-      shipperId: template.shipperId,
-      routeId: template.routeId,
-      cargoId: template.cargoId,
-      quantity: template.quantity,
-      reward,
-      acceptedAt: currentRealTime,
-      deadlineAt: floorTo30Minutes(currentRealTime + contractTimeLimitMs)
-    };
+    const acceptedContract = createAcceptedContract(
+      template,
+      route,
+      cargo,
+      currentRealTime
+    );
 
     const voyage = createVoyage(acceptedContract, ship, current.operationTime);
     const updatedShip = {
