@@ -1,5 +1,6 @@
 import type { Cargo, ContractTemplate, Route } from "./types";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
+import { ceilTo30Minutes } from "./time";
 
 export function getContractCargoRequirements(contract: ContractTemplate, cargo: Cargo) {
   return {
@@ -14,6 +15,6 @@ export function getContractSchedule(contract: ContractTemplate, route: Route, no
   return {
     voyageDurationMs,
     estimatedArrivalAt: now + voyageDurationMs,
-    deadlineAt: now + deadlineDurationMs
+    deadlineAt: ceilTo30Minutes(now + deadlineDurationMs)
   };
 }
