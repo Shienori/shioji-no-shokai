@@ -3,7 +3,10 @@ import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
+import {
+  getContractCargoRequirements,
+  getContractSchedule,
+} from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
 import { CapacityGauge } from "./CapacityGauge";
@@ -23,7 +26,7 @@ export function ContractDetailScreen({
   eligibleShips,
   acceptReason,
   onAccept,
-  onClose
+  onClose,
 }: ContractDetailScreenProps) {
   const [showShipSelect, setShowShipSelect] = useState(false);
 
@@ -39,11 +42,15 @@ export function ContractDetailScreen({
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = contract.offeredReward - expense;
-  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
+
+  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } =
+    getContractSchedule(contract, route, cargo, Date.now());
+
   const deadlineLabel = formatDateTime(deadlineAt);
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
   const voyageDurationLabel = formatDuration(voyageDurationMs);
-  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
+  const { requiredCargoVolume, requiredCargoWeight } =
+    getContractCargoRequirements(contract, cargo);
   const canAccept = eligibleShips.length > 0;
 
   return (
@@ -55,9 +62,19 @@ export function ContractDetailScreen({
 
       <div className="detail-body">
         <div className="card detail-card">
-          <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
-          <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
-          <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
+          <div className="kv">
+            <span>貨物</span>
+            <span>{cargo.name} ×{contract.quantity}</span>
+          </div>
+          <div className="kv">
+            <span>航路</span>
+            <span>{fromPort.name} → {toPort.name}</span>
+          </div>
+          <div className="kv">
+            <span>距離</span>
+            <span>{route.distance}海里</span>
+          </div>
+
           <div className="requirement-grid">
             <div className="requirement-item">
               <span className="requirement-label">必要スペース</span>
@@ -68,17 +85,36 @@ export function ContractDetailScreen({
               <span className="requirement-value">{requiredCargoWeight}</span>
             </div>
           </div>
-          <div className="kv"><span>航海所要時間</span><span>{voyageDurationLabel}</span></div>
-          <div className="kv"><span>ETA</span><span>{estimatedArrivalLabel}</span></div>
-          <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
+
+          <div className="kv">
+            <span>航海所要時間</span>
+            <span>{voyageDurationLabel}</span>
+          </div>
+          <div className="kv">
+            <span>ETA（積込＋航海）</span>
+            <span>{estimatedArrivalLabel}</span>
+          </div>
+          <div className="kv">
+            <span>到着期限</span>
+            <span>{deadlineLabel}</span>
+          </div>
         </div>
 
         <div className="card detail-card">
           <div className="reward-row">
-            <div className="reward-item"><div className="label">提示報酬</div><div className="value">{contract.offeredReward}G</div></div>
-            <div className="reward-item net"><div className="label">見込純利益</div><div className="value">{netProfit}G</div></div>
+            <div className="reward-item">
+              <div className="label">提示報酬</div>
+              <div className="value">{contract.offeredReward}G</div>
+            </div>
+            <div className="reward-item net">
+              <div className="label">見込純利益</div>
+              <div className="value">{netProfit}G</div>
+            </div>
           </div>
-          <div className="kv"><span>経費</span><span>-{expense}G</span></div>
+          <div className="kv">
+            <span>経費</span>
+            <span>-{expense}G</span>
+          </div>
         </div>
 
         {showShipSelect && (
@@ -86,7 +122,10 @@ export function ContractDetailScreen({
             <h3>積載する船を選択</h3>
             <div className="ship-select-list">
               {ships.map((ship) => {
-                const isEligible = eligibleShips.some((item) => item.id === ship.id);
+                const isEligible = eligibleShips.some(
+                  (item) => item.id === ship.id,
+                );
+
                 return (
                   <button
                     key={ship.id}
@@ -117,7 +156,10 @@ export function ContractDetailScreen({
       </div>
 
       <footer className="detail-footer">
-        {acceptReason && <p className="accept-reason">{acceptReason}</p>}
+        {acceptReason && (
+          <p className="accept-reason">{acceptReason}</p>
+        )}
+
         {!showShipSelect && (
           <button
             className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`}
@@ -127,7 +169,10 @@ export function ContractDetailScreen({
             {canAccept ? "受注可能" : "受注不可"}
           </button>
         )}
-        <button className="btn btn-secondary" onClick={onClose}>断る</button>
+
+        <button className="btn btn-secondary" onClick={onClose}>
+          断る
+        </button>
       </footer>
     </div>
   );

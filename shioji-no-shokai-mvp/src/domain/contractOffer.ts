@@ -14,7 +14,8 @@ export function getContractCargoRequirements(
 export function getContractSchedule(
   contract: ContractTemplate,
   route: Route,
+  cargo: Cargo,
   now: number,
 ) {
-  return calculateContractSchedule(contract, route, now);
+  return calculateContractSchedule(contract, route, cargo, now);
 }

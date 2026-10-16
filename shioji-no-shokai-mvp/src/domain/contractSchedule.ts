@@ -21,20 +21,29 @@ export interface ContractSchedule {
 }
 
 export function calculateContractSchedule(
-  contract: Pick<ContractTemplate, "deadlineHours">,
+  contract: Pick<ContractTemplate, "deadlineHours" | "quantity">,
   route: Route,
+  cargo: Cargo,
   now: number,
 ): ContractSchedule {
-  const voyageDurationMs =
-    route.baseVoyageHours * HOUR_MS / GAME_TIME_MULTIPLIER;
+  const loadingDurationOperationMs =
+    cargo.loadingTimeMsPerUnit * contract.quantity;
+  const voyageDurationOperationMs =
+    route.baseVoyageHours * HOUR_MS;
 
-  const deadlineDurationMs =
+  const deadlineDurationRealMs =
     contract.deadlineHours * HOUR_MS / GAME_TIME_MULTIPLIER;
 
   return {
-    voyageDurationMs,
-    estimatedArrivalAt: now + voyageDurationMs,
-    deadlineAt: ceilTo30Minutes(now + deadlineDurationMs),
+    voyageDurationMs:
+      voyageDurationOperationMs / GAME_TIME_MULTIPLIER,
+    estimatedArrivalAt:
+      now
+      + (loadingDurationOperationMs + voyageDurationOperationMs)
+        / GAME_TIME_MULTIPLIER,
+    deadlineAt: ceilTo30Minutes(
+      now + deadlineDurationRealMs,
+    ),
   };
 }
 
@@ -71,6 +80,7 @@ export function createAcceptedContract(
   const schedule = calculateContractSchedule(
     template,
     route,
+    cargo,
     acceptedAt,
   );
 

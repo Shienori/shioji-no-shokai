@@ -1,5 +1,10 @@
 import { useState } from "react";
-import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
+import type {
+  AcceptedContract,
+  Ship,
+  Voyage,
+} from "../../domain/types";
+import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
@@ -20,50 +25,89 @@ interface FleetPanelProps {
 
 function getSeaLabel(hexId: string) {
   const match = hexId.match(/(\d+)$/);
-  return match ? `S${match[1].padStart(2, "0")}` : hexId;
+  return match
+    ? `S${match[1].padStart(2, "0")}`
+    : hexId;
 }
 
 function formatOperationTime(operationTime: number) {
   return `${(operationTime / 1000).toFixed(1)}秒`;
 }
 
-export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
+export function FleetPanel({
+  ship,
+  voyage,
+  contract,
+  progress,
+  operationTime,
+}: FleetPanelProps) {
   const [showShipDetail, setShowShipDetail] = useState(false);
-  const route = contract ? getRouteById(contract.routeId) : null;
+
+  const route = contract
+    ? getRouteById(contract.routeId)
+    : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
-  const remainingMs = remainingOperationMs / 6;
-  const deadlineLabel = contract ? formatDateTime(contract.deadlineAt) : "";
-  const estimatedArrivalLabel = voyage ? formatDateTime(Date.now() + remainingMs) : "";
 
-  const voyageProgress = voyage && contract
-    ? calculateVoyageProgress(voyage, contract, operationTime)
+  const showEta =
+    voyage?.phase === "loading" || voyage?.phase === "sailing";
+
+  const remainingOperationMs = voyage
+    ? Math.max(0, voyage.estimatedArrivalAt - operationTime)
     : 0;
+
+  const remainingRealMs =
+    remainingOperationMs / GAME_TIME_MULTIPLIER;
+
+  const deadlineLabel = contract
+    ? formatDateTime(contract.deadlineAt)
+    : "";
+
+  const estimatedArrivalLabel = showEta
+    ? formatDateTime(Date.now() + remainingRealMs)
+    : "";
+
+  const voyageProgress =
+    voyage && contract
+      ? calculateVoyageProgress(
+          voyage,
+          contract,
+          operationTime,
+        )
+      : 0;
 
   const sailingProgress =
     voyage?.phase === "sailing"
       ? voyageProgress
-      : voyage && (voyage.phase === "unloading" || voyage.phase === "completed")
+      : voyage &&
+          (voyage.phase === "unloading" ||
+            voyage.phase === "completed")
         ? 1
         : 0;
 
   const currentHexId = ship.currentHexId;
-  const currentHexData = hexMap.find((hex) => hex.id === currentHexId);
+  const currentHexData = hexMap.find(
+    (hex) => hex.id === currentHexId,
+  );
+
   const currentHexLabel = currentHexData
     ? currentHexData.kind === "port"
       ? getPortById(currentHexData.portId!).name
       : `海域 ${getSeaLabel(currentHexData.id)}`
     : currentHexId;
 
-  const routeHexIds = route ? getRouteHexIds(route.fromPortId, route.toPortId) ?? [] : [];
+  const routeHexIds = route
+    ? getRouteHexIds(route.fromPortId, route.toPortId) ?? []
+    : [];
 
   return (
     <section className="contract-board fleet-board">
       <header className="contract-board-header">
         <div>
           <h2>Fleet</h2>
-          <p className="contract-board-subtitle">船と航海の状況</p>
+          <p className="contract-board-subtitle">
+            船と航海の状況
+          </p>
         </div>
         <span className="contract-count">{ship.status}</span>
       </header>
@@ -72,48 +116,75 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         <div className="contract-card fleet-card">
           <div className="contract-card-heading">
             <h3>{ship.name}</h3>
-            <span className="contract-card-detail">スペース {ship.maxCargoVolume}／積載量 {ship.maxCargoWeight}</span>
+            <span className="contract-card-detail">
+              スペース {ship.maxCargoVolume}／積載量 {ship.maxCargoWeight}
+            </span>
           </div>
+
           <div className="progress-block">
             <div className="progress-heading">
               <span>進捗状況</span>
               <span>{Math.round(sailingProgress * 100)}%</span>
             </div>
-            <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+            <div className="progress">
+              <div
+                style={{
+                  width: `${Math.round(progress * 100)}%`,
+                }}
+              />
+            </div>
           </div>
+
           <div className="contract-card-route">
             <span>現在地</span>
             <span className="contract-route-arrow">→</span>
             <span>{currentHexLabel}</span>
           </div>
+
           <div className="contract-facts">
             <div>
               <span className="contract-fact-label">到着期限</span>
-              <span className="contract-fact-value">{deadlineLabel || "-"}</span>
+              <span className="contract-fact-value">
+                {deadlineLabel || "-"}
+              </span>
             </div>
           </div>
-          <button className="ship-detail-button" onClick={() => setShowShipDetail(true)}>船の詳細</button>
+
+          <button
+            className="ship-detail-button"
+            onClick={() => setShowShipDetail(true)}
+          >
+            船の詳細
+          </button>
         </div>
 
         {contract && route && fromPort && toPort && (
           <div className="contract-card fleet-card">
             <div className="contract-card-heading">
               <h3>進行中の依頼</h3>
-              <span className="contract-card-detail">{getCargoById(contract.cargoId).name} ×{contract.quantity}</span>
+              <span className="contract-card-detail">
+                {getCargoById(contract.cargoId).name} ×{contract.quantity}
+              </span>
             </div>
+
             <div className="contract-card-route">
               <span>{fromPort.name}</span>
               <span className="contract-route-arrow">→</span>
               <span>{toPort.name}</span>
             </div>
+
             <div className="contract-facts">
               <div>
                 <span className="contract-fact-label">到着まで</span>
-                <span className="contract-fact-value">{voyage?.phase === "sailing" ? formatDuration(remainingMs) : "-"}</span>
+                <span className="contract-fact-value">
+                  {showEta ? formatDuration(remainingRealMs) : "-"}
+                </span>
               </div>
               <div>
                 <span className="contract-fact-label">ETA</span>
-                <span className="contract-fact-value">{voyage?.phase === "sailing" ? estimatedArrivalLabel : "-"}</span>
+                <span className="contract-fact-value">
+                  {showEta ? estimatedArrivalLabel : "-"}
+                </span>
               </div>
             </div>
           </div>
@@ -130,17 +201,54 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
 
         <details className="contract-card fleet-card debug-card">
           <summary>デバッグ: 航海位置</summary>
-          <div className="kv"><span>フェーズ</span><span>{voyage?.phase ?? "待機"}</span></div>
-          <div className="kv"><span>操作時間</span><span>{formatOperationTime(operationTime)}</span></div>
-          <div className="kv"><span>出発時刻</span><span>{voyage ? formatOperationTime(voyage.departedAt) : "-"}</span></div>
-          <div className="kv"><span>到着予定</span><span>{voyage ? formatOperationTime(voyage.estimatedArrivalAt) : "-"}</span></div>
-          <div className="kv"><span>到着期限</span><span>{voyage ? formatOperationTime(voyage.arrivalDeadlineAt) : "-"}</span></div>
-          <div className="kv"><span>保存中HEX</span><span>{ship.currentHexId}</span></div>
-          <div className="kv"><span>経路HEX</span><span>{routeHexIds.join(" → ") || "-"}</span></div>
+          <div className="kv">
+            <span>フェーズ</span>
+            <span>{voyage?.phase ?? "待機"}</span>
+          </div>
+          <div className="kv">
+            <span>操作時間</span>
+            <span>{formatOperationTime(operationTime)}</span>
+          </div>
+          <div className="kv">
+            <span>出発時刻</span>
+            <span>
+              {voyage
+                ? formatOperationTime(voyage.departedAt)
+                : "-"}
+            </span>
+          </div>
+          <div className="kv">
+            <span>到着予定</span>
+            <span>
+              {voyage
+                ? formatOperationTime(voyage.estimatedArrivalAt)
+                : "-"}
+            </span>
+          </div>
+          <div className="kv">
+            <span>到着期限</span>
+            <span>
+              {voyage
+                ? formatOperationTime(voyage.arrivalDeadlineAt)
+                : "-"}
+            </span>
+          </div>
+          <div className="kv">
+            <span>保存中HEX</span>
+            <span>{ship.currentHexId}</span>
+          </div>
+          <div className="kv">
+            <span>経路HEX</span>
+            <span>{routeHexIds.join(" → ") || "-"}</span>
+          </div>
         </details>
       </div>
 
-      <ShipDetailModal ship={ship} open={showShipDetail} onClose={() => setShowShipDetail(false)} />
+      <ShipDetailModal
+        ship={ship}
+        open={showShipDetail}
+        onClose={() => setShowShipDetail(false)}
+      />
     </section>
   );
 }
