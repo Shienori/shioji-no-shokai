@@ -5,7 +5,7 @@ import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract }
 import { ports } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
-import { createRewardBreakdown } from "../domain/reward";
+import { calculateCargoValue, calculateVoyageDistanceAllowance } from "../domain/reward";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime, floorTo30Minutes } from "../domain/time";
@@ -62,8 +62,8 @@ function createInitialGameState(): GameState {
     acceptedContractIds: [],
     reputations: [
       { shipperId: "shipper_selene_farmers", value: 0 },
-      { shipperId: "shipper_rigel_forge", value: 0 },
-      { shipperId: "shipper_aldera_merchants", value: 0 }
+      { shipperId: "shipper_aldera_merchants", value: 0 },
+      { shipperId: "shipper_rigel_forge", value: 0 }
     ],
     tutorialCompleted: false,
     selectedPortId: "port_selene",
@@ -259,7 +259,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const arrivalOperationDurationMs = loadingDurationMs + voyageDurationMs;
     const contractTimeLimitMs = Math.round((arrivalOperationDurationMs / 6) * 1.5);
 
-    const reward = createRewardBreakdown(cargo.unitPrice * template.quantity, route.distance <= 30 ? 20 : route.distance <= 60 ? 35 : 60);
+    const cargoValue = calculateCargoValue(cargo.unitPrice, template.quantity);
+    const voyageDistanceAllowance = calculateVoyageDistanceAllowance(route.distance);
+    const reward = {
+      cargoValue,
+      voyageDistanceAllowance,
+      otherAdjustment: template.offeredReward - cargoValue - voyageDistanceAllowance,
+      offeredReward: template.offeredReward
+    };
 
     const acceptedContract: AcceptedContract = {
       id: template.id,
