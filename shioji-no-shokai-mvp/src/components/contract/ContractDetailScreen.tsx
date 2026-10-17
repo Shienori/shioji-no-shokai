@@ -51,6 +51,7 @@ export function ContractDetailScreen({
       <header className="detail-header">
         <button className="back-btn" onClick={onClose}>← 戻る</button>
         <h2>{cargo.name}の輸送依頼</h2>
+        <span style={{ fontSize: 10, color: "#9db4c0" }}>detail:v3</span>
       </header>
 
       <div className="detail-body">
