@@ -15,10 +15,8 @@ export const contractTemplates: ContractTemplate[] = [
   tutorialWheatContract,
 
   // セレネ港 発の通常契約
-  { id: "contract_selene_001", shipperId: "shipper_selene_farmers", routeId: "route_selene_aldera", cargoId: "cargo_fish", quantity: 8, offeredReward: 60, deadlineHours: 14 },
   { id: "contract_selene_002", shipperId: "shipper_selene_farmers", routeId: "route_selene_rigel", cargoId: "cargo_wheat", quantity: 15, offeredReward: 95, deadlineHours: 20 },
   { id: "contract_selene_003", shipperId: "shipper_aldera_merchants", routeId: "route_selene_aldera", cargoId: "cargo_silk", quantity: 4, offeredReward: 120, deadlineHours: 18 },
-  { id: "contract_selene_004", shipperId: "shipper_selene_farmers", routeId: "route_selene_rigel", cargoId: "cargo_fish", quantity: 12, offeredReward: 130, deadlineHours: 22 },
   { id: "contract_selene_005", shipperId: "shipper_selene_farmers", routeId: "route_selene_aldera", cargoId: "cargo_wheat", quantity: 8, offeredReward: 55, deadlineHours: 12 },
 
   // アルデラ港 発の通常契約

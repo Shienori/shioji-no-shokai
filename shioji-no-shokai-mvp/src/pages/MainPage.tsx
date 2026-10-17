@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useGameStore } from "../state/gameStore";
+import { debugSkipThirtyMinutes } from "../state/debugTimeSkip";
 import { AppHeader } from "../components/layout/AppHeader";
 import { TabBar } from "../components/layout/TabBar";
 import { ContractBoard } from "../components/contract/ContractBoard";
@@ -130,6 +131,7 @@ export function MainPage() {
 
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
 
+      <button className="btn btn-secondary" type="button" onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
       <button className="btn btn-secondary" onClick={resetGame}>デバッグ: 初期化</button>
     </div>
   );

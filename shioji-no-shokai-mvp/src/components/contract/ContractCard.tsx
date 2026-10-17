@@ -3,6 +3,7 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
+import { calculateExpense, calculateNetProfit } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
 
 interface ContractCardProps {
@@ -15,7 +16,8 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const cargo = getCargoById(contract.cargoId);
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
-  const netProfit = Math.floor(contract.offeredReward * 0.7);
+  const expense = calculateExpense(contract.offeredReward);
+  const netProfit = calculateNetProfit(contract.offeredReward, expense);
   const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
   const deadlineLabel = formatDateTime(deadlineAt);
