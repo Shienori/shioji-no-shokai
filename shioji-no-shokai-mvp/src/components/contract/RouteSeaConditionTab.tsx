@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Ship } from "../../domain/types";
 import { hexMap, getHexById } from "../../data/hexMap";
 import type { MapHex, SeaCondition } from "../../domain/hexMap";
@@ -74,11 +74,15 @@ export function RouteSeaConditionTab({
   selectedShip,
 }: RouteSeaConditionTabProps) {
   const departureAt = Date.now();
-  const [selectedAt, setSelectedAt] = useState(departureAt);
+  const selectedAt = departureAt;
 
   const routeHexIds = useMemo(() => {
     return getRouteHexIds(fromPortId, toPortId) ?? [];
   }, [fromPortId, toPortId]);
+
+  const routeHexIdSet = useMemo(() => {
+    return new Set(routeHexIds);
+  }, [routeHexIds]);
 
   const seaHexIds = useMemo(() => {
     return routeHexIds.filter((hexId) => {
@@ -187,16 +191,17 @@ export function RouteSeaConditionTab({
                 .map((center) => `${center.x},${center.y}`)
                 .join(" ")}
               fill="none"
-              stroke="#c98b12"
-              strokeWidth={3}
+              stroke="#f4c95d"
+              strokeWidth={4}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.8}
+              opacity={0.9}
             />
           )}
 
           {centers.map(({ hex, center }) => {
             const isPort = hex.kind === "port";
+            const isRouteHex = routeHexIdSet.has(hex.id);
             const condition = overlayConditions.get(hex.id);
             const isShipHex =
               predictedPosition?.hexId === hex.id;
@@ -209,9 +214,19 @@ export function RouteSeaConditionTab({
 
             const stroke = isShipHex
               ? "#c2410c"
-              : isPort
-                ? "#1f7fb8"
-                : "#9db8c7";
+              : isRouteHex
+                ? "#f4c95d"
+                : isPort
+                  ? "#1f7fb8"
+                  : "#9db8c7";
+
+            const strokeWidth = isShipHex
+              ? 3
+              : isRouteHex
+                ? 2.5
+                : isPort
+                  ? 2
+                  : 1;
 
             return (
               <g key={hex.id}>
@@ -219,7 +234,7 @@ export function RouteSeaConditionTab({
                   points={getHexPoints(center)}
                   fill={fill}
                   stroke={stroke}
-                  strokeWidth={isShipHex ? 3 : isPort ? 2 : 1}
+                  strokeWidth={strokeWidth}
                 />
                 <text
                   x={center.x}
@@ -266,6 +281,7 @@ export function RouteSeaConditionTab({
         <span><span className="legend-swatch calm" /> 無風</span>
         <span><span className="legend-swatch followingWind" /> 追風</span>
         <span><span className="legend-swatch headwind" /> 向かい風</span>
+        <span><span className="legend-swatch route" /> 予定航路</span>
       </div>
 
       <input
@@ -275,9 +291,8 @@ export function RouteSeaConditionTab({
         max={timeRange.max}
         step={SEA_CONDITION_SLOT_MS}
         value={clippedSelectedAt}
-        onChange={(event) => {
-          setSelectedAt(Number(event.target.value));
-        }}
+        disabled
+        aria-label="海況予報の表示時刻"
       />
 
       <div className="route-sea-time-labels">
