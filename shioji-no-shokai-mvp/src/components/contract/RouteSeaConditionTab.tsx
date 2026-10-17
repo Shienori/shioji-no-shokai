@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import type { Ship } from "../../domain/types";
 import { hexMap, getHexById } from "../../data/hexMap";
 import type { MapHex, SeaCondition } from "../../domain/hexMap";
-import { BASE_SHIP_SPEED_KNOTS } from "../../domain/hexMap";
 import { getRouteHexIds } from "../../domain/routePath";
 import {
   SEA_CONDITION_SLOT_MS,
@@ -74,8 +73,8 @@ export function RouteSeaConditionTab({
   toPortId,
   selectedShip,
 }: RouteSeaConditionTabProps) {
-  const now = Date.now();
-  const [selectedAt, setSelectedAt] = useState(now);
+  const departureAt = Date.now();
+  const [selectedAt, setSelectedAt] = useState(departureAt);
 
   const routeHexIds = useMemo(() => {
     return getRouteHexIds(fromPortId, toPortId) ?? [];
@@ -92,12 +91,12 @@ export function RouteSeaConditionTab({
 
     return calculateEstimatedArrivalAt(
       seaHexIds,
-      selectedAt,
+      departureAt,
       selectedShip.cruisingSpeedKnots,
     );
-  }, [seaHexIds, selectedAt, selectedShip]);
+  }, [seaHexIds, departureAt, selectedShip]);
 
-  const timeRange = getVoyageTimeRange(now, estimatedArrivalAt);
+  const timeRange = getVoyageTimeRange(departureAt, estimatedArrivalAt);
   const clippedSelectedAt = Math.min(
     Math.max(selectedAt, timeRange.min),
     timeRange.max,
@@ -110,7 +109,7 @@ export function RouteSeaConditionTab({
 
       for (const hexId of seaHexIds) {
         const arrivalAt =
-          selectedAt + accumulatedHours * 60 * 60 * 1000;
+          departureAt + accumulatedHours * 60 * 60 * 1000;
 
         const condition = getSeaConditionForecastAt(
           hexId,
@@ -134,18 +133,18 @@ export function RouteSeaConditionTab({
         getSeaConditionForecastAt(hexId, selectedAt),
       ]),
     );
-  }, [seaHexIds, selectedAt, selectedShip]);
+  }, [seaHexIds, departureAt, selectedAt, selectedShip]);
 
   const predictedPosition = useMemo(() => {
     if (!selectedShip) return null;
 
     return getPredictedShipPosition(
       routeHexIds,
-      selectedAt,
+      departureAt,
       clippedSelectedAt,
       selectedShip.cruisingSpeedKnots,
     );
-  }, [routeHexIds, selectedAt, clippedSelectedAt, selectedShip]);
+  }, [routeHexIds, departureAt, clippedSelectedAt, selectedShip]);
 
   const centers = hexMap.map((hex) => ({
     hex,
@@ -171,7 +170,7 @@ export function RouteSeaConditionTab({
     <div className="card detail-card route-sea-condition-tab">
       <div className="route-sea-header">
         <span>予報発行：{formatDateTime(
-          getForecastIssueTimeSafe(now),
+          getForecastIssueTimeSafe(departureAt),
         )}</span>
         <span>表示時刻：{formatDateTime(clippedSelectedAt)}</span>
       </div>
@@ -282,7 +281,7 @@ export function RouteSeaConditionTab({
       />
 
       <div className="route-sea-time-labels">
-        <span>現在</span>
+        <span>出発 {formatDateTime(departureAt)}</span>
         <span>
           {estimatedArrivalAt
             ? `到着 ${formatDateTime(estimatedArrivalAt)}`
