@@ -18,12 +18,14 @@ interface ContractDetailScreenProps {
   onClose: () => void;
 }
 
-type DetailTab = "request" | "fleet" | "chart";
+type DetailTab = "request" | "fleet" | "chart" | "placeholder1" | "placeholder2";
 
 const DETAIL_TABS = [
   { id: "request", label: "依頼" },
   { id: "fleet", label: "船団" },
   { id: "chart", label: "海図" },
+  { id: "placeholder1", label: "仮タブ1" },
+  { id: "placeholder2", label: "仮タブ2" },
 ] as const;
 
 export function ContractDetailScreen({
@@ -153,6 +155,15 @@ export function ContractDetailScreen({
                 toPortId={route.toPortId}
                 selectedShip={selectedShip}
               />
+            </div>
+          </section>
+        )}
+
+        {(activeTab === "placeholder1" || activeTab === "placeholder2") && (
+          <section className="detail-tab-panel">
+            <div className="card detail-card">
+              <h3>準備中</h3>
+              <p className="route">このタブは仮置きです。</p>
             </div>
           </section>
         )}
