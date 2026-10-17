@@ -296,7 +296,7 @@ export function RouteSeaConditionTab({
             <span>{selectedShip.name}</span>
           </div>
           <div className="kv">
-            <span>ETA</span>
+            <span>ETA（現実時間）</span>
             <span>
               {estimatedArrivalAt
                 ? formatDateTime(estimatedArrivalAt)
