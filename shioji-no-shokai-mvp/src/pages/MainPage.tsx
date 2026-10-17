@@ -5,6 +5,7 @@ import { AppHeader } from "../components/layout/AppHeader";
 import { TabBar } from "../components/layout/TabBar";
 import { ContractBoard } from "../components/contract/ContractBoard";
 import { ContractDetailScreen } from "../components/contract/ContractDetailScreen";
+import { RouteSeaConditionTab } from "../components/contract/RouteSeaConditionTab";
 import { FleetPanel } from "../components/fleet/FleetPanel";
 import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
@@ -34,6 +35,9 @@ export function MainPage() {
   const contracts = (gameState.portOffers[selectedPortId] ?? []).map(getContractTemplateById);
   const fixedContract = selectedPortId === "port_selene" ? tutorialWheatContract : null;
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
+
+  const chartContract = selectedContract ?? fixedContract ?? tutorialWheatContract;
+  const chartRoute = getRouteById(chartContract.routeId);
 
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
   const selectedCargo = selectedContract ? getCargoById(selectedContract.cargoId) : null;
@@ -122,6 +126,13 @@ export function MainPage() {
               progress={progress}
               operationTime={gameState.operationTime}
               onSelectContract={selectContract}
+            />
+          ) : activeTab === "chart" ? (
+            <RouteSeaConditionTab
+              routeId={chartContract.routeId}
+              fromPortId={chartRoute.fromPortId}
+              toPortId={chartRoute.toPortId}
+              selectedShip={gameState.ships[0] ?? null}
             />
           ) : (
             <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />

@@ -20,10 +20,10 @@ const FIXED_CONTRACT_ID = tutorialWheatContract.id;
 interface GameStore {
   gameState: GameState;
   selectedContractId: string | null;
-  activeTab: "contracts" | "fleet";
+  activeTab: "contracts" | "fleet" | "chart";
   tick: () => void;
   selectContract: (id: string | null) => void;
-  setActiveTab: (tab: "contracts" | "fleet") => void;
+  setActiveTab: (tab: "contracts" | "fleet" | "chart") => void;
   selectPort: (portId: PortId) => void;
   acceptContract: (contractId: string, shipId: string) => void;
   settleContract: () => void;
@@ -147,7 +147,7 @@ function progressVoyageIfActive(state: GameState, currentRealTime: number): Game
     currentRealTime
   );
 
-  const ships = state.ships.map((ship): Ship =>
+  const ships = state.ships.map((ship) =>
     ship.activeContractId === voyage.contractId
       ? { ...ship, status: getShipStatusForVoyage(voyage.phase) }
       : ship
@@ -305,7 +305,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const updatedReputations = current.reputations.map((reputation) =>
       reputation.shipperId === contract.shipperId
-        ? { ...reputation, value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange)) }
+        ? {
+            ...reputation,
+            value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange))
+          }
         : reputation
     );
 
