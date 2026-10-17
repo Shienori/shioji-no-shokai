@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Ship } from "../../domain/types";
 import { hexMap, getHexById } from "../../data/hexMap";
 import type { MapHex, SeaCondition } from "../../domain/hexMap";
@@ -74,7 +74,7 @@ export function RouteSeaConditionTab({
   selectedShip,
 }: RouteSeaConditionTabProps) {
   const departureAt = Date.now();
-  const selectedAt = departureAt;
+  const [selectedAt, setSelectedAt] = useState(departureAt);
 
   const routeHexIds = useMemo(() => {
     return getRouteHexIds(fromPortId, toPortId) ?? [];
@@ -191,7 +191,7 @@ export function RouteSeaConditionTab({
                 .map((center) => `${center.x},${center.y}`)
                 .join(" ")}
               fill="none"
-              stroke="#f4c95d"
+              stroke={selectedShip ? "#fb923c" : "#f4c95d"}
               strokeWidth={4}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -215,7 +215,9 @@ export function RouteSeaConditionTab({
             const stroke = isShipHex
               ? "#c2410c"
               : isRouteHex
-                ? "#f4c95d"
+                ? selectedShip
+                  ? "#fb923c"
+                  : "#f4c95d"
                 : isPort
                   ? "#1f7fb8"
                   : "#9db8c7";
@@ -223,7 +225,9 @@ export function RouteSeaConditionTab({
             const strokeWidth = isShipHex
               ? 3
               : isRouteHex
-                ? 2.5
+                ? selectedShip
+                  ? 3
+                  : 2.5
                 : isPort
                   ? 2
                   : 1;
@@ -291,7 +295,10 @@ export function RouteSeaConditionTab({
         max={timeRange.max}
         step={SEA_CONDITION_SLOT_MS}
         value={clippedSelectedAt}
-        disabled
+        disabled={!selectedShip}
+        onChange={(event) => {
+          setSelectedAt(Number(event.target.value));
+        }}
         aria-label="海況予報の表示時刻"
       />
 
