@@ -134,3 +134,13 @@ main>section{width:100%;min-width:0}
 .capacity-maximum .capacity-label{font-size:11px;color:var(--sub)}
 .capacity-maximum .capacity-value{font-size:14px;font-weight:700;color:var(--text)}
 .ship-select-item.eligible{border-color:var(--green)}
+
+/* 契約詳細タブ */
+.detail-tabs{display:flex;gap:8px;margin-bottom:14px}
+.detail-tab{flex:1;padding:10px 6px;border:1px solid var(--line);border-radius:var(--card-radius);background:var(--panel);color:var(--sub);font-size:13px;font-weight:700;cursor:pointer;transition:border-color .15s,color .15s,background-color .15s}
+.detail-tab.active{color:var(--text);border-color:var(--gold);background:var(--panel2)}
+.detail-tab-panel{animation:detailFadeIn .2s ease}
+.chart-tab-panel{display:flex;flex:1;min-height:0}
+.chart-fullscreen{flex:1;min-height:60vh;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--card-radius);background:var(--panel)}
+.chart-fullscreen .route-sea-condition-tab{min-width:max-content;margin-bottom:0}
+@keyframes detailFadeIn{from{opacity:0}to{opacity:1}}
