@@ -7,6 +7,7 @@ import { getContractCargoRequirements, getContractSchedule } from "../../domain/
 import { calculateExpense } from "../../domain/reward";
 import { formatDateTime } from "../../domain/time";
 import { CapacityGauge } from "./CapacityGauge";
+import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -17,11 +18,12 @@ interface ContractDetailScreenProps {
   onClose: () => void;
 }
 
-type DetailTab = "request" | "fleet";
+type DetailTab = "request" | "fleet" | "chart";
 
 const DETAIL_TABS = [
   { id: "request", label: "依頼" },
   { id: "fleet", label: "船団" },
+  { id: "chart", label: "海図" },
 ] as const;
 
 export function ContractDetailScreen({
@@ -59,6 +61,7 @@ export function ContractDetailScreen({
       <header className="detail-header">
         <button className="back-btn" onClick={onClose}>← 戻る</button>
         <h2>{cargo.name}の輸送依頼</h2>
+        <span style={{ fontSize: 10, color: "#9db4c0" }}>detail:v3</span>
       </header>
 
       <div className="detail-tabs">
@@ -140,23 +143,38 @@ export function ContractDetailScreen({
             </div>
           </section>
         )}
+
+        {activeTab === "chart" && (
+          <section className="detail-tab-panel chart-tab-panel">
+            <div className="chart-fullscreen">
+              <RouteSeaConditionTab
+                routeId={contract.routeId}
+                fromPortId={route.fromPortId}
+                toPortId={route.toPortId}
+                selectedShip={selectedShip}
+              />
+            </div>
+          </section>
+        )}
       </div>
 
-      <footer className="detail-footer">
-        {acceptReason && <p className="accept-reason">{acceptReason}</p>}
-        <button
-          className={`btn ${canAccept && selectedShipId ? "btn-primary" : "btn-secondary"}`}
-          disabled={!canAccept || !selectedShipId}
-          onClick={() => {
-            if (selectedShipId) {
-              onAccept(selectedShipId);
-            }
-          }}
-        >
-          {selectedShipId ? "受注する" : "船を選択してください"}
-        </button>
-        <button className="btn btn-secondary" onClick={onClose}>断る</button>
-      </footer>
+      {activeTab !== "chart" && (
+        <footer className="detail-footer">
+          {acceptReason && <p className="accept-reason">{acceptReason}</p>}
+          <button
+            className={`btn ${canAccept && selectedShipId ? "btn-primary" : "btn-secondary"}`}
+            disabled={!canAccept || !selectedShipId}
+            onClick={() => {
+              if (selectedShipId) {
+                onAccept(selectedShipId);
+              }
+            }}
+          >
+            {selectedShipId ? "受注する" : "船を選択してください"}
+          </button>
+          <button className="btn btn-secondary" onClick={onClose}>断る</button>
+        </footer>
+      )}
     </div>
   );
 }
