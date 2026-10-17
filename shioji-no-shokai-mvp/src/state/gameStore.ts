@@ -39,7 +39,7 @@ function pickPortOffers(portId: PortId, keepIds: ContractId[] = []): ContractId[
     .filter((id) => id !== FIXED_CONTRACT_ID && !keepIds.includes(id));
 
   for (let index = pool.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (pool.length - index)) + index;
+    const swapIndex = Math.floor(Math.random() * (index + 1));
     [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
   }
 
@@ -294,7 +294,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updatedShips = current.ships.map((ship) =>
       ship.activeContractId === contract.id
         ? {
-            ship,
+            ...ship,
             status: "docked" as const,
             currentPortId: route.toPortId,
             currentHexId: getPortHexId(route.toPortId),
