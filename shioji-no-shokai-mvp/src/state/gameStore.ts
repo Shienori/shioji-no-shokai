@@ -20,10 +20,10 @@ const FIXED_CONTRACT_ID = tutorialWheatContract.id;
 interface GameStore {
   gameState: GameState;
   selectedContractId: string | null;
-  activeTab: "contracts" | "fleet";
+  activeTab: "contracts" | "fleet" | "chart";
   tick: () => void;
   selectContract: (id: string | null) => void;
-  setActiveTab: (tab: "contracts" | "fleet") => void;
+  setActiveTab: (tab: "contracts" | "fleet" | "chart") => void;
   selectPort: (portId: PortId) => void;
   acceptContract: (contractId: string, shipId: string) => void;
   settleContract: () => void;
@@ -39,7 +39,7 @@ function pickPortOffers(portId: PortId, keepIds: ContractId[] = []): ContractId[
     .filter((id) => id !== FIXED_CONTRACT_ID && !keepIds.includes(id));
 
   for (let index = pool.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = Math.floor(Math.random() * (pool.length - index)) + index;
     [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
   }
 
@@ -147,7 +147,7 @@ function progressVoyageIfActive(state: GameState, currentRealTime: number): Game
     currentRealTime
   );
 
-  const ships = state.ships.map((ship): Ship =>
+  const ships = state.ships.map((ship) =>
     ship.activeContractId === voyage.contractId
       ? { ...ship, status: getShipStatusForVoyage(voyage.phase) }
       : ship
@@ -294,7 +294,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updatedShips = current.ships.map((ship) =>
       ship.activeContractId === contract.id
         ? {
-            ...ship,
+            ship,
             status: "docked" as const,
             currentPortId: route.toPortId,
             currentHexId: getPortHexId(route.toPortId),
@@ -305,7 +305,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const updatedReputations = current.reputations.map((reputation) =>
       reputation.shipperId === contract.shipperId
-        ? { ...reputation, value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange)) }
+        ? {
+            ...reputation,
+            value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange))
+          }
         : reputation
     );
 
