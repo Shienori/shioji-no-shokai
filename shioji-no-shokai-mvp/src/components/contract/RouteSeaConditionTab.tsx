@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import type { Ship } from "../../domain/types";
 import { hexMap, getHexById } from "../../data/hexMap";
 import type { MapHex, SeaCondition } from "../../domain/hexMap";
+import { BASE_SHIP_SPEED_KNOTS } from "../../domain/hexMap";
 import { getRouteHexIds } from "../../domain/routePath";
 import {
-  BASE_SHIP_SPEED_KNOTS,
   SEA_CONDITION_SLOT_MS,
   calculateHexTransitHours,
   calculateEstimatedArrivalAt,
@@ -112,14 +112,16 @@ export function RouteSeaConditionTab({
         const arrivalAt =
           selectedAt + accumulatedHours * 60 * 60 * 1000;
 
-        conditions.set(
+        const condition = getSeaConditionForecastAt(
           hexId,
-          getSeaConditionForecastAt(hexId, arrivalAt),
+          arrivalAt,
         );
+
+        conditions.set(hexId, condition);
 
         accumulatedHours += calculateHexTransitHours(
           selectedShip.cruisingSpeedKnots,
-          getSeaConditionForecastAt(hexId, arrivalAt),
+          condition,
         );
       }
 
