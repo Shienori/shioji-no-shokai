@@ -1,19 +1,5 @@
-import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
-import { ceilTo30Minutes } from "./time";
-import type {
-  AcceptedContract,
-  Cargo,
-  ContractRewardBreakdown,
-  ContractTemplate,
-  Route,
-} from "./types";
-import {
-  calculateCargoValue,
-  calculateVoyageDistanceAllowance,
-} from "./reward";
-import { getRouteHexIds } from "./routePath";
-import { createRouteSeaForecast } from "./seaCondition";
-import { getHexById } from "../data/hexMap";
+import type { Cargo, ContractTemplate, Route } from "./types";
+import { calculateContractSchedule } from "./contractSchedule";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -65,21 +51,6 @@ export function createContractReward(
   };
 }
 
-function getRouteSeaHexIds(route: Route): string[] {
-  const routeHexIds = getRouteHexIds(
-    route.fromPortId,
-    route.toPortId,
-  );
-
-  if (!routeHexIds) {
-    return [];
-  }
-
-  return routeHexIds.filter((hexId) => {
-    return getHexById(hexId).kind === "sea";
-  });
-}
-
 export function createAcceptedContract(
   template: ContractTemplate,
   route: Route,
@@ -89,12 +60,6 @@ export function createAcceptedContract(
   const schedule = calculateContractSchedule(
     template,
     route,
-    acceptedAt,
-  );
-
-  const seaForecast = createRouteSeaForecast(
-    template.routeId,
-    getRouteSeaHexIds(route),
     acceptedAt,
   );
 
@@ -108,6 +73,5 @@ export function createAcceptedContract(
     reward: createContractReward(template, cargo, route),
     acceptedAt,
     deadlineAt: schedule.deadlineAt,
-    seaForecast,
   };
 }
