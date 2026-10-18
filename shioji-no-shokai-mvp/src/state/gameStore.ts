@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AcceptedContract, ContractId, GameState, PortId, Ship, ShipStatus, VoyagePhase } from "../domain/types";
+import type { AcceptedContract, ContractId, GameState, PortId, Ship, ShipId, ShipStatus, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
 import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { ports } from "../data/ports";
@@ -10,7 +10,7 @@ import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { createAcceptedContract } from "../domain/contractSchedule";
 import { loadGame, saveGame } from "../domain/save";
-import { STARTING_MONEY } from "../data/gameConstants";
+import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
 import { getHexById, getPortHexId } from "../data/hexMap";
 import { getRouteHexIds } from "../domain/routePath";
 
@@ -20,13 +20,16 @@ const FIXED_CONTRACT_ID = tutorialWheatContract.id;
 interface GameStore {
   gameState: GameState;
   selectedContractId: string | null;
+  selectedShipId: ShipId | null;
   activeTab: "contracts" | "fleet" | "chart";
   tick: () => void;
   selectContract: (id: string | null) => void;
+  selectShip: (shipId: ShipId | null) => void;
   setActiveTab: (tab: "contracts" | "fleet" | "chart") => void;
   selectPort: (portId: PortId) => void;
   acceptContract: (contractId: string, shipId: string) => void;
   settleContract: () => void;
+  resetGame: () => void;
 }
 
 function getNextRefreshTime(now: number): number {
@@ -190,6 +193,7 @@ const initialGameState = loadedGameState
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: initialGameState,
   selectedContractId: null,
+  selectedShipId: null,
   activeTab: "contracts",
 
   tick: () => {
@@ -217,6 +221,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   selectContract: (contractId) => set({ selectedContractId: contractId }),
+  selectShip: (shipId) => set({ selectedShipId: shipId }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   selectPort: (portId) =>
@@ -327,5 +332,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     saveGame(next);
     set({ gameState: next });
+  },
+
+  resetGame: () => {
+    localStorage.removeItem(SAVE_KEY);
+    const freshState = createInitialGameState();
+    saveGame(freshState);
+    set({
+      gameState: freshState,
+      selectedContractId: null,
+      selectedShipId: null,
+      activeTab: "contracts"
+    });
   }
 }));

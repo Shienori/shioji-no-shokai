@@ -12,7 +12,6 @@ export function debugSkipThirtyMinutes(): void {
     ? Math.ceil((now + SKIP_REAL_MS + 1) / REFRESH_INTERVAL_MS) * REFRESH_INTERVAL_MS - SKIP_REAL_MS
     : current.nextRefreshAt - SKIP_REAL_MS;
 
-  // Rebase real-time deadlines into the past; tick applies the normal time multiplier.
   useGameStore.setState({
     selectedContractId: null,
     gameState: {
@@ -26,6 +25,10 @@ export function debugSkipThirtyMinutes(): void {
       } : null,
       activeVoyage: current.activeVoyage ? {
         ...current.activeVoyage,
+        departedRealTime: current.activeVoyage.departedRealTime - SKIP_REAL_MS,
+        lastProcessedRealTime: current.activeVoyage.lastProcessedRealTime - SKIP_REAL_MS,
+        forecastEtaRealTime: current.activeVoyage.forecastEtaRealTime - SKIP_REAL_MS,
+        arrivalDeadlineAt: current.activeVoyage.arrivalDeadlineAt - SKIP_REAL_MS,
         completedAtWorldTime: current.activeVoyage.completedAtWorldTime === null
           ? null
           : current.activeVoyage.completedAtWorldTime - SKIP_REAL_MS
@@ -34,7 +37,6 @@ export function debugSkipThirtyMinutes(): void {
   });
   useGameStore.getState().tick();
 
-  // Preserve the remaining time to the virtual refresh boundary after a skipped refresh.
   if (refreshDue) {
     useGameStore.setState((state) => ({
       gameState: { ...state.gameState, nextRefreshAt }
