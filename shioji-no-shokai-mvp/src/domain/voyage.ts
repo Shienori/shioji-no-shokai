@@ -2,15 +2,51 @@ import type { AcceptedContract, Route, Ship, Voyage } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
+import { getRouteHexIds } from "./routePath";
+import { HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from "./hexMap";
+import {
+  SEA_CONDITION_SLOT_MS,
+  calculateEstimatedArrivalAt,
+  getSeaConditionAt,
+  getSeaConditionForecastAt,
+} from "./seaCondition";
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export function createVoyage(contract: AcceptedContract, ship: Ship, operationTime: number): Voyage {
+function getRouteSeaHexIds(route: Route): string[] {
+  const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId) ?? [];
+
+  return routeHexIds.filter((hexId) => {
+    const routeHex = getRouteHexIds(route.fromPortId, route.toPortId);
+    return Boolean(routeHex);
+  }).filter((hexId) => {
+    return getRouteHexKind(hexId) === "sea";
+  });
+}
+
+function getRouteHexKind(hexId: string): "sea" | "port" | null {
+  const route = getRouteById("route_selene_aldera");
+  void route;
+  return null;
+}
+
+export function createVoyage(
+  contract: AcceptedContract,
+  ship: Ship,
+  operationTime: number,
+  currentRealTime: number,
+): Voyage {
   const cargo = getCargoById(contract.cargoId);
   const route = getRouteById(contract.routeId);
   const loadingDurationMs = cargo.loadingTimeMsPerUnit * contract.quantity;
   const loadingCompletedAt = operationTime + loadingDurationMs;
-  const voyageDurationMs = route.baseVoyageHours * 60 * 60 * 1000;
+  const departedRealTime = currentRealTime + loadingDurationMs / GAME_TIME_MULTIPLIER;
+  const seaHexIds = getRouteSeaHexIds(route);
+  const forecastEtaRealTime = calculateEstimatedArrivalAt(
+    seaHexIds,
+    departedRealTime,
+    ship.cruisingSpeedKnots,
+  );
   const arrivalDeadlineAt = operationTime + (contract.deadlineAt - contract.acceptedAt) * GAME_TIME_MULTIPLIER;
 
   return {
@@ -21,7 +57,13 @@ export function createVoyage(contract: AcceptedContract, ship: Ship, operationTi
     loadingStartedAt: operationTime,
     loadingCompletedAt,
     departedAt: loadingCompletedAt,
-    estimatedArrivalAt: loadingCompletedAt + voyageDurationMs,
+    departedRealTime,
+    lastProcessedRealTime: departedRealTime,
+    currentSeaHexIndex: 0,
+    distanceIntoHexNm: 0,
+    shipSpeedKnots: ship.cruisingSpeedKnots,
+    forecastEtaRealTime,
+    estimatedArrivalAt: loadingCompletedAt + (forecastEtaRealTime - departedRealTime) * GAME_TIME_MULTIPLIER,
     arrivalDeadlineAt,
     arrivedAt: null,
     arrivalLateHours: 0,
@@ -35,7 +77,7 @@ export function createVoyage(contract: AcceptedContract, ship: Ship, operationTi
 
 export function progressVoyage(voyage: Voyage, contract: AcceptedContract, operationTime: number, currentRealTime: number): Voyage {
   let result = progressLoading(voyage, operationTime);
-  result = progressSailing(result, operationTime);
+  result = progressSailing(result, contract, operationTime, currentRealTime);
   result = progressUnloading(result, contract, operationTime, currentRealTime);
   return result;
 }
@@ -45,19 +87,77 @@ function progressLoading(voyage: Voyage, operationTime: number): Voyage {
   return { ...voyage, phase: "sailing", departedAt: voyage.loadingCompletedAt };
 }
 
-function progressSailing(voyage: Voyage, operationTime: number): Voyage {
-  if (voyage.phase !== "sailing" || operationTime < voyage.estimatedArrivalAt) return voyage;
+function progressSailing(voyage: Voyage, contract: AcceptedContract, operationTime: number, currentRealTime: number): Voyage {
+  if (voyage.phase !== "sailing" || operationTime < voyage.departedAt) return voyage;
 
-  const arrivedAt = voyage.estimatedArrivalAt;
-  const lateHours = calculateArrivalLateHours(arrivedAt, voyage.arrivalDeadlineAt);
+  const route = getRouteById(contract.routeId);
+  const seaHexIds = getRouteSeaHexIds(route);
+  if (seaHexIds.length === 0) return voyage;
+
+  let processedRealTime = Math.max(voyage.lastProcessedRealTime, voyage.departedRealTime);
+  if (currentRealTime <= processedRealTime) return voyage;
+
+  let seaHexIndex = Math.min(voyage.currentSeaHexIndex, seaHexIds.length - 1);
+  let distanceIntoHexNm = voyage.distanceIntoHexNm;
+  const nmPerRealMs = voyage.shipSpeedKnots * GAME_TIME_MULTIPLIER / 3600000;
+
+  while (processedRealTime < currentRealTime && seaHexIndex < seaHexIds.length) {
+    const hexId = seaHexIds[seaHexIndex];
+    const condition = getSeaConditionAt(hexId, processedRealTime);
+    const effectiveSpeedKnots = voyage.shipSpeedKnots * seaConditionSpeedMultiplier[condition];
+    const realMsPerNm = 3600000 / (effectiveSpeedKnots * GAME_TIME_MULTIPLIER);
+    const nextSlotRealTime = (Math.floor(processedRealTime / SEA_CONDITION_SLOT_MS) + 1) * SEA_CONDITION_SLOT_MS;
+    const hexExitRealTime = processedRealTime + (HEX_DISTANCE_NM - distanceIntoHexNm) * realMsPerNm;
+    const targetRealTime = Math.min(nextSlotRealTime, hexExitRealTime, currentRealTime);
+
+    distanceIntoHexNm += (targetRealTime - processedRealTime) / realMsPerNm;
+    processedRealTime = targetRealTime;
+
+    if (distanceIntoHexNm >= HEX_DISTANCE_NM - 0.0001) {
+      seaHexIndex += 1;
+      distanceIntoHexNm = 0;
+    }
+
+    if (seaHexIndex >= seaHexIds.length) {
+      const arrivedAt = operationTime + (targetRealTime - currentRealTime) * GAME_TIME_MULTIPLIER;
+      const arrivalLateHours = calculateArrivalLateHours(arrivedAt, voyage.arrivalDeadlineAt);
+
+      return {
+        ...voyage,
+        phase: "unloading",
+        arrivedAt,
+        estimatedArrivalAt: arrivedAt,
+        arrivalLateHours,
+        isOnTime: arrivalLateHours <= 0,
+        unloadingStartedAt: arrivedAt,
+        lastProcessedRealTime: targetRealTime,
+        currentSeaHexIndex: seaHexIndex,
+        distanceIntoHexNm
+      };
+    }
+  }
+
+  const currentHexId = seaHexIds[seaHexIndex];
+  const currentCondition = getSeaConditionAt(currentHexId, processedRealTime);
+  const currentEffectiveSpeedKnots = voyage.shipSpeedKnots * seaConditionSpeedMultiplier[currentCondition];
+  let remainingGameHours = (HEX_DISTANCE_NM - distanceIntoHexNm) / currentEffectiveSpeedKnots;
+  let forecastRealTime = processedRealTime;
+
+  for (let index = seaHexIndex + 1; index < seaHexIds.length; index += 1) {
+    const condition = getSeaConditionForecastAt(seaHexIds[index], forecastRealTime);
+    const effectiveSpeedKnots = voyage.shipSpeedKnots * seaConditionSpeedMultiplier[condition];
+    const transitHours = HEX_DISTANCE_NM / effectiveSpeedKnots;
+
+    forecastRealTime += transitHours * 3600000 / GAME_TIME_MULTIPLIER;
+    remainingGameHours += transitHours;
+  }
 
   return {
     ...voyage,
-    phase: "unloading",
-    arrivedAt,
-    arrivalLateHours: lateHours,
-    isOnTime: lateHours <= 0,
-    unloadingStartedAt: arrivedAt
+    lastProcessedRealTime: currentRealTime,
+    currentSeaHexIndex: seaHexIndex,
+    distanceIntoHexNm,
+    estimatedArrivalAt: operationTime + remainingGameHours * HOUR_MS
   };
 }
 
