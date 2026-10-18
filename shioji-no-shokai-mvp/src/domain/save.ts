@@ -47,8 +47,9 @@ function migrateCargoData(state: GameState): GameState {
 
   const portOffers = state.portOffers
     ? Object.fromEntries(Object.entries(state.portOffers).map(([portId, offers]) => {
-        if (offers.length > 0 && typeof offers[0] === "string") {
-          return [portId, (offers as string[])
+        const rawOffers = offers as unknown as unknown[];
+        if (rawOffers.length > 0 && typeof rawOffers[0] === "string") {
+          return [portId, (rawOffers as string[])
             .filter(keepContractId)
             .map((templateId) => {
               const template = getContractTemplateById(templateId);
@@ -59,9 +60,7 @@ function migrateCargoData(state: GameState): GameState {
               );
             })];
         }
-        return [portId, (offers as OfferedContract[]).filter(
-          (offer) => keepContractId(offer.templateId)
-        )];
+        return [portId, offers];
       }))
     : state.portOffers;
 
