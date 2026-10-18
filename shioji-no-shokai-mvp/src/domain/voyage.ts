@@ -3,7 +3,8 @@ import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { getRouteHexIds } from "./routePath";
-import { getHexById, HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from "../data/hexMap";
+import { getHexById } from "../data/hexMap";
+import { HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from "./hexMap";
 import {
   SEA_CONDITION_SLOT_MS,
   calculateEstimatedArrivalAt,
