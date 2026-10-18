@@ -3,10 +3,11 @@ import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { getHexById } from "../../data/hexMap";
 import { formatDateTime, formatDuration } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
-import { hexMap } from "../../data/hexMap";
+import { getSeaConditionAt } from "../../domain/seaCondition";
 import { HexMap } from "./HexMap";
 import { ShipDetailModal } from "./ShipDetailModal";
 
@@ -26,6 +27,12 @@ function getSeaLabel(hexId: string) {
 function formatOperationTime(operationTime: number) {
   return `${(operationTime / 1000).toFixed(1)}秒`;
 }
+
+const CONDITION_LABELS = {
+  calm: "無風",
+  followingWind: "追風",
+  headwind: "向かい風",
+} as const;
 
 export function FleetPanel({ ship, voyage, contract, progress, operationTime }: FleetPanelProps) {
   const [showShipDetail, setShowShipDetail] = useState(false);
@@ -49,12 +56,14 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
         : 0;
 
   const currentHexId = ship.currentHexId;
-  const currentHexData = hexMap.find((hex) => hex.id === currentHexId);
-  const currentHexLabel = currentHexData
-    ? currentHexData.kind === "port"
-      ? getPortById(currentHexData.portId!).name
-      : `海域 ${getSeaLabel(currentHexData.id)}`
-    : currentHexId;
+  const currentHexData = getHexById(currentHexId);
+  const currentHexLabel = currentHexData.kind === "port"
+    ? getPortById(currentHexData.portId!).name
+    : `海域 ${getSeaLabel(currentHexData.id)}`;
+
+  const currentCondition = voyage?.phase === "sailing" && currentHexData.kind === "sea"
+    ? getSeaConditionAt(currentHexId, Date.now())
+    : null;
 
   const routeHexIds = route ? getRouteHexIds(route.fromPortId, route.toPortId) ?? [] : [];
 
@@ -86,6 +95,13 @@ export function FleetPanel({ ship, voyage, contract, progress, operationTime }: 
             <span className="contract-route-arrow">→</span>
             <span>{currentHexLabel}</span>
           </div>
+          {currentCondition && (
+            <div className="contract-card-route">
+              <span>現在の海況</span>
+              <span className="contract-route-arrow">→</span>
+              <span>{CONDITION_LABELS[currentCondition]}</span>
+            </div>
+          )}
           <div className="contract-facts">
             <div>
               <span className="contract-fact-label">到着期限</span>
