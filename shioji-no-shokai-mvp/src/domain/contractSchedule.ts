@@ -1,14 +1,34 @@
-import type { AcceptedContract, Cargo, ContractTemplate, ContractRewardBreakdown, Route } from "./types";
+import type { AcceptedContract, Cargo, ContractTemplate, ContractRewardBreakdown, OfferedContract, Route } from "./types";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { ceilTo30Minutes } from "./time";
 import { calculateCargoValue, calculateVoyageDistanceAllowance } from "./reward";
 
 const HOUR_MS = 60 * 60 * 1000;
+const BASE_SPEED_KNOTS = 6;
+const OFFER_BUFFER_HOURS = 1;
 
 export interface ContractSchedule {
   voyageDurationMs: number;
   estimatedArrivalAt: number;
   deadlineAt: number;
+}
+
+export function createOfferedContract(
+  template: ContractTemplate,
+  route: Route,
+  generatedAt: number,
+): OfferedContract {
+  const timeAllowanceRatio = 1 + Math.random() * 2;
+  const baseVoyageHours = route.distance / BASE_SPEED_KNOTS;
+  const deadlineHours = baseVoyageHours * timeAllowanceRatio + OFFER_BUFFER_HOURS;
+
+  return {
+    id: `${template.id}_${generatedAt}`,
+    templateId: template.id,
+    generatedAt,
+    deadlineAt: ceilTo30Minutes(generatedAt + deadlineHours * HOUR_MS / GAME_TIME_MULTIPLIER),
+    timeAllowanceRatio
+  };
 }
 
 export function calculateContractSchedule(
@@ -58,13 +78,8 @@ export function createAcceptedContract(
   route: Route,
   cargo: Cargo,
   acceptedAt: number,
+  deadlineAt: number,
 ): AcceptedContract {
-  const schedule = calculateContractSchedule(
-    template,
-    route,
-    acceptedAt,
-  );
-
   return {
     id: template.id,
     templateId: template.id,
@@ -74,6 +89,6 @@ export function createAcceptedContract(
     quantity: template.quantity,
     reward: createContractReward(template, cargo, route),
     acceptedAt,
-    deadlineAt: schedule.deadlineAt,
+    deadlineAt,
   };
 }
