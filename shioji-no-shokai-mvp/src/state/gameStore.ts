@@ -8,7 +8,7 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
-import { createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
+import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
 import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
