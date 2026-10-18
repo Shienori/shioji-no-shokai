@@ -28,3 +28,42 @@
   background: linear-gradient(180deg, #dceefb 0%, #a8cfe8 100%);
   font-size: 72px;
 }
+
+/* Acceptance confirmation */
+.confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 50;
+}
+
+.confirmation-modal {
+  width: min(360px, calc(100% - 32px));
+  padding: 20px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+.confirmation-modal h3 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.confirmation-modal .kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 14px;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
