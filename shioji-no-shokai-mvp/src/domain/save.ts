@@ -1,4 +1,4 @@
-import type { GameState, SaveData, Ship } from "./types";
+import type { GameState, SaveData, Ship, Voyage } from "./types";
 import { SAVE_KEY, SAVE_VERSION } from "../data/gameConstants";
 import { getRouteById } from "../data/routes";
 import { getPortHexId } from "../data/hexMap";
@@ -60,6 +60,25 @@ function migrateCargoData(state: GameState): GameState {
   };
 }
 
+function migrateVoyageSeaConditionData(state: GameState): GameState {
+  const voyage = state.activeVoyage;
+  if (!voyage) return state;
+
+  const voyageShip = state.ships.find((ship) => ship.id === voyage.shipId);
+  const now = Date.now();
+  const migratedVoyage: Voyage = {
+    ...voyage,
+    departedRealTime: voyage.departedRealTime ?? now,
+    lastProcessedRealTime: voyage.lastProcessedRealTime ?? voyage.departedRealTime ?? now,
+    currentSeaHexIndex: voyage.currentSeaHexIndex ?? 0,
+    distanceIntoHexNm: voyage.distanceIntoHexNm ?? 0,
+    shipSpeedKnots: voyage.shipSpeedKnots ?? voyageShip?.cruisingSpeedKnots ?? 6,
+    forecastEtaRealTime: voyage.forecastEtaRealTime ?? now
+  };
+
+  return { ...state, activeVoyage: migratedVoyage };
+}
+
 export function saveGame(state: GameState): void {
   const saveData: SaveData = { version: SAVE_VERSION, savedAtRealTime: Date.now(), gameState: state };
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
@@ -71,7 +90,7 @@ export function loadGame(): GameState | null {
   try {
     const parsed = JSON.parse(raw) as SaveData;
     if (parsed.version !== SAVE_VERSION) return null;
-    return migrateCargoData(parsed.gameState);
+    return migrateVoyageSeaConditionData(migrateCargoData(parsed.gameState));
   } catch {
     return null;
   }
