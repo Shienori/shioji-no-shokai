@@ -11,7 +11,7 @@ import { advanceOperationTime } from "../domain/time";
 import { createAcceptedContract } from "../domain/contractSchedule";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
-import { getPortHexId } from "../data/hexMap";
+import { getHexById, getPortHexId } from "../data/hexMap";
 import { getRouteHexIds } from "../domain/routePath";
 
 const CONTRACT_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -84,7 +84,7 @@ function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
 
 function getShipCurrentHexId(
   contract: AcceptedContract,
-  voyage: { phase: VoyagePhase; departedAt: number; estimatedArrivalAt: number },
+  voyage: { phase: VoyagePhase; currentSeaHexIndex: number },
   operationTime: number
 ): string | null {
   const route = getRouteById(contract.routeId);
@@ -97,20 +97,18 @@ function getShipCurrentHexId(
   const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId);
   if (!routeHexIds || routeHexIds.length < 2) return startHexId;
 
-  const sailingDuration = voyage.estimatedArrivalAt - voyage.departedAt;
-  const progress = sailingDuration <= 0
-    ? 1
-    : Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / sailingDuration));
+  const seaHexIds = routeHexIds.filter((hexId) => {
+    return getHexById(hexId).kind === "sea";
+  });
 
-  const intermediateHexCount = routeHexIds.length - 2;
-  const intermediateIndex = intermediateHexCount <= 0
-    ? 0
-    : Math.min(
-        intermediateHexCount - 1,
-        Math.floor(progress * intermediateHexCount)
-      );
+  if (seaHexIds.length === 0) return goalHexId;
 
-  return routeHexIds[1 + intermediateIndex];
+  const seaHexIndex = Math.min(
+    seaHexIds.length - 1,
+    Math.max(0, voyage.currentSeaHexIndex)
+  );
+
+  return seaHexIds[seaHexIndex];
 }
 
 function syncActiveShipPosition(state: GameState): GameState {
@@ -261,7 +259,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentRealTime
     );
 
-    const voyage = createVoyage(acceptedContract, ship, current.operationTime);
+    const voyage = createVoyage(
+      acceptedContract,
+      ship,
+      current.operationTime,
+      currentRealTime
+    );
     const updatedShip = {
       ...ship,
       status: "loading" as const,

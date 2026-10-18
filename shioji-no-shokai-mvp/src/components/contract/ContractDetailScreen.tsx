@@ -1,11 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { getHexById } from "../../data/hexMap";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { formatDateTime } from "../../domain/time";
+import { getRouteHexIds } from "../../domain/routePath";
+import {
+  calculateEstimatedArrivalAt,
+  createRouteSeaForecast,
+  getSeaConditionForecastAt,
+} from "../../domain/seaCondition";
 import { CapacityGauge } from "./CapacityGauge";
 import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
 
@@ -17,6 +24,12 @@ interface ContractDetailScreenProps {
   onAccept: (shipId: string) => void;
   onClose: () => void;
 }
+
+const CONDITION_LABELS = {
+  calm: "無風",
+  followingWind: "追風",
+  headwind: "向かい風",
+} as const;
 
 export function ContractDetailScreen({
   contract,
@@ -32,9 +45,30 @@ export function ContractDetailScreen({
     setSelectedShipId(null);
   }, [contract?.id]);
 
-  if (!contract) return null;
+  const route = contract ? getRouteById(contract.routeId) : null;
+  const seaHexIds = useMemo(() => {
+    if (!route) return [];
+    const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId) ?? [];
+    return routeHexIds.filter((hexId) => getHexById(hexId).kind === "sea");
+  }, [route]);
 
-  const route = getRouteById(contract.routeId);
+  const seaForecast = useMemo(() => {
+    if (!contract || seaHexIds.length === 0) return null;
+    return createRouteSeaForecast(contract.routeId, seaHexIds, Date.now());
+  }, [contract, seaHexIds]);
+
+  const forecastEta = useMemo(() => {
+    const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
+    if (!selectedShip || seaHexIds.length === 0) return null;
+    return calculateEstimatedArrivalAt(
+      seaHexIds,
+      Date.now(),
+      selectedShip.cruisingSpeedKnots,
+    );
+  }, [seaHexIds, selectedShipId, ships]);
+
+  if (!contract || !route) return null;
+
   const cargo = getCargoById(contract.cargoId);
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
@@ -127,6 +161,41 @@ export function ContractDetailScreen({
           </div>
         </section>
       </div>
+
+      {seaForecast && (
+        <section
+          style={{
+            margin: "0 16px 12px",
+            padding: "12px",
+            borderRadius: "12px",
+            background: "#eaf3fb"
+          }}
+        >
+          <h3 style={{ margin: "0 0 8px", fontSize: "15px" }}>
+            現時点の海況予報
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {seaForecast.forecasts.map((forecast) => (
+              <span
+                key={forecast.hexId}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "999px",
+                  background: "#ffffff",
+                  fontSize: "12px"
+                }}
+              >
+                {forecast.hexId.replace("hex_", "")}: {CONDITION_LABELS[forecast.forecast]}
+              </span>
+            ))}
+          </div>
+          {forecastEta && (
+            <p style={{ margin: "8px 0 0", fontSize: "13px" }}>
+              予報ETA: {formatDateTime(forecastEta)}（精度 {Math.round(seaForecast.accuracy * 100)}%）
+            </p>
+          )}
+        </section>
+      )}
 
       <footer className="detail-footer">
         {acceptReason && <p className="accept-reason">{acceptReason}</p>}
