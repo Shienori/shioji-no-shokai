@@ -9,6 +9,7 @@ import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
+import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
 import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
 import { getHexById, getPortHexId } from "../data/hexMap";
@@ -241,32 +242,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
   acceptContract: (contractId, shipId) => {
     const current = get().gameState;
     const currentRealTime = Date.now();
-    if (current.acceptedContract) return;
 
     const template = getContractTemplateById(contractId);
     const ship = current.ships.find((item) => item.id === shipId);
     if (!ship) return;
-    if (ship.status !== "docked") return;
+
+    const acceptance = evaluateContractAcceptance(template, ship, current);
+    if (!acceptance.canAccept) return;
 
     const route = getRouteById(template.routeId);
-    if (current.selectedPortId !== route.fromPortId) return;
-    if (ship.currentPortId !== route.fromPortId) return;
-
     const offeredContract = (current.portOffers[current.selectedPortId] ?? [])
       .find((offer) => offer.templateId === contractId);
     if (!offeredContract) return;
 
     const cargo = getCargoById(template.cargoId);
-    const requiredCargoVolume = cargo.unitVolume * template.quantity;
-    const requiredCargoWeight = cargo.weightPerUnit * template.quantity;
-
-    if (
-      ship.maxCargoVolume < requiredCargoVolume ||
-      ship.maxCargoWeight < requiredCargoWeight
-    ) {
-      return;
-    }
-
     const acceptedContract = createAcceptedContract(
       template,
       route,

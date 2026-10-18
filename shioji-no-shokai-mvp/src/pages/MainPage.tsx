@@ -13,6 +13,7 @@ import { getContractTemplateById, tutorialWheatContract } from "../data/contract
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { getContractCargoRequirements } from "../domain/contractOffer";
+import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 
@@ -47,30 +48,27 @@ export function MainPage() {
     ? getContractCargoRequirements(selectedContract, selectedCargo)
     : { requiredCargoVolume: 0, requiredCargoWeight: 0 };
 
-  const eligibleShips = selectedRoute
-    ? gameState.ships.filter((ship) =>
-        ship.status === "docked"
-        && ship.currentPortId === selectedRoute.fromPortId
-        && ship.maxCargoVolume >= requiredCargoVolume
-        && ship.maxCargoWeight >= requiredCargoWeight
-      )
+  const acceptanceChecks = selectedContract
+    ? gameState.ships.map((ship) => ({
+        ship,
+        check: evaluateContractAcceptance(selectedContract, ship, gameState)
+      }))
     : [];
+  const eligibleShips = acceptanceChecks
+    .filter((item) => item.check.canAccept)
+    .map((item) => item.ship);
 
   const acceptReason = !selectedContract || !selectedRoute
     ? null
     : gameState.acceptedContract
       ? "すでに依頼を受注しています"
-      : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
-        ? "船が仕出港にいません"
-        : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
-          ? "船がフリーではありません"
-          : !gameState.ships.some((ship) =>
-              ship.currentPortId === selectedRoute.fromPortId
-              && ship.maxCargoVolume >= requiredCargoVolume
-              && ship.maxCargoWeight >= requiredCargoWeight
-            )
+      : eligibleShips.length > 0
+        ? null
+        : gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
+          ? gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
             ? "スペースまたは積載量が不足しています"
-            : null;
+            : "船がフリーではありません"
+          : "船が仕出港にいません";
 
   const voyage = gameState.activeVoyage;
   const progress = voyage && gameState.acceptedContract

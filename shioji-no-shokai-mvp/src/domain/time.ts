@@ -17,8 +17,8 @@ export function ceilTo30Minutes(realTimeMs: number): number {
   return Math.ceil(realTimeMs / intervalMs) * intervalMs;
 }
 
-export function ceilTo5Minutes(realTimeMs: number): number {
-  const intervalMs = 5 * 60 * 1000;
+export function ceilTo1Minute(realTimeMs: number): number {
+  const intervalMs = 60 * 1000;
   return Math.ceil(realTimeMs / intervalMs) * intervalMs;
 }
 

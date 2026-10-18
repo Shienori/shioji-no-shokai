@@ -6,7 +6,7 @@ import { getCargoById } from "../../data/cargos";
 import { getHexById } from "../../data/hexMap";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
-import { ceilTo5Minutes, formatDateTime } from "../../domain/time";
+import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { getRouteHexIds } from "../../domain/routePath";
 import {
   calculateEstimatedArrivalAt,
@@ -42,9 +42,11 @@ export function ContractDetailScreen({
   onClose
 }: ContractDetailScreenProps) {
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     setSelectedShipId(null);
+    setShowConfirmation(false);
   }, [contract?.id]);
 
   const route = contract ? getRouteById(contract.routeId) : null;
@@ -194,7 +196,7 @@ export function ContractDetailScreen({
           </div>
           {forecastEta && (
             <p style={{ margin: "8px 0 0", fontSize: "13px" }}>
-              予報ETA: {formatDateTime(ceilTo5Minutes(forecastEta))}（精度 {Math.round(seaForecast.accuracy * 100)}%）
+              予報ETA: {formatDateTime(ceilTo1Minute(forecastEta))}（精度 {Math.round(seaForecast.accuracy * 100)}%）
             </p>
           )}
         </section>
@@ -205,16 +207,30 @@ export function ContractDetailScreen({
         <button
           className={`btn ${canAccept && selectedShipId ? "btn-primary" : "btn-secondary"}`}
           disabled={!canAccept || !selectedShipId}
-          onClick={() => {
-            if (selectedShipId) {
-              onAccept(selectedShipId);
-            }
-          }}
+          onClick={() => setShowConfirmation(true)}
         >
           {selectedShipId ? "受注する" : "船を選択してください"}
         </button>
         <button className="btn btn-secondary" onClick={onClose}>断る</button>
       </footer>
+
+      {showConfirmation && selectedShip && (
+        <div className="confirmation-overlay">
+          <div className="confirmation-modal">
+            <h3>受注内容の確認</h3>
+            <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
+            <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
+            <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>
+            <div className="kv"><span>予報ETA</span><span>{forecastEta ? formatDateTime(ceilTo1Minute(forecastEta)) : "-"}</span></div>
+            <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
+            <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
+            <div className="confirmation-actions">
+              <button className="btn btn-secondary" type="button" onClick={() => setShowConfirmation(false)}>キャンセル</button>
+              <button className="btn btn-primary" type="button" onClick={() => onAccept(selectedShip.id)}>受注する</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
