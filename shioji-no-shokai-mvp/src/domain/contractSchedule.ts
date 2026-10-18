@@ -1,4 +1,4 @@
-import type { Cargo, ContractTemplate, Route } from "./types";
+import type { AcceptedContract, Cargo, ContractTemplate, ContractRewardBreakdown, Route } from "./types";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { ceilTo30Minutes } from "./time";
 import { calculateCargoValue, calculateVoyageDistanceAllowance } from "./reward";
