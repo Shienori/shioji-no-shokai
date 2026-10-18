@@ -23,6 +23,8 @@ interface RouteSeaConditionTabProps {
 const HEX_SIZE = 22;
 const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
 const HEX_HEIGHT = 2 * HEX_SIZE;
+const FOCUS_VIEW_WIDTH = 240;
+const FOCUS_VIEW_HEIGHT = 200;
 
 const CONDITION_COLORS: Record<SeaCondition, string> = {
   calm: "#dbe7ef",
@@ -161,6 +163,15 @@ export function RouteSeaConditionTab({
   const minY = Math.min(...centers.map(({ center }) => center.y)) - padding;
   const maxY = Math.max(...centers.map(({ center }) => center.y)) + padding;
 
+  const focusHex = predictedPosition
+    ? hexMap.find((hex) => hex.id === predictedPosition.hexId)
+    : null;
+  const focusCenter = focusHex ? getHexCenter(focusHex) : null;
+
+  const viewBox = focusCenter
+    ? `${focusCenter.x - FOCUS_VIEW_WIDTH / 2} ${focusCenter.y - FOCUS_VIEW_HEIGHT / 2} ${FOCUS_VIEW_WIDTH} ${FOCUS_VIEW_HEIGHT}`
+    : `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+
   const routeCenters = routeHexIds
     .map((hexId) => hexMap.find((hex) => hex.id === hexId))
     .filter((hex): hex is MapHex => Boolean(hex))
@@ -181,7 +192,7 @@ export function RouteSeaConditionTab({
 
       <div className="hex-map route-sea-map">
         <svg
-          viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`}
+          viewBox={viewBox}
           role="img"
           aria-label="海況予報HEXマップ"
         >
@@ -281,7 +292,7 @@ export function RouteSeaConditionTab({
         </svg>
       </div>
 
-      <div className="route-sea-legend">
+      <div className="route-sea-legend" style={{ color: "#0f172a" }}>
         <span><span className="legend-swatch calm" /> 無風</span>
         <span><span className="legend-swatch followingWind" /> 追風</span>
         <span><span className="legend-swatch headwind" /> 向かい風</span>

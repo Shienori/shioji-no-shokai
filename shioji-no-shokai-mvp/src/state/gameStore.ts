@@ -8,7 +8,7 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
-import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
+import { createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
 import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
@@ -53,6 +53,16 @@ function pickPortOffers(portId: PortId, keepTemplateIds: ContractId[] = []): Off
   return selectedTemplates.map((template) =>
     createOfferedContract(template, getRouteById(template.routeId), generatedAt)
   );
+}
+
+function replenishAcceptedOffer(state: GameState, portId: PortId, acceptedTemplateId: ContractId): OfferedContract[] {
+  const remainingOffers = (state.portOffers[portId] ?? []).filter(
+    (offer) => offer.templateId !== acceptedTemplateId
+  );
+  const keepTemplateIds = remainingOffers.map((offer) => offer.templateId);
+  const replacement = pickPortOffers(portId, keepTemplateIds);
+
+  return [...remainingOffers, ...replacement].slice(0, 3);
 }
 
 function createInitialGameState(): GameState {
@@ -282,6 +292,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       activeContractId: acceptedContract.id
     };
 
+    const portOffers = { ...current.portOffers };
+    if (offeredContract) {
+      portOffers[current.selectedPortId] = replenishAcceptedOffer(
+        current,
+        current.selectedPortId,
+        contractId
+      );
+    }
+
     const next: GameState = {
       ...current,
       currentGameTime: currentRealTime,
@@ -289,6 +308,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ships: current.ships.map((item) => (item.id === shipId ? updatedShip : item)),
       activeVoyage: voyage,
       acceptedContract,
+      portOffers,
       acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id]
     };
 
