@@ -1,6 +1,7 @@
 import type { ContractTemplate, GameState, Ship } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
+import { tutorialWheatContract } from "../data/contracts";
 
 export interface AcceptanceCheck {
   canAccept: boolean;
@@ -36,7 +37,8 @@ export function evaluateContractAcceptance(
     return { canAccept: false, reason: "スペースまたは積載量が不足しています" };
   }
 
-  const hasOffer = (gameState.portOffers[route.fromPortId] ?? [])
+  const isFixedContract = contract.id === tutorialWheatContract.id;
+  const hasOffer = isFixedContract || (gameState.portOffers[route.fromPortId] ?? [])
     .some((offer) => offer.templateId === contract.id);
 
   if (!hasOffer) {

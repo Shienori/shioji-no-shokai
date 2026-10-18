@@ -45,12 +45,14 @@
   padding: 20px;
   border-radius: 16px;
   background: #ffffff;
+  color: #0f172a;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
 }
 
 .confirmation-modal h3 {
   margin: 0 0 14px;
   font-size: 18px;
+  color: #0f172a;
 }
 
 .confirmation-modal .kv {
@@ -59,6 +61,7 @@
   gap: 12px;
   padding: 7px 0;
   font-size: 14px;
+  color: #0f172a;
 }
 
 .confirmation-actions {

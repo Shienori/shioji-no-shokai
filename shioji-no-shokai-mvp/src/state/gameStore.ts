@@ -8,7 +8,7 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
-import { createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
+import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
 import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
@@ -253,7 +253,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const route = getRouteById(template.routeId);
     const offeredContract = (current.portOffers[current.selectedPortId] ?? [])
       .find((offer) => offer.templateId === contractId);
-    if (!offeredContract) return;
+
+    const deadlineAt = offeredContract?.deadlineAt ?? calculateContractSchedule(
+      template,
+      route,
+      currentRealTime
+    ).deadlineAt;
 
     const cargo = getCargoById(template.cargoId);
     const acceptedContract = createAcceptedContract(
@@ -261,7 +266,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       route,
       cargo,
       currentRealTime,
-      offeredContract.deadlineAt
+      deadlineAt
     );
 
     const voyage = createVoyage(
