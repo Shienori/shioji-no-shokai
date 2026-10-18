@@ -11,7 +11,7 @@ import { advanceOperationTime } from "../domain/time";
 import { createAcceptedContract } from "../domain/contractSchedule";
 import { loadGame, saveGame } from "../domain/save";
 import { STARTING_MONEY } from "../data/gameConstants";
-import { getPortHexId } from "../data/hexMap";
+import { getHexById, getPortHexId } from "../data/hexMap";
 import { getRouteHexIds } from "../domain/routePath";
 
 const CONTRACT_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -63,6 +63,7 @@ function createInitialGameState(): GameState {
     reputations: [
       { shipperId: "shipper_selene_farmers", value: 0 },
       { shipperId: "shipper_aldera_merchants", value: 0 },
+      { shipperId: "shipper_rigel_forge", value: 0 },
       { shipperId: "shipper_rigel_forge", value: 0 }
     ],
     tutorialCompleted: false,
@@ -98,17 +99,17 @@ function getShipCurrentHexId(
   if (!routeHexIds || routeHexIds.length < 2) return startHexId;
 
   const seaHexIds = routeHexIds.filter((hexId) => {
-    return routeHexIds.includes(hexId);
+    return getHexById(hexId).kind === "sea";
   });
-  const seaHexCount = seaHexIds.length - 2;
-  if (seaHexCount <= 0) return goalHexId;
+
+  if (seaHexIds.length === 0) return goalHexId;
 
   const seaHexIndex = Math.min(
-    seaHexCount - 1,
+    seaHexIds.length - 1,
     Math.max(0, voyage.currentSeaHexIndex)
   );
 
-  return seaHexIds[1 + seaHexIndex];
+  return seaHexIds[seaHexIndex];
 }
 
 function syncActiveShipPosition(state: GameState): GameState {

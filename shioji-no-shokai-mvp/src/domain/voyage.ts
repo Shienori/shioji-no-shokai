@@ -3,7 +3,7 @@ import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { getRouteHexIds } from "./routePath";
-import { HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from "./hexMap";
+import { getHexById, HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from "../data/hexMap";
 import {
   SEA_CONDITION_SLOT_MS,
   calculateEstimatedArrivalAt,
@@ -17,17 +17,8 @@ function getRouteSeaHexIds(route: Route): string[] {
   const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId) ?? [];
 
   return routeHexIds.filter((hexId) => {
-    const routeHex = getRouteHexIds(route.fromPortId, route.toPortId);
-    return Boolean(routeHex);
-  }).filter((hexId) => {
-    return getRouteHexKind(hexId) === "sea";
+    return getHexById(hexId).kind === "sea";
   });
-}
-
-function getRouteHexKind(hexId: string): "sea" | "port" | null {
-  const route = getRouteById("route_selene_aldera");
-  void route;
-  return null;
 }
 
 export function createVoyage(
@@ -99,7 +90,6 @@ function progressSailing(voyage: Voyage, contract: AcceptedContract, operationTi
 
   let seaHexIndex = Math.min(voyage.currentSeaHexIndex, seaHexIds.length - 1);
   let distanceIntoHexNm = voyage.distanceIntoHexNm;
-  const nmPerRealMs = voyage.shipSpeedKnots * GAME_TIME_MULTIPLIER / 3600000;
 
   while (processedRealTime < currentRealTime && seaHexIndex < seaHexIds.length) {
     const hexId = seaHexIds[seaHexIndex];
