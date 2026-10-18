@@ -6,7 +6,7 @@ import { getCargoById } from "../../data/cargos";
 import { getHexById } from "../../data/hexMap";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
-import { formatDateTime } from "../../domain/time";
+import { ceilTo5Minutes, formatDateTime } from "../../domain/time";
 import { getRouteHexIds } from "../../domain/routePath";
 import {
   calculateEstimatedArrivalAt,
@@ -21,6 +21,7 @@ interface ContractDetailScreenProps {
   ships: Ship[];
   eligibleShips: Ship[];
   acceptReason: string | null;
+  offeredDeadlineAt: number | null;
   onAccept: (shipId: string) => void;
   onClose: () => void;
 }
@@ -36,6 +37,7 @@ export function ContractDetailScreen({
   ships,
   eligibleShips,
   acceptReason,
+  offeredDeadlineAt,
   onAccept,
   onClose
 }: ContractDetailScreenProps) {
@@ -74,7 +76,8 @@ export function ContractDetailScreen({
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = contract.offeredReward - expense;
-  const { deadlineAt } = getContractSchedule(contract, route, Date.now());
+  const fallbackSchedule = getContractSchedule(contract, route, Date.now());
+  const deadlineAt = offeredDeadlineAt ?? fallbackSchedule.deadlineAt;
   const deadlineLabel = formatDateTime(deadlineAt);
   const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
@@ -191,7 +194,7 @@ export function ContractDetailScreen({
           </div>
           {forecastEta && (
             <p style={{ margin: "8px 0 0", fontSize: "13px" }}>
-              予報ETA: {formatDateTime(forecastEta)}（精度 {Math.round(seaForecast.accuracy * 100)}%）
+              予報ETA: {formatDateTime(ceilTo5Minutes(forecastEta))}（精度 {Math.round(seaForecast.accuracy * 100)}%）
             </p>
           )}
         </section>

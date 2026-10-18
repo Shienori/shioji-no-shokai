@@ -1,7 +1,9 @@
-import type { GameState, SaveData, Ship, Voyage } from "./types";
+import type { GameState, OfferedContract, SaveData, Ship, Voyage } from "./types";
 import { SAVE_KEY, SAVE_VERSION } from "../data/gameConstants";
+import { getContractTemplateById } from "../data/contracts";
 import { getRouteById } from "../data/routes";
 import { getPortHexId } from "../data/hexMap";
+import { createOfferedContract } from "./contractSchedule";
 
 const REMOVED_FISH_CONTRACT_IDS = new Set([
   "contract_selene_001",
@@ -44,9 +46,23 @@ function migrateCargoData(state: GameState): GameState {
   });
 
   const portOffers = state.portOffers
-    ? Object.fromEntries(Object.entries(state.portOffers).map(([portId, ids]) => [
-        portId, ids.filter(keepContractId)
-      ]))
+    ? Object.fromEntries(Object.entries(state.portOffers).map(([portId, offers]) => {
+        if (offers.length > 0 && typeof offers[0] === "string") {
+          return [portId, (offers as string[])
+            .filter(keepContractId)
+            .map((templateId) => {
+              const template = getContractTemplateById(templateId);
+              return createOfferedContract(
+                template,
+                getRouteById(template.routeId),
+                Date.now()
+              );
+            })];
+        }
+        return [portId, (offers as OfferedContract[]).filter(
+          (offer) => keepContractId(offer.templateId)
+        )];
+      }))
     : state.portOffers;
 
   return {

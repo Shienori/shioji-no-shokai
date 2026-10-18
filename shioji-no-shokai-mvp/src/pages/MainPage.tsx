@@ -7,6 +7,7 @@ import { ContractBoard } from "../components/contract/ContractBoard";
 import { ContractDetailScreen } from "../components/contract/ContractDetailScreen";
 import { WorldMapTab } from "../components/map/WorldMapTab";
 import { FleetPanel } from "../components/fleet/FleetPanel";
+import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
 import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
@@ -14,15 +15,16 @@ import { getCargoById } from "../data/cargos";
 import { getContractCargoRequirements } from "../domain/contractOffer";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
-import { SAVE_KEY } from "../data/gameConstants";
 
 export function MainPage() {
   const gameState = useGameStore((state) => state.gameState);
   const activeTab = useGameStore((state) => state.activeTab);
   const selectedContractId = useGameStore((state) => state.selectedContractId);
+  const selectedShipId = useGameStore((state) => state.selectedShipId);
   const tick = useGameStore((state) => state.tick);
   const setActiveTab = useGameStore((state) => state.setActiveTab);
   const selectContract = useGameStore((state) => state.selectContract);
+  const selectShip = useGameStore((state) => state.selectShip);
   const selectPort = useGameStore((state) => state.selectPort);
   const acceptContract = useGameStore((state) => state.acceptContract);
 
@@ -32,9 +34,12 @@ export function MainPage() {
   }, [tick]);
 
   const selectedPortId = gameState.selectedPortId;
-  const contracts = (gameState.portOffers[selectedPortId] ?? []).map(getContractTemplateById);
+  const offeredContracts = gameState.portOffers[selectedPortId] ?? [];
+  const contracts = offeredContracts.map((offer) => getContractTemplateById(offer.templateId));
   const fixedContract = selectedPortId === "port_selene" ? tutorialWheatContract : null;
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
+  const selectedOffer = offeredContracts.find((offer) => offer.templateId === selectedContractId) ?? null;
+  const selectedShip = selectedShipId === null ? null : gameState.ships.find((ship) => ship.id === selectedShipId) ?? null;
 
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
   const selectedCargo = selectedContract ? getCargoById(selectedContract.cargoId) : null;
@@ -77,11 +82,6 @@ export function MainPage() {
     ? settleContract(gameState.acceptedContract, voyage!)
     : null;
 
-  const resetGame = () => {
-    localStorage.removeItem(SAVE_KEY);
-    location.reload();
-  };
-
   const handleAccept = (contractId: string, shipId: string) => {
     acceptContract(contractId, shipId);
     selectContract(null);
@@ -96,8 +96,23 @@ export function MainPage() {
           ships={gameState.ships}
           eligibleShips={eligibleShips}
           acceptReason={acceptReason}
+          offeredDeadlineAt={selectedOffer?.deadlineAt ?? null}
           onAccept={(shipId) => handleAccept(selectedContract.id, shipId)}
           onClose={() => selectContract(null)}
+        />
+      </div>
+    );
+  }
+
+  if (selectedShip) {
+    return (
+      <div className="phone">
+        <ShipDetailScreen
+          ship={selectedShip}
+          voyage={voyage}
+          contract={gameState.acceptedContract}
+          operationTime={gameState.operationTime}
+          onBack={() => selectShip(null)}
         />
       </div>
     );
@@ -127,7 +142,13 @@ export function MainPage() {
           ) : activeTab === "chart" ? (
             <WorldMapTab />
           ) : (
-            <FleetPanel ship={gameState.ships[0]} voyage={voyage} contract={gameState.acceptedContract} progress={progress} operationTime={gameState.operationTime} />
+            <FleetPanel
+              ships={gameState.ships}
+              voyage={voyage}
+              contract={gameState.acceptedContract}
+              operationTime={gameState.operationTime}
+              onSelectShip={selectShip}
+            />
           )}
         </div>
       </main>
@@ -135,7 +156,7 @@ export function MainPage() {
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
 
       <button className="btn btn-secondary" type="button" onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
-      <button className="btn btn-secondary" onClick={resetGame}>デバッグ: 初期化</button>
+      <button className="btn btn-secondary" type="button" onClick={() => useGameStore.getState().resetGame()}>デバッグ: 初期化</button>
     </div>
   );
 }
