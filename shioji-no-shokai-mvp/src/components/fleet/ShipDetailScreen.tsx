@@ -1,3 +1,4 @@
+import "../../styles/shipDetail.css";
 import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
