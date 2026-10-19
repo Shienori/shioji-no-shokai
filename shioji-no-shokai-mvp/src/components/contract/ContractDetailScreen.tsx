@@ -1,18 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { getHexById } from "../../data/hexMap";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
-import { getRouteHexIds } from "../../domain/routePath";
-import {
-  calculateEstimatedArrivalAt,
-  createRouteSeaForecast,
-  getSeaConditionForecastAt,
-} from "../../domain/seaCondition";
+import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 import { CapacityGauge } from "./CapacityGauge";
 import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
 
@@ -26,11 +20,7 @@ interface ContractDetailScreenProps {
   onClose: () => void;
 }
 
-const CONDITION_LABELS = {
-  calm: "無風",
-  followingWind: "追風",
-  headwind: "向かい風",
-} as const;
+const HOUR_MS = 60 * 60 * 1000;
 
 export function ContractDetailScreen({
   contract,
@@ -50,26 +40,6 @@ export function ContractDetailScreen({
   }, [contract?.id]);
 
   const route = contract ? getRouteById(contract.routeId) : null;
-  const seaHexIds = useMemo(() => {
-    if (!route) return [];
-    const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId) ?? [];
-    return routeHexIds.filter((hexId) => getHexById(hexId).kind === "sea");
-  }, [route]);
-
-  const seaForecast = useMemo(() => {
-    if (!contract || seaHexIds.length === 0) return null;
-    return createRouteSeaForecast(contract.routeId, seaHexIds, Date.now());
-  }, [contract, seaHexIds]);
-
-  const forecastEta = useMemo(() => {
-    const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
-    if (!selectedShip || seaHexIds.length === 0) return null;
-    return calculateEstimatedArrivalAt(
-      seaHexIds,
-      Date.now(),
-      selectedShip.cruisingSpeedKnots,
-    );
-  }, [seaHexIds, selectedShipId, ships]);
 
   if (!contract || !route) return null;
 
@@ -84,6 +54,8 @@ export function ContractDetailScreen({
   const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
   const canAccept = eligibleShips.length > 0;
+  const etaAt = Date.now() + (route.baseVoyageHours * HOUR_MS) / GAME_TIME_MULTIPLIER;
+  const etaLabel = formatDateTime(ceilTo1Minute(etaAt));
 
   return (
     <div className="contract-detail-screen">
@@ -167,41 +139,6 @@ export function ContractDetailScreen({
         </section>
       </div>
 
-      {seaForecast && (
-        <section
-          style={{
-            margin: "0 16px 12px",
-            padding: "12px",
-            borderRadius: "12px",
-            background: "#eaf3fb"
-          }}
-        >
-          <h3 style={{ margin: "0 0 8px", fontSize: "15px" }}>
-            現時点の海況予報
-          </h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {seaForecast.forecasts.map((forecast) => (
-              <span
-                key={forecast.hexId}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: "999px",
-                  background: "#ffffff",
-                  fontSize: "12px"
-                }}
-              >
-                {forecast.hexId.replace("hex_", "")}: {CONDITION_LABELS[forecast.forecast]}
-              </span>
-            ))}
-          </div>
-          {forecastEta && (
-            <p style={{ margin: "8px 0 0", fontSize: "13px" }}>
-              ETA: {formatDateTime(ceilTo1Minute(forecastEta))}（精度 {Math.round(seaForecast.accuracy * 100)}%）
-            </p>
-          )}
-        </section>
-      )}
-
       <footer className="detail-footer">
         {acceptReason && <p className="accept-reason">{acceptReason}</p>}
         <button
@@ -221,7 +158,7 @@ export function ContractDetailScreen({
             <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
             <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
             <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>
-            <div className="kv"><span>ETA</span><span>{forecastEta ? formatDateTime(ceilTo1Minute(forecastEta)) : "-"}</span></div>
+            <div className="kv"><span>ETA</span><span>{etaLabel}</span></div>
             <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
             <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
             <div className="confirmation-actions">
