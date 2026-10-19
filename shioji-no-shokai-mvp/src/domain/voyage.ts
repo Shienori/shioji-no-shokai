@@ -1,4 +1,4 @@
-import type { AcceptedContract, Route, Ship, Voyage } from "./types";
+import type { AcceptedContract, ContractTemplate, Route, Ship, Voyage } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
@@ -24,7 +24,10 @@ function getRouteSeaHexIds(route: Route): string[] {
   });
 }
 
-export function getHeavyLoadSpeedFactor(contract: AcceptedContract, ship: Ship): number {
+export function getHeavyLoadSpeedFactor(
+  contract: Pick<ContractTemplate, "cargoId" | "quantity">,
+  ship: Ship,
+): number {
   const cargo = getCargoById(contract.cargoId);
   const requiredWeight = cargo.weightPerUnit * contract.quantity;
   const weightRatio = ship.maxCargoWeight > 0 ? requiredWeight / ship.maxCargoWeight : 0;
