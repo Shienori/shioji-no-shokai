@@ -1,3 +1,6 @@
+// Contract difficulty is defined here to keep the contract domain self-contained.
+export type ContractDifficulty = "easy" | "normal" | "hard";
+
 import type { ContractTemplate, PortId } from "../domain/types";
 import { routesById } from "./routes";
 
