@@ -38,12 +38,7 @@ export function MainPage() {
   const acceptanceChecks = selectedContract ? gameState.ships.map((ship) => ({ ship, check: evaluateContractAcceptance(selectedContract, ship, gameState) })) : [];
   const eligibleShips = acceptanceChecks.filter((item) => item.check.canAccept).map((item) => item.ship);
   const acceptReason = !selectedContract || !selectedRoute ? null
-    : gameState.acceptedContract ? "すでに依頼を受注しています"
-    : eligibleShips.length > 0 ? null
-    : gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
-      ? gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
-        ? "スペースまたは積載量が不足しています" : "船がフリーではありません"
-      : "船が仕出港にいません";
+    : acceptanceChecks.find((item) => !item.check.canAccept)?.check.reason ?? null;
   const voyage = gameState.activeVoyage;
   const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
