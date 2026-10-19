@@ -48,19 +48,16 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
     if (!eligibleShips.some((item) => item.id === ship.id)) {
       return { label: "受注不可", color: "#64748b", background: "#f1f5f9" };
     }
-    const weightRatio = ship.maxCargoWeight > 0 ? requiredCargoWeight / ship.maxCargoWeight : 0;
-    const volumeRatio = ship.maxCargoVolume > 0 ? requiredCargoVolume / ship.maxCargoVolume : 0;
-    const cargoMargin = 1 - Math.max(weightRatio, volumeRatio);
     const shipEta = seaHexIds.length > 0
       ? calculateEstimatedArrivalAt(seaHexIds, departureAt, ship.cruisingSpeedKnots * getHeavyLoadSpeedFactor(contract, ship))
       : null;
     const etaMarginHours = shipEta !== null && offeredDeadlineAt !== null
       ? (offeredDeadlineAt - shipEta) / 3600000
       : null;
-    if (cargoMargin >= 0.3 && etaMarginHours !== null && etaMarginHours >= 2) {
+    if (etaMarginHours !== null && etaMarginHours >= 2) {
       return { label: "余裕あり", color: "#166534", background: "#dcfce7" };
     }
-    if (cargoMargin >= 0.1 && etaMarginHours !== null && etaMarginHours >= 0.5) {
+    if (etaMarginHours !== null && etaMarginHours >= 0.5) {
       return { label: "ぎりぎり", color: "#92400e", background: "#fef3c7" };
     }
     return { label: "要注意", color: "#991b1b", background: "#fee2e2" };
