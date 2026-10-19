@@ -2,8 +2,7 @@ import { create } from "zustand";
 import type { AcceptedContract, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
 import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
-import { ports } from "../data/ports";
-import { getPortById } from "../data/ports";
+import { ports, getPortById } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage } from "../domain/voyage";
@@ -311,7 +310,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       shipId: ship.id,
       shipName: ship.name,
       routeLabel: `${getPortById(route.fromPortId).name} → ${getPortById(route.toPortId).name}`,
-      cargoLabel: `${cargo.name} ×${contract.quantity}`,
+      cargoLabel: `${cargo.name} ×${template.quantity}`,
       acceptedAt: currentRealTime,
       acceptedOperationTime: current.operationTime,
       plannedEtaRealTime: voyage.forecastEtaRealTime,
