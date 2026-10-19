@@ -8,7 +8,7 @@ import { getHexById } from "../../data/hexMap";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
-import { getSeaConditionAt, getSeaConditionForecastAt, SEA_CONDITION_SLOT_MS } from "../../domain/seaCondition";
+import { getSeaConditionAt } from "../../domain/seaCondition";
 import { HexMap } from "./HexMap";
 
 interface ShipDetailScreenProps {
@@ -65,16 +65,6 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
     ? getSeaConditionAt(ship.currentHexId, Date.now())
     : null;
 
-  const now = Date.now();
-  const nextSlot = Math.ceil(now / SEA_CONDITION_SLOT_MS) * SEA_CONDITION_SLOT_MS;
-  const forecast = Array.from({ length: 6 }, (_, index) => {
-    const time = nextSlot + index * SEA_CONDITION_SLOT_MS;
-    return {
-      time,
-      condition: getSeaConditionForecastAt(ship.currentHexId, time)
-    };
-  });
-
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
   const etaLabel = voyage?.phase === "sailing"
@@ -113,21 +103,6 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
             routeHexIds={routeHexIds}
             currentHexId={ship.currentHexId}
           />
-        </div>
-      </section>
-
-      <section className="contract-card fleet-card">
-        <h3>気象予報</h3>
-        <p className="contract-board-subtitle">現在海域の今後12時間</p>
-        <div className="contract-list">
-          {forecast.map((item) => (
-            <div key={item.time} className="contract-card fleet-card">
-              <div className="contract-card-heading">
-                <h4>{formatDateTime(item.time)}</h4>
-                <span className="contract-card-detail">{CONDITION_LABELS[item.condition]}</span>
-              </div>
-            </div>
-          ))}
         </div>
       </section>
 
