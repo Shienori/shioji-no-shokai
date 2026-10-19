@@ -107,15 +107,13 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
           <div><span className="contract-fact-label">ETA</span><span className="contract-fact-value">{etaLabel}</span></div>
           <div><span className="contract-fact-label">期限</span><span className="contract-fact-value">{deadlineLabel}</span></div>
         </div>
-      </section>
-
-      <section className="contract-card fleet-card map-card">
-        <h3>航路マップ</h3>
-        <HexMap
-          ships={[{ name: ship.name, hexId: ship.currentHexId }]}
-          routeHexIds={routeHexIds}
-          currentHexId={ship.currentHexId}
-        />
+        <div className="voyage-route-map">
+          <HexMap
+            ships={[{ name: ship.name, hexId: ship.currentHexId }]}
+            routeHexIds={routeHexIds}
+            currentHexId={ship.currentHexId}
+          />
+        </div>
       </section>
 
       <section className="contract-card fleet-card">
