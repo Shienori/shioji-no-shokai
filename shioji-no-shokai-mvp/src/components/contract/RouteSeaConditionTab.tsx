@@ -2,15 +2,9 @@ import { useMemo, useState } from "react";
 import type { Ship } from "../../domain/types";
 import { hexMap, getHexById } from "../../data/hexMap";
 import type { MapHex, SeaCondition } from "../../domain/hexMap";
+import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 import { getRouteHexIds } from "../../domain/routePath";
-import {
-  SEA_CONDITION_SLOT_MS,
-  calculateHexTransitHours,
-  calculateEstimatedArrivalAt,
-  getPredictedShipPosition,
-  getSeaConditionForecastAt,
-  getVoyageTimeRange,
-} from "../../domain/seaCondition";
+import { calculateHexTransitHours, calculateEstimatedArrivalAt, getPredictedShipPosition, getSeaConditionForecastAt, getVoyageTimeRange, getForecastIssueTime } from "../../domain/seaCondition";
 import { formatDateTime } from "../../domain/time";
 
 interface RouteSeaConditionTabProps {
@@ -19,362 +13,101 @@ interface RouteSeaConditionTabProps {
   toPortId: string;
   selectedShip: Ship | null;
 }
-
 const HEX_SIZE = 22;
 const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-const HEX_HEIGHT = 2 * HEX_SIZE;
-const FOCUS_VIEW_WIDTH = 240;
-const FOCUS_VIEW_HEIGHT = 200;
-
-const CONDITION_COLORS: Record<SeaCondition, string> = {
-  calm: "#dbe7ef",
-  followingWind: "#bbf7d0",
-  headwind: "#fecaca",
-};
-
-const CONDITION_LABELS: Record<SeaCondition, string> = {
-  calm: "無風",
-  followingWind: "追風",
-  headwind: "向かい風",
-};
-
-const CONDITION_ICONS: Record<SeaCondition, string> = {
-  calm: "◌",
-  followingWind: "➤",
-  headwind: "⇦",
-};
-
-function getHexCenter(hex: MapHex) {
-  return {
-    x: HEX_WIDTH * (hex.q + hex.r / 2),
-    y: (HEX_HEIGHT * 3 / 4) * hex.r,
-  };
-}
-
+const CONDITION_COLORS: Record<SeaCondition, string> = { calm: "#dbe7ef", followingWind: "#bbf7d0", headwind: "#fecaca" };
+const CONDITION_LABELS: Record<SeaCondition, string> = { calm: "無風", followingWind: "追風", headwind: "向かい風" };
+const CONDITION_ICONS: Record<SeaCondition, string> = { calm: "◌", followingWind: "➤", headwind: "⇦" };
+function getHexCenter(hex: MapHex) { return { x: HEX_WIDTH * (hex.q + hex.r / 2), y: 33 * hex.r }; }
 function getHexPoints(center: { x: number; y: number }) {
-  const points: string[] = [];
-
-  for (let index = 0; index < 6; index += 1) {
-    const angle = (Math.PI / 180) * (60 * index - 30);
-    const x = center.x + HEX_SIZE * Math.cos(angle);
-    const y = center.y + HEX_SIZE * Math.sin(angle);
-    points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-  }
-
-  return points.join(" ");
+  return Array.from({ length: 6 }, (_, index) => {
+    const angle = Math.PI / 180 * (60 * index - 30);
+    return `${(center.x + HEX_SIZE * Math.cos(angle)).toFixed(2)},${(center.y + HEX_SIZE * Math.sin(angle)).toFixed(2)}`;
+  }).join(" ");
 }
-
 function getSeaLabel(hexId: string) {
   const match = hexId.match(/(\d+)$/);
   return match ? `S${match[1].padStart(2, "0")}` : hexId;
 }
-
-export function RouteSeaConditionTab({
-  routeId,
-  fromPortId,
-  toPortId,
-  selectedShip,
-}: RouteSeaConditionTabProps) {
-  const departureAt = Date.now();
-  const [selectedAt, setSelectedAt] = useState(departureAt);
-
-  const routeHexIds = useMemo(() => {
-    return getRouteHexIds(fromPortId, toPortId) ?? [];
-  }, [fromPortId, toPortId]);
-
-  const routeHexIdSet = useMemo(() => {
-    return new Set(routeHexIds);
-  }, [routeHexIds]);
-
-  const seaHexIds = useMemo(() => {
-    return routeHexIds.filter((hexId) => {
-      return getHexById(hexId).kind === "sea";
-    });
-  }, [routeHexIds]);
-
-  const estimatedArrivalAt = useMemo(() => {
-    if (!selectedShip) return null;
-
-    return calculateEstimatedArrivalAt(
-      seaHexIds,
-      departureAt,
-      selectedShip.cruisingSpeedKnots,
-    );
-  }, [seaHexIds, departureAt, selectedShip]);
-
+export function RouteSeaConditionTab(props: RouteSeaConditionTabProps) {
+  const shipKey = props.selectedShip ? `${props.selectedShip.id}:${props.selectedShip.cruisingSpeedKnots}` : "none";
+  return <ForecastTimeline key={`${props.routeId}:${props.fromPortId}:${props.toPortId}:${shipKey}`} {...props} />;
+}
+function ForecastTimeline({ fromPortId, toPortId, selectedShip }: RouteSeaConditionTabProps) {
+  const [departureAt] = useState(() => Date.now());
+  const [selectedPercent, setSelectedPercent] = useState(0);
+  const routeHexIds = useMemo(() => getRouteHexIds(fromPortId, toPortId) ?? [], [fromPortId, toPortId]);
+  const routeHexIdSet = useMemo(() => new Set(routeHexIds), [routeHexIds]);
+  const seaHexIds = useMemo(() => routeHexIds.filter((id) => getHexById(id).kind === "sea"), [routeHexIds]);
+  const estimatedArrivalAt = useMemo(() => selectedShip && seaHexIds.length > 0 ? calculateEstimatedArrivalAt(seaHexIds, departureAt, selectedShip.cruisingSpeedKnots) : null, [seaHexIds, departureAt, selectedShip]);
   const timeRange = getVoyageTimeRange(departureAt, estimatedArrivalAt);
-  const clippedSelectedAt = Math.min(
-    Math.max(selectedAt, timeRange.min),
-    timeRange.max,
-  );
-
+  const selectedAt = timeRange.min + (timeRange.max - timeRange.min) * selectedPercent / 100;
   const overlayConditions = useMemo(() => {
-    if (selectedShip) {
-      const conditions = new Map<string, SeaCondition>();
-      let accumulatedHours = 0;
-
-      for (const hexId of seaHexIds) {
-        const arrivalAt =
-          departureAt + accumulatedHours * 60 * 60 * 1000;
-
-        const condition = getSeaConditionForecastAt(
-          hexId,
-          arrivalAt,
-        );
-
-        conditions.set(hexId, condition);
-
-        accumulatedHours += calculateHexTransitHours(
-          selectedShip.cruisingSpeedKnots,
-          condition,
-        );
-      }
-
-      return conditions;
+    if (!selectedShip) return new Map(seaHexIds.map((id) => [id, getSeaConditionForecastAt(id, selectedAt)]));
+    const conditions = new Map<string, SeaCondition>();
+    let arrivalAt = departureAt;
+    for (const id of seaHexIds) {
+      const condition = getSeaConditionForecastAt(id, arrivalAt);
+      conditions.set(id, condition);
+      arrivalAt += calculateHexTransitHours(selectedShip.cruisingSpeedKnots, condition) * 3600000 / GAME_TIME_MULTIPLIER;
     }
-
-    return new Map(
-      seaHexIds.map((hexId) => [
-        hexId,
-        getSeaConditionForecastAt(hexId, selectedAt),
-      ]),
-    );
+    return conditions;
   }, [seaHexIds, departureAt, selectedAt, selectedShip]);
-
-  const predictedPosition = useMemo(() => {
-    if (!selectedShip) return null;
-
-    return getPredictedShipPosition(
-      routeHexIds,
-      departureAt,
-      clippedSelectedAt,
-      selectedShip.cruisingSpeedKnots,
-    );
-  }, [routeHexIds, departureAt, clippedSelectedAt, selectedShip]);
-
-  const centers = hexMap.map((hex) => ({
-    hex,
-    center: getHexCenter(hex),
-  }));
-
+  const predictedPosition = useMemo(() => selectedShip && seaHexIds.length > 0 ? getPredictedShipPosition(routeHexIds, departureAt, selectedAt, selectedShip.cruisingSpeedKnots) : null, [routeHexIds, seaHexIds, departureAt, selectedAt, selectedShip]);
+  const centers = hexMap.map((hex) => ({ hex, center: getHexCenter(hex) }));
   const padding = HEX_SIZE + 14;
   const minX = Math.min(...centers.map(({ center }) => center.x)) - padding;
   const maxX = Math.max(...centers.map(({ center }) => center.x)) + padding;
   const minY = Math.min(...centers.map(({ center }) => center.y)) - padding;
   const maxY = Math.max(...centers.map(({ center }) => center.y)) + padding;
-
-  const focusHex = predictedPosition
-    ? hexMap.find((hex) => hex.id === predictedPosition.hexId)
-    : null;
+  const focusHex = predictedPosition ? hexMap.find((hex) => hex.id === predictedPosition.hexId) : null;
   const focusCenter = focusHex ? getHexCenter(focusHex) : null;
-
-  const viewBox = focusCenter
-    ? `${focusCenter.x - FOCUS_VIEW_WIDTH / 2} ${focusCenter.y - FOCUS_VIEW_HEIGHT / 2} ${FOCUS_VIEW_WIDTH} ${FOCUS_VIEW_HEIGHT}`
-    : `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
-
-  const routeCenters = routeHexIds
-    .map((hexId) => hexMap.find((hex) => hex.id === hexId))
-    .filter((hex): hex is MapHex => Boolean(hex))
-    .map(getHexCenter);
-
-  const currentCondition = predictedPosition
-    ? overlayConditions.get(predictedPosition.hexId)
-    : undefined;
-
+  const viewBox = focusCenter ? `${focusCenter.x - 120} ${focusCenter.y - 100} 240 200` : `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+  const routeCenters = routeHexIds.map((id) => hexMap.find((hex) => hex.id === id)).filter((hex): hex is MapHex => Boolean(hex)).map(getHexCenter);
+  const currentCondition = predictedPosition ? overlayConditions.get(predictedPosition.hexId) : undefined;
   return (
     <div className="card detail-card route-sea-condition-tab">
       <div className="route-sea-header">
-        <span>予報発行：{formatDateTime(
-          getForecastIssueTimeSafe(departureAt),
-        )}</span>
-        <span>表示時刻：{formatDateTime(clippedSelectedAt)}</span>
+        <span>予報発行：{formatDateTime(getForecastIssueTime(departureAt))}</span>
+        <span>表示時刻：{formatDateTime(selectedAt)}</span>
       </div>
-
       <div className="hex-map route-sea-map">
-        <svg
-          viewBox={viewBox}
-          role="img"
-          aria-label="海況予報HEXマップ"
-        >
-          {routeCenters.length > 1 && (
-            <polyline
-              points={routeCenters
-                .map((center) => `${center.x},${center.y}`)
-                .join(" ")}
-              fill="none"
-              stroke={selectedShip ? "#fb923c" : "#f4c95d"}
-              strokeWidth={4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.9}
-            />
-          )}
-
+        <svg viewBox={viewBox} role="img" aria-label="海況予報HEXマップ">
+          {routeCenters.length > 1 && <polyline points={routeCenters.map((center) => `${center.x},${center.y}`).join(" ")} fill="none" stroke={selectedShip ? "#fb923c" : "#f4c95d"} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />}
           {centers.map(({ hex, center }) => {
             const isPort = hex.kind === "port";
             const isRouteHex = routeHexIdSet.has(hex.id);
             const condition = overlayConditions.get(hex.id);
-            const isShipHex =
-              predictedPosition?.hexId === hex.id;
-
-            const fill = isPort
-              ? "#8fd3ff"
-              : condition
-                ? CONDITION_COLORS[condition]
-                : "#dff1ff";
-
-            const stroke = isShipHex
-              ? "#c2410c"
-              : isRouteHex
-                ? selectedShip
-                  ? "#fb923c"
-                  : "#f4c95d"
-                : isPort
-                  ? "#1f7fb8"
-                  : "#9db8c7";
-
-            const strokeWidth = isShipHex
-              ? 3
-              : isRouteHex
-                ? selectedShip
-                  ? 3
-                  : 2.5
-                : isPort
-                  ? 2
-                  : 1;
-
-            return (
-              <g key={hex.id}>
-                <polygon
-                  points={getHexPoints(center)}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={strokeWidth}
-                />
-                <text
-                  x={center.x}
-                  y={center.y - 2}
-                  textAnchor="middle"
-                  fontSize={isPort ? 9 : 8}
-                  fontWeight={isPort ? 700 : 400}
-                  fill="#254b5c"
-                >
-                  {isPort
-                    ? hex.portId
-                    : getSeaLabel(hex.id)}
-                </text>
-                {condition && (
-                  <text
-                    x={center.x}
-                    y={center.y + 10}
-                    textAnchor="middle"
-                    fontSize={9}
-                    fill="#254b5c"
-                  >
-                    {CONDITION_ICONS[condition]}
-                  </text>
-                )}
-                {isShipHex && (
-                  <text
-                    x={center.x}
-                    y={center.y + 22}
-                    textAnchor="middle"
-                    fontSize={11}
-                    fontWeight={700}
-                    fill="#c2410c"
-                  >
-                    ⛵
-                  </text>
-                )}
-              </g>
-            );
+            const isShipHex = predictedPosition?.hexId === hex.id;
+            const fill = isPort ? "#8fd3ff" : condition ? CONDITION_COLORS[condition] : "#dff1ff";
+            const stroke = isShipHex ? "#c2410c" : isRouteHex ? selectedShip ? "#fb923c" : "#f4c95d" : isPort ? "#1f7fb8" : "#9db8c7";
+            const strokeWidth = isShipHex ? 3 : isRouteHex ? selectedShip ? 3 : 2.5 : isPort ? 2 : 1;
+            return <g key={hex.id}>
+              <polygon points={getHexPoints(center)} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+              <text x={center.x} y={center.y - 2} textAnchor="middle" fontSize={isPort ? 9 : 8} fontWeight={isPort ? 700 : 400} fill="#254b5c">{isPort ? hex.portId : getSeaLabel(hex.id)}</text>
+              {condition && <text x={center.x} y={center.y + 10} textAnchor="middle" fontSize={9} fill="#254b5c">{CONDITION_ICONS[condition]}</text>}
+              {isShipHex && <text x={center.x} y={center.y + 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#c2410c">⛵</text>}
+            </g>;
           })}
         </svg>
       </div>
-
       <div className="route-sea-legend" style={{ color: "#0f172a" }}>
         <span><span className="legend-swatch calm" /> 無風</span>
         <span><span className="legend-swatch followingWind" /> 追風</span>
         <span><span className="legend-swatch headwind" /> 向かい風</span>
         <span><span className="legend-swatch route" /> 予定航路</span>
       </div>
-
-      <input
-        className="route-sea-slider"
-        type="range"
-        min={timeRange.min}
-        max={timeRange.max}
-        step={SEA_CONDITION_SLOT_MS}
-        value={clippedSelectedAt}
-        disabled={!selectedShip}
-        onChange={(event) => {
-          setSelectedAt(Number(event.target.value));
-        }}
-        aria-label="海況予報の表示時刻"
-      />
-
+      <input className="route-sea-slider" style={{ width: "100%" }} type="range" min={0} max={100} step={0.1} value={selectedPercent} disabled={!selectedShip || seaHexIds.length === 0} onChange={(event) => setSelectedPercent(Number(event.target.value))} aria-label="海況予報の表示時刻" aria-valuetext={formatDateTime(selectedAt)} />
       <div className="route-sea-time-labels">
         <span>出発 {formatDateTime(departureAt)}</span>
-        <span>
-          {estimatedArrivalAt
-            ? `到着 ${formatDateTime(estimatedArrivalAt)}`
-            : "7日後"}
-        </span>
+        <span>{estimatedArrivalAt ? `到着 ${formatDateTime(estimatedArrivalAt)}` : "7日後"}</span>
       </div>
-
-      {selectedShip ? (
-        <div className="route-sea-status">
-          <div className="kv">
-            <span>使用船</span>
-            <span>{selectedShip.name}</span>
-          </div>
-          <div className="kv">
-            <span>ETA（現実時間）</span>
-            <span>
-              {estimatedArrivalAt
-                ? formatDateTime(estimatedArrivalAt)
-                : "—"}
-            </span>
-          </div>
-          <div className="kv">
-            <span>予定船位</span>
-            <span>
-              {predictedPosition
-                ? `${getSeaLabel(predictedPosition.hexId)}${
-                    predictedPosition.hasArrived
-                      ? "（到着済み）"
-                      : `（進捗 ${Math.round(
-                          predictedPosition.progress * 100,
-                        )}%）`
-                  }`
-                : "—"}
-            </span>
-          </div>
-          <div className="kv">
-            <span>現在位置の海況</span>
-            <span>
-              {currentCondition
-                ? CONDITION_LABELS[currentCondition]
-                : "—"}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <p className="route-sea-hint">
-          船を選択すると、ETAと予定船位が表示されます。
-        </p>
-      )}
+      {selectedShip ? <div className="route-sea-status">
+        <div className="kv"><span>使用船</span><span>{selectedShip.name}</span></div>
+        <div className="kv"><span>ETA</span><span>{estimatedArrivalAt ? formatDateTime(estimatedArrivalAt) : "—"}</span></div>
+        <div className="kv"><span>予定船位</span><span>{predictedPosition ? `${getSeaLabel(predictedPosition.hexId)}${predictedPosition.hasArrived ? "（到着済み）" : `（進捗 ${Math.round(predictedPosition.progress * 100)}%）`}` : "—"}</span></div>
+        <div className="kv"><span>現在位置の海況</span><span>{currentCondition ? CONDITION_LABELS[currentCondition] : "—"}</span></div>
+      </div> : <p className="route-sea-hint">船を選択すると、ETAと予定船位が表示されます。</p>}
     </div>
   );
-}
-
-function getForecastIssueTimeSafe(timeMs: number): number {
-  const issueTime = new Date(timeMs);
-  issueTime.setHours(6, 0, 0, 0);
-
-  if (timeMs < issueTime.getTime()) {
-    issueTime.setDate(issueTime.getDate() - 1);
-  }
-
-  return issueTime.getTime();
 }
