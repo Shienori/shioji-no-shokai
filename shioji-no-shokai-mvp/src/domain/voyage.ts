@@ -1,4 +1,4 @@
-import type { AcceptedContract, Route, Ship, Voyage } from "./types";
+import type { AcceptedContract, ContractTemplate, Route, Ship, Voyage } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
@@ -13,6 +13,8 @@ import {
 } from "./seaCondition";
 
 const HOUR_MS = 60 * 60 * 1000;
+const HEAVY_LOAD_WEIGHT_RATIO = 0.9;
+const HEAVY_LOAD_SPEED_FACTOR = 0.9;
 
 function getRouteSeaHexIds(route: Route): string[] {
   const routeHexIds = getRouteHexIds(route.fromPortId, route.toPortId) ?? [];
@@ -20,6 +22,16 @@ function getRouteSeaHexIds(route: Route): string[] {
   return routeHexIds.filter((hexId) => {
     return getHexById(hexId).kind === "sea";
   });
+}
+
+export function getHeavyLoadSpeedFactor(
+  contract: Pick<ContractTemplate, "cargoId" | "quantity">,
+  ship: Ship,
+): number {
+  const cargo = getCargoById(contract.cargoId);
+  const requiredWeight = cargo.weightPerUnit * contract.quantity;
+  const weightRatio = ship.maxCargoWeight > 0 ? requiredWeight / ship.maxCargoWeight : 0;
+  return weightRatio >= HEAVY_LOAD_WEIGHT_RATIO ? HEAVY_LOAD_SPEED_FACTOR : 1;
 }
 
 export function createVoyage(
@@ -34,10 +46,11 @@ export function createVoyage(
   const loadingCompletedAt = operationTime + loadingDurationMs;
   const departedRealTime = currentRealTime + loadingDurationMs / GAME_TIME_MULTIPLIER;
   const seaHexIds = getRouteSeaHexIds(route);
+  const effectiveSpeedKnots = ship.cruisingSpeedKnots * getHeavyLoadSpeedFactor(contract, ship);
   const forecastEtaRealTime = calculateEstimatedArrivalAt(
     seaHexIds,
     departedRealTime,
-    ship.cruisingSpeedKnots,
+    effectiveSpeedKnots,
   );
   const arrivalDeadlineAt = operationTime + (contract.deadlineAt - contract.acceptedAt) * GAME_TIME_MULTIPLIER;
 
@@ -53,7 +66,7 @@ export function createVoyage(
     lastProcessedRealTime: departedRealTime,
     currentSeaHexIndex: 0,
     distanceIntoHexNm: 0,
-    shipSpeedKnots: ship.cruisingSpeedKnots,
+    shipSpeedKnots: effectiveSpeedKnots,
     forecastEtaRealTime,
     estimatedArrivalAt: loadingCompletedAt + (forecastEtaRealTime - departedRealTime) * GAME_TIME_MULTIPLIER,
     arrivalDeadlineAt,

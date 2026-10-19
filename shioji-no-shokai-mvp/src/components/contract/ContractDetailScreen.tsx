@@ -8,6 +8,7 @@ import { getRouteHexIds } from "../../domain/routePath";
 import { calculateEstimatedArrivalAt } from "../../domain/seaCondition";
 import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
+import { getHeavyLoadSpeedFactor } from "../../domain/voyage";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { CapacityGauge } from "./CapacityGauge";
 import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
@@ -24,6 +25,13 @@ interface ContractDetailScreenProps {
 export function ContractDetailScreen(props: ContractDetailScreenProps) {
   return <ContractDetail key={props.contract?.id ?? "none"} {...props} />;
 }
+function formatMargin(hours: number) {
+  const totalMinutes = Math.max(0, Math.floor(hours * 60));
+  const hourPart = Math.floor(totalMinutes / 60);
+  const minutePart = totalMinutes % 60;
+  if (hourPart > 0) return `${hourPart}時間${minutePart}分`;
+  return `${minutePart}分`;
+}
 function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredDeadlineAt, onAccept, onClose }: ContractDetailScreenProps) {
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -32,7 +40,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
   const seaHexIds = useMemo(() => route ? (getRouteHexIds(route.fromPortId, route.toPortId) ?? []).filter((id) => getHexById(id).kind === "sea") : [], [route]);
   const speed = selectedShip?.cruisingSpeedKnots;
-  const estimatedArrivalAt = useMemo(() => speed && seaHexIds.length > 0 ? calculateEstimatedArrivalAt(seaHexIds, departureAt, speed) : null, [seaHexIds, departureAt, speed]);
+  const estimatedArrivalAt = useMemo(() => speed && seaHexIds.length > 0 && selectedShip && contract ? calculateEstimatedArrivalAt(seaHexIds, departureAt, speed * getHeavyLoadSpeedFactor(contract, selectedShip)) : null, [seaHexIds, departureAt, speed, selectedShip, contract]);
   const etaLabel = estimatedArrivalAt === null ? "—" : formatDateTime(ceilTo1Minute(estimatedArrivalAt));
   if (!contract || !route) return null;
   const cargo = getCargoById(contract.cargoId);
@@ -43,6 +51,25 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const deadlineLabel = formatDateTime(offeredDeadlineAt ?? getContractSchedule(contract, route, departureAt).deadlineAt);
   const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const canAccept = eligibleShips.some((ship) => ship.id === selectedShipId);
+  const getSuitability = (ship: Ship) => {
+    if (!eligibleShips.some((item) => item.id === ship.id)) {
+      return { label: "受注不可", color: "#64748b", background: "#f1f5f9" };
+    }
+    const shipEta = seaHexIds.length > 0
+      ? calculateEstimatedArrivalAt(seaHexIds, departureAt, ship.cruisingSpeedKnots * getHeavyLoadSpeedFactor(contract, ship))
+      : null;
+    const etaMarginHours = shipEta !== null && offeredDeadlineAt !== null
+      ? (offeredDeadlineAt - shipEta) / 3600000
+      : null;
+    const marginLabel = etaMarginHours === null ? "" : `（余裕 ${formatMargin(etaMarginHours)}）`;
+    if (etaMarginHours !== null && etaMarginHours > 2) {
+      return { label: `余裕あり${marginLabel}`, color: "#166534", background: "#dcfce7" };
+    }
+    if (etaMarginHours !== null && etaMarginHours >= 0.5) {
+      return { label: `注意${marginLabel}`, color: "#92400e", background: "#fef3c7" };
+    }
+    return { label: `ぎりぎり${marginLabel}`, color: "#991b1b", background: "#fee2e2" };
+  };
   return <div className="contract-detail-screen">
     <header className="detail-header">
       <button className="back-btn" onClick={onClose}>← 戻る</button>
@@ -69,10 +96,16 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
         <h3>船</h3>
         <div className="ship-select-list">{ships.map((ship) => {
           const isEligible = eligibleShips.some((item) => item.id === ship.id);
+          const suitability = getSuitability(ship);
+          const isHeavyLoad = ship.maxCargoWeight > 0 && requiredCargoWeight / ship.maxCargoWeight >= 0.9;
           return <button key={ship.id} type="button" className={`ship-select-item${isEligible ? " eligible" : ""}${selectedShipId === ship.id ? " selected" : ""}`} disabled={!isEligible} onClick={() => {
             if (selectedShipId !== ship.id) { setSelectedShipId(ship.id); setDepartureAt(Date.now()); setShowConfirmation(false); }
           }}>
-            <span className="ship-select-name">{ship.name}</span>
+            <span className="ship-select-name">
+              {ship.name}
+              <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, fontSize: 12, color: suitability.color, background: suitability.background }}>{suitability.label}</span>
+              {isHeavyLoad && <span style={{ marginLeft: 6, fontSize: 12, color: "#92400e" }}>積載90%超：速度-10%</span>}
+            </span>
             <CapacityGauge requiredLabel="必要スペース" maximumLabel="最大スペース" required={requiredCargoVolume} maximum={ship.maxCargoVolume} />
             <CapacityGauge requiredLabel="必要積載量" maximumLabel="最大積載量" required={requiredCargoWeight} maximum={ship.maxCargoWeight} />
           </button>;
