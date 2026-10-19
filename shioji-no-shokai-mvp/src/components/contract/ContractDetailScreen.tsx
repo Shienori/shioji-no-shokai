@@ -196,7 +196,7 @@ export function ContractDetailScreen({
           </div>
           {forecastEta && (
             <p style={{ margin: "8px 0 0", fontSize: "13px" }}>
-              予報ETA: {formatDateTime(ceilTo1Minute(forecastEta))}（精度 {Math.round(seaForecast.accuracy * 100)}%）
+              ETA: {formatDateTime(ceilTo1Minute(forecastEta))}（精度 {Math.round(seaForecast.accuracy * 100)}%）
             </p>
           )}
         </section>
@@ -221,7 +221,7 @@ export function ContractDetailScreen({
             <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
             <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
             <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>
-            <div className="kv"><span>予報ETA</span><span>{forecastEta ? formatDateTime(ceilTo1Minute(forecastEta)) : "-"}</span></div>
+            <div className="kv"><span>ETA</span><span>{forecastEta ? formatDateTime(ceilTo1Minute(forecastEta)) : "-"}</span></div>
             <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
             <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
             <div className="confirmation-actions">
