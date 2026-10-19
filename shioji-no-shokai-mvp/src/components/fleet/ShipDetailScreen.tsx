@@ -1,5 +1,6 @@
+import { useState } from "react";
 import "../../styles/shipDetail.css";
-import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
+import type { AcceptedContract, Ship, Voyage, VoyageMemo } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
@@ -15,6 +16,7 @@ interface ShipDetailScreenProps {
   voyage: Voyage | null;
   contract: AcceptedContract | null;
   operationTime: number;
+  voyageMemos: VoyageMemo[];
   onBack: () => void;
 }
 
@@ -36,7 +38,13 @@ function getSeaLabel(hexId: string) {
   return match ? `S${match[1].padStart(2, "0")}` : hexId;
 }
 
-export function ShipDetailScreen({ ship, voyage, contract, operationTime, onBack }: ShipDetailScreenProps) {
+function getEtaDiffLabel(diffMinutes: number | null) {
+  if (diffMinutes === null) return "-";
+  return `${diffMinutes > 0 ? "+" : ""}${diffMinutes}分`;
+}
+
+export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyageMemos, onBack }: ShipDetailScreenProps) {
+  const [showVoyageMemo, setShowVoyageMemo] = useState(false);
   const route = contract ? getRouteById(contract.routeId) : null;
   const cargo = contract ? getCargoById(contract.cargoId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
@@ -45,6 +53,9 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, onBack
   const progress = voyage && contract
     ? calculateVoyageProgress(voyage, contract, operationTime)
     : 0;
+  const shipMemos = voyageMemos
+    .filter((memo) => memo.shipId === ship.id)
+    .sort((a, b) => b.voyageNumber - a.voyageNumber);
 
   const currentHexData = getHexById(ship.currentHexId);
   const currentLocation = currentHexData.kind === "port"
@@ -134,6 +145,52 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, onBack
           <div><span className="contract-fact-label">機関</span><span className="contract-fact-value">{ship.engineType}／{ship.engineOutput}</span></div>
         </div>
       </section>
+
+      <button className="btn btn-secondary voyage-memo-btn" type="button" onClick={() => setShowVoyageMemo(true)}>
+        Voyage Memo
+      </button>
+
+      {showVoyageMemo && (
+        <div className="modal-backdrop open">
+          <div className="modal voyage-memo-modal">
+            <h2>Voyage Memo</h2>
+            {shipMemos.length === 0 ? (
+              <p className="voyage-memo-empty">航海記録はまだありません。</p>
+            ) : (
+              <div className="voyage-memo-list">
+                {shipMemos.map((memo) => (
+                  <article key={memo.contractId} className="contract-card fleet-card voyage-memo-item">
+                    <div className="contract-card-heading">
+                      <h3>{memo.label}</h3>
+                      <span className="contract-card-detail">
+                        {memo.settlement ? "精算済み" : voyage?.contractId === memo.contractId ? "航海中" : "精算待ち"}
+                      </span>
+                    </div>
+                    <div className="kv"><span>航路</span><span>{memo.routeLabel}</span></div>
+                    <div className="kv"><span>積荷</span><span>{memo.cargoLabel}</span></div>
+                    <div className="kv"><span>予定ETA</span><span>{formatDateTime(memo.plannedEtaRealTime)}</span></div>
+                    <div className="kv"><span>実到着</span><span>{memo.actualArrivalRealTime === null ? "-" : formatDateTime(memo.actualArrivalRealTime)}</span></div>
+                    <div className="kv"><span>ETA差分</span><span>{getEtaDiffLabel(memo.etaDiffMinutes)}</span></div>
+                    {memo.settlement && (
+                      <div className="voyage-memo-settlement">
+                        <div className="kv"><span>提示報酬</span><span>{memo.settlement.offeredReward}G</span></div>
+                        <div className="kv"><span>遅延減額</span><span>-{memo.settlement.latePenalty}G</span></div>
+                        <div className="kv"><span>減額後報酬</span><span>{memo.settlement.receivedReward}G</span></div>
+                        <div className="kv"><span>経費</span><span>-{memo.settlement.expense}G</span></div>
+                        <div className="kv"><span>最低利益保証</span><span>+{memo.settlement.guaranteeAmount}G</span></div>
+                        <div className="kv voyage-memo-final"><span>最終受取額</span><span>{memo.settlement.finalPayout}G</span></div>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+            <div className="confirmation-actions">
+              <button className="btn btn-secondary" type="button" onClick={() => setShowVoyageMemo(false)}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

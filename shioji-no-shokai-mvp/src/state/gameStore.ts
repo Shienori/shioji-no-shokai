@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import type { AcceptedContract, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyagePhase } from "../domain/types";
+import type { AcceptedContract, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
 import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { ports } from "../data/ports";
+import { getPortById } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage } from "../domain/voyage";
@@ -11,7 +12,7 @@ import { advanceOperationTime } from "../domain/time";
 import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
-import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
+import { GAME_TIME_MULTIPLIER, SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
 import { getHexById, getPortHexId } from "../data/hexMap";
 import { getRouteHexIds } from "../domain/routePath";
 
@@ -78,6 +79,7 @@ function createInitialGameState(): GameState {
     acceptedContract: null,
     offeredContractIds: [],
     acceptedContractIds: [],
+    voyageMemos: [],
     reputations: [
       { shipperId: "shipper_selene_farmers", value: 0 },
       { shipperId: "shipper_aldera_merchants", value: 0 },
@@ -301,6 +303,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       );
     }
 
+    const voyageNumber = current.voyageMemos.length + 1;
+    const voyageMemo: VoyageMemo = {
+      voyageNumber,
+      label: `V.${String(voyageNumber).padStart(2, "0")}`,
+      contractId: acceptedContract.id,
+      shipId: ship.id,
+      shipName: ship.name,
+      routeLabel: `${getPortById(route.fromPortId).name} → ${getPortById(route.toPortId).name}`,
+      cargoLabel: `${cargo.name} ×${contract.quantity}`,
+      acceptedAt: currentRealTime,
+      acceptedOperationTime: current.operationTime,
+      plannedEtaRealTime: voyage.forecastEtaRealTime,
+      actualArrivalRealTime: null,
+      etaDiffMinutes: null,
+      settlement: null
+    };
+
     const next: GameState = {
       ...current,
       currentGameTime: currentRealTime,
@@ -310,6 +329,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       acceptedContract,
       portOffers,
       acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id],
+      voyageMemos: [...current.voyageMemos, voyageMemo],
       tutorialCompleted: template.id === tutorialWheatContract.id ? true : current.tutorialCompleted
     };
 
@@ -346,13 +366,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : reputation
     );
 
+    const memoIndex = current.voyageMemos.findIndex((memo) => memo.contractId === contract.id);
+    const voyageMemos = current.voyageMemos.map((memo, index) => {
+      if (index !== memoIndex || voyage.arrivedAt === null) return memo;
+      const actualArrivalRealTime = contract.acceptedAt
+        + (voyage.arrivedAt - memo.acceptedOperationTime) / GAME_TIME_MULTIPLIER;
+      return {
+        ...memo,
+        actualArrivalRealTime,
+        etaDiffMinutes: Math.round((actualArrivalRealTime - memo.plannedEtaRealTime) / 60000),
+        settlement: {
+          offeredReward: result.offeredReward,
+          latePenalty: result.latePenalty,
+          receivedReward: result.receivedReward,
+          expense: result.expense,
+          guaranteeAmount: result.guaranteeAmount,
+          finalPayout: result.finalPayout
+        }
+      };
+    });
+
     const next: GameState = {
       ...current,
       money: current.money + result.finalPayout,
       ships: updatedShips,
       activeVoyage: null,
       acceptedContract: null,
-      reputations: updatedReputations
+      reputations: updatedReputations,
+      voyageMemos
     };
 
     saveGame(next);

@@ -105,7 +105,8 @@ export function loadGame(): GameState | null {
   try {
     const parsed = JSON.parse(raw) as SaveData;
     if (parsed.version !== SAVE_VERSION) return null;
-    return migrateVoyageSeaConditionData(migrateCargoData(parsed.gameState));
+    const gameState = migrateVoyageSeaConditionData(migrateCargoData(parsed.gameState));
+    return { ...gameState, voyageMemos: gameState.voyageMemos ?? [] };
   } catch {
     return null;
   }

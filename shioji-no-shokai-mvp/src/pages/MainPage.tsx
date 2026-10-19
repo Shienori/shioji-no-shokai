@@ -56,7 +56,7 @@ export function MainPage() {
     <ContractDetailScreen contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId) => handleAccept(selectedContract.id, shipId)} onClose={() => selectContract(null)} />
   </div>;
   if (selectedShip) return <div className="phone">
-    <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onBack={() => selectShip(null)} />
+    <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
   </div>;
   return <div className="phone">
     <AppHeader />

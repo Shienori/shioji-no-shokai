@@ -70,3 +70,59 @@
   gap: 10px;
   margin-top: 18px;
 }
+
+/* Voyage Memo */
+.voyage-memo-btn {
+  width: 100%;
+}
+
+.voyage-memo-modal {
+  width: min(380px, calc(100% - 32px));
+  max-height: min(640px, calc(100vh - 48px));
+  overflow-y: auto;
+  padding: 20px;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+.voyage-memo-modal h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+
+.voyage-memo-empty {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.voyage-memo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voyage-memo-item {
+  width: 100%;
+}
+
+.voyage-memo-item .kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.voyage-memo-settlement {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.voyage-memo-final {
+  font-weight: 700;
+  color: #166534;
+}
