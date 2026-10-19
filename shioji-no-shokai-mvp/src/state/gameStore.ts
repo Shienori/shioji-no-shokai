@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { AcceptedContract, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
+import type { AcceptedContract, ContractDifficulty, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
-import { getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
+import { getContractDifficulty, getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { ports, getPortById } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
@@ -17,6 +17,7 @@ import { getRouteHexIds } from "../domain/routePath";
 
 const CONTRACT_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const FIXED_CONTRACT_ID = tutorialWheatContract.id;
+const MIN_NORMAL_CONTRACTS = 2;
 
 interface GameStore {
   gameState: GameState;
@@ -37,18 +38,33 @@ function getNextRefreshTime(now: number): number {
   return Math.ceil((now + 1) / CONTRACT_REFRESH_INTERVAL_MS) * CONTRACT_REFRESH_INTERVAL_MS;
 }
 
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
+}
+
 function pickPortOffers(portId: PortId, keepTemplateIds: ContractId[] = []): OfferedContract[] {
   const generatedAt = Date.now();
   const pool = getContractPoolByPort(portId)
     .filter((template) => template.id !== FIXED_CONTRACT_ID && !keepTemplateIds.includes(template.id));
 
-  for (let index = pool.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
-  }
+  const normalPool = shuffle(pool.filter((template) => getContractDifficulty(template) === "normal"));
+  const otherPool = shuffle(pool.filter((template) => getContractDifficulty(template) !== "normal"));
 
-  const remainingCount = Math.max(0, 3 - keepTemplateIds.length);
-  const selectedTemplates = [...pool.slice(0, remainingCount)];
+  const normalCount = Math.min(MIN_NORMAL_CONTRACTS, normalPool.length);
+  const selectedTemplates = normalPool.slice(0, normalCount);
+
+  const remainingSlots = Math.max(0, 3 - selectedTemplates.length);
+  const remainingCandidates = shuffle([
+    ...normalPool.slice(normalCount),
+    ...otherPool
+  ]);
+
+  selectedTemplates.push(...remainingCandidates.slice(0, remainingSlots));
 
   return selectedTemplates.map((template) =>
     createOfferedContract(template, getRouteById(template.routeId), generatedAt)

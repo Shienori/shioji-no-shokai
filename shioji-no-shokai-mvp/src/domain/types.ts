@@ -19,6 +19,7 @@ export type ShipRole = "general_cargo";
 export type ShipKind = "sailing" | "powered";
 export type ShipStatus = "docked" | "loading" | "sailing" | "unloading";
 export type VoyagePhase = "loading" | "sailing" | "unloading" | "completed";
+export type ContractDifficulty = "easy" | "normal" | "hard";
 
 import type { RouteSeaForecast } from "./seaCondition";
 
@@ -26,7 +27,7 @@ export interface Port { id: PortId; name: string; description: string; }
 export interface Route { id: RouteId; fromPortId: PortId; toPortId: PortId; distance: NauticalMiles; baseVoyageHours: number; }
 export interface Cargo { id: CargoId; name: string; commodity: CommodityId; packaging: CargoPackaging; category: CargoCategory; unitPrice: Gold; unitVolume: CargoVolume; weightPerUnit: CargoWeight; loadingTimeMsPerUnit: number; unloadingTimeMsPerUnit: number; }
 export interface Shipper { id: ShipperId; name: string; }
-export interface ContractTemplate { id: ContractId; shipperId: ShipperId; routeId: RouteId; cargoId: CargoId; quantity: number; offeredReward: Gold; deadlineHours: number; }
+export interface ContractTemplate { id: ContractId; shipperId: ShipperId; routeId: RouteId; cargoId: CargoId; quantity: number; offeredReward: Gold; deadlineHours: number; difficulty: ContractDifficulty; }
 export interface ContractRewardBreakdown { cargoValue: Gold; voyageDistanceAllowance: Gold; otherAdjustment: Gold; offeredReward: Gold; }
 export interface OfferedContract { id: string; templateId: ContractId; generatedAt: RealTimeMs; deadlineAt: RealTimeMs; timeAllowanceRatio: number; }
 export interface AcceptedContract { id: ContractId; templateId: ContractId; shipperId: ShipperId; routeId: RouteId; cargoId: CargoId; quantity: number; reward: ContractRewardBreakdown; acceptedAt: RealTimeMs; deadlineAt: RealTimeMs; seaForecast?: RouteSeaForecast; }
