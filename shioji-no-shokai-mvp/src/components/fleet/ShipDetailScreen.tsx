@@ -132,11 +132,15 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
             ) : (
               <div className="voyage-memo-list">
                 {shipMemos.map((memo) => (
-                  <article key={memo.contractId} className="contract-card fleet-card voyage-memo-item">
+                  <article key={memo.voyageNumber} className="contract-card fleet-card voyage-memo-item">
                     <div className="contract-card-heading">
                       <h3>{memo.label}</h3>
                       <span className="contract-card-detail">
-                        {memo.settlement ? "精算済み" : voyage?.contractId === memo.contractId ? "航海中" : "精算待ち"}
+                        {memo.settlement
+                          ? "精算済み"
+                          : voyage?.contractId === memo.contractId && voyage.shipId === memo.shipId
+                            ? "航海中"
+                            : "精算待ち"}
                       </span>
                     </div>
                     <div className="kv"><span>航路</span><span>{memo.routeLabel}</span></div>

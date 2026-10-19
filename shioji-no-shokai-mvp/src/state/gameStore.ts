@@ -365,7 +365,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : reputation
     );
 
-    const memoIndex = current.voyageMemos.findIndex((memo) => memo.contractId === contract.id);
+    let memoIndex = -1;
+    for (let index = current.voyageMemos.length - 1; index >= 0; index -= 1) {
+      const memo = current.voyageMemos[index];
+      if (memo.contractId === contract.id && memo.settlement === null) {
+        memoIndex = index;
+        break;
+      }
+    }
+
     const voyageMemos = current.voyageMemos.map((memo, index) => {
       if (index !== memoIndex || voyage.arrivedAt === null) return memo;
       const actualArrivalRealTime = contract.acceptedAt
