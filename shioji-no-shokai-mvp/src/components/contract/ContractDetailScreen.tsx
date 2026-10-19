@@ -58,9 +58,9 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
       return { label: "余裕あり", color: "#166534", background: "#dcfce7" };
     }
     if (etaMarginHours !== null && etaMarginHours >= 0.5) {
-      return { label: "ぎりぎり", color: "#92400e", background: "#fef3c7" };
+      return { label: "注意", color: "#92400e", background: "#fef3c7" };
     }
-    return { label: "要注意", color: "#991b1b", background: "#fee2e2" };
+    return { label: "ぎりぎり", color: "#991b1b", background: "#fee2e2" };
   };
   return <div className="contract-detail-screen">
     <header className="detail-header">
