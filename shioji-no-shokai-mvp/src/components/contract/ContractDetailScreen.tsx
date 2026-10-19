@@ -25,6 +25,13 @@ interface ContractDetailScreenProps {
 export function ContractDetailScreen(props: ContractDetailScreenProps) {
   return <ContractDetail key={props.contract?.id ?? "none"} {...props} />;
 }
+function formatMargin(hours: number) {
+  const totalMinutes = Math.max(0, Math.floor(hours * 60));
+  const hourPart = Math.floor(totalMinutes / 60);
+  const minutePart = totalMinutes % 60;
+  if (hourPart > 0) return `${hourPart}時間${minutePart}分`;
+  return `${minutePart}分`;
+}
 function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredDeadlineAt, onAccept, onClose }: ContractDetailScreenProps) {
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -54,13 +61,14 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
     const etaMarginHours = shipEta !== null && offeredDeadlineAt !== null
       ? (offeredDeadlineAt - shipEta) / 3600000
       : null;
-    if (etaMarginHours !== null && etaMarginHours >= 2) {
-      return { label: "余裕あり", color: "#166534", background: "#dcfce7" };
+    const marginLabel = etaMarginHours === null ? "" : `（余裕 ${formatMargin(etaMarginHours)}）`;
+    if (etaMarginHours !== null && etaMarginHours > 2) {
+      return { label: `余裕あり${marginLabel}`, color: "#166534", background: "#dcfce7" };
     }
     if (etaMarginHours !== null && etaMarginHours >= 0.5) {
-      return { label: "注意", color: "#92400e", background: "#fef3c7" };
+      return { label: `注意${marginLabel}`, color: "#92400e", background: "#fef3c7" };
     }
-    return { label: "ぎりぎり", color: "#991b1b", background: "#fee2e2" };
+    return { label: `ぎりぎり${marginLabel}`, color: "#991b1b", background: "#fee2e2" };
   };
   return <div className="contract-detail-screen">
     <header className="detail-header">
