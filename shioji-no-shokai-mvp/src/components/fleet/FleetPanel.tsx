@@ -3,7 +3,7 @@ import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
 import { getHexById } from "../../data/hexMap";
-import { ceilTo5Minutes, formatDateTime } from "../../domain/time";
+import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getSeaConditionAt } from "../../domain/seaCondition";
 
@@ -41,7 +41,7 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
   const estimatedArrivalLabel = voyage?.phase === "sailing"
-    ? formatDateTime(ceilTo5Minutes(Date.now() + remainingMs))
+    ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs))
     : "-";
   const deadlineLabel = contract ? formatDateTime(contract.deadlineAt) : "-";
 

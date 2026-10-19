@@ -8,7 +8,8 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
-import { createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
+import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
+import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
 import { SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
 import { getHexById, getPortHexId } from "../data/hexMap";
@@ -52,6 +53,16 @@ function pickPortOffers(portId: PortId, keepTemplateIds: ContractId[] = []): Off
   return selectedTemplates.map((template) =>
     createOfferedContract(template, getRouteById(template.routeId), generatedAt)
   );
+}
+
+function replenishAcceptedOffer(state: GameState, portId: PortId, acceptedTemplateId: ContractId): OfferedContract[] {
+  const remainingOffers = (state.portOffers[portId] ?? []).filter(
+    (offer) => offer.templateId !== acceptedTemplateId
+  );
+  const keepTemplateIds = remainingOffers.map((offer) => offer.templateId);
+  const replacement = pickPortOffers(portId, keepTemplateIds);
+
+  return [...remainingOffers, ...replacement].slice(0, 3);
 }
 
 function createInitialGameState(): GameState {
@@ -241,38 +252,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
   acceptContract: (contractId, shipId) => {
     const current = get().gameState;
     const currentRealTime = Date.now();
-    if (current.acceptedContract) return;
 
     const template = getContractTemplateById(contractId);
     const ship = current.ships.find((item) => item.id === shipId);
     if (!ship) return;
-    if (ship.status !== "docked") return;
+
+    const acceptance = evaluateContractAcceptance(template, ship, current);
+    if (!acceptance.canAccept) return;
 
     const route = getRouteById(template.routeId);
-    if (current.selectedPortId !== route.fromPortId) return;
-    if (ship.currentPortId !== route.fromPortId) return;
-
     const offeredContract = (current.portOffers[current.selectedPortId] ?? [])
       .find((offer) => offer.templateId === contractId);
-    if (!offeredContract) return;
+
+    const deadlineAt = offeredContract?.deadlineAt ?? calculateContractSchedule(
+      template,
+      route,
+      currentRealTime
+    ).deadlineAt;
 
     const cargo = getCargoById(template.cargoId);
-    const requiredCargoVolume = cargo.unitVolume * template.quantity;
-    const requiredCargoWeight = cargo.weightPerUnit * template.quantity;
-
-    if (
-      ship.maxCargoVolume < requiredCargoVolume ||
-      ship.maxCargoWeight < requiredCargoWeight
-    ) {
-      return;
-    }
-
     const acceptedContract = createAcceptedContract(
       template,
       route,
       cargo,
       currentRealTime,
-      offeredContract.deadlineAt
+      deadlineAt
     );
 
     const voyage = createVoyage(
@@ -288,6 +292,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       activeContractId: acceptedContract.id
     };
 
+    const portOffers = { ...current.portOffers };
+    if (offeredContract) {
+      portOffers[current.selectedPortId] = replenishAcceptedOffer(
+        current,
+        current.selectedPortId,
+        contractId
+      );
+    }
+
     const next: GameState = {
       ...current,
       currentGameTime: currentRealTime,
@@ -295,6 +308,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ships: current.ships.map((item) => (item.id === shipId ? updatedShip : item)),
       activeVoyage: voyage,
       acceptedContract,
+      portOffers,
       acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id]
     };
 

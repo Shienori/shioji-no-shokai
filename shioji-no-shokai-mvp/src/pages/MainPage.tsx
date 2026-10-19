@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useGameStore } from "../state/gameStore";
 import { debugSkipThirtyMinutes } from "../state/debugTimeSkip";
 import { AppHeader } from "../components/layout/AppHeader";
@@ -11,8 +10,7 @@ import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
 import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
-import { getCargoById } from "../data/cargos";
-import { getContractCargoRequirements } from "../domain/contractOffer";
+import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
 
@@ -21,142 +19,60 @@ export function MainPage() {
   const activeTab = useGameStore((state) => state.activeTab);
   const selectedContractId = useGameStore((state) => state.selectedContractId);
   const selectedShipId = useGameStore((state) => state.selectedShipId);
-  const tick = useGameStore((state) => state.tick);
   const setActiveTab = useGameStore((state) => state.setActiveTab);
   const selectContract = useGameStore((state) => state.selectContract);
   const selectShip = useGameStore((state) => state.selectShip);
   const selectPort = useGameStore((state) => state.selectPort);
   const acceptContract = useGameStore((state) => state.acceptContract);
-
-  useEffect(() => {
-    const interval = setInterval(() => tick(), 1000);
-    return () => clearInterval(interval);
-  }, [tick]);
-
   const selectedPortId = gameState.selectedPortId;
   const offeredContracts = gameState.portOffers[selectedPortId] ?? [];
   const contracts = offeredContracts.map((offer) => getContractTemplateById(offer.templateId));
-  const fixedContract = selectedPortId === "port_selene" ? tutorialWheatContract : null;
+  const tutorialAccepted = gameState.acceptedContractIds.includes(tutorialWheatContract.id)
+    || gameState.acceptedContract?.templateId === tutorialWheatContract.id
+    || gameState.tutorialCompleted;
+  const fixedContract = selectedPortId === "port_selene" && !tutorialAccepted ? tutorialWheatContract : null;
   const selectedContract = selectedContractId === null ? null : getContractTemplateById(selectedContractId);
   const selectedOffer = offeredContracts.find((offer) => offer.templateId === selectedContractId) ?? null;
   const selectedShip = selectedShipId === null ? null : gameState.ships.find((ship) => ship.id === selectedShipId) ?? null;
-
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
-  const selectedCargo = selectedContract ? getCargoById(selectedContract.cargoId) : null;
-  const { requiredCargoVolume, requiredCargoWeight } = selectedCargo && selectedContract
-    ? getContractCargoRequirements(selectedContract, selectedCargo)
-    : { requiredCargoVolume: 0, requiredCargoWeight: 0 };
-
-  const eligibleShips = selectedRoute
-    ? gameState.ships.filter((ship) =>
-        ship.status === "docked"
-        && ship.currentPortId === selectedRoute.fromPortId
-        && ship.maxCargoVolume >= requiredCargoVolume
-        && ship.maxCargoWeight >= requiredCargoWeight
-      )
-    : [];
-
-  const acceptReason = !selectedContract || !selectedRoute
-    ? null
-    : gameState.acceptedContract
-      ? "すでに依頼を受注しています"
-      : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
-        ? "船が仕出港にいません"
-        : !gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
-          ? "船がフリーではありません"
-          : !gameState.ships.some((ship) =>
-              ship.currentPortId === selectedRoute.fromPortId
-              && ship.maxCargoVolume >= requiredCargoVolume
-              && ship.maxCargoWeight >= requiredCargoWeight
-            )
-            ? "スペースまたは積載量が不足しています"
-            : null;
-
+  const acceptanceChecks = selectedContract ? gameState.ships.map((ship) => ({ ship, check: evaluateContractAcceptance(selectedContract, ship, gameState) })) : [];
+  const eligibleShips = acceptanceChecks.filter((item) => item.check.canAccept).map((item) => item.ship);
+  const acceptReason = !selectedContract || !selectedRoute ? null
+    : gameState.acceptedContract ? "すでに依頼を受注しています"
+    : eligibleShips.length > 0 ? null
+    : gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId)
+      ? gameState.ships.some((ship) => ship.currentPortId === selectedRoute.fromPortId && ship.status === "docked")
+        ? "スペースまたは積載量が不足しています" : "船がフリーではありません"
+      : "船が仕出港にいません";
   const voyage = gameState.activeVoyage;
-  const progress = voyage && gameState.acceptedContract
-    ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime)
-    : 0;
+  const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
-
-  const settlementResult = shouldShowSettlement && gameState.acceptedContract
-    ? settleContract(gameState.acceptedContract, voyage!)
-    : null;
-
+  const settlementResult = shouldShowSettlement && gameState.acceptedContract ? settleContract(gameState.acceptedContract, voyage!) : null;
   const handleAccept = (contractId: string, shipId: string) => {
+    const before = useGameStore.getState().gameState;
     acceptContract(contractId, shipId);
+    const after = useGameStore.getState().gameState;
+    if (after.acceptedContract === before.acceptedContract || after.activeVoyage === before.activeVoyage) return;
     selectContract(null);
-    setActiveTab("contracts");
+    selectShip(null);
+    setActiveTab("fleet");
   };
-
-  if (selectedContract) {
-    return (
-      <div className="phone">
-        <ContractDetailScreen
-          contract={selectedContract}
-          ships={gameState.ships}
-          eligibleShips={eligibleShips}
-          acceptReason={acceptReason}
-          offeredDeadlineAt={selectedOffer?.deadlineAt ?? null}
-          onAccept={(shipId) => handleAccept(selectedContract.id, shipId)}
-          onClose={() => selectContract(null)}
-        />
-      </div>
-    );
-  }
-
-  if (selectedShip) {
-    return (
-      <div className="phone">
-        <ShipDetailScreen
-          ship={selectedShip}
-          voyage={voyage}
-          contract={gameState.acceptedContract}
-          operationTime={gameState.operationTime}
-          onBack={() => selectShip(null)}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="phone">
-      <AppHeader />
-      <TabBar activeTab={activeTab} onChange={setActiveTab} />
-
-      <main className="page">
-        <div className="page-body">
-          {activeTab === "contracts" ? (
-            <ContractBoard
-              selectedPortId={selectedPortId}
-              onSelectPort={selectPort}
-              fixedContract={fixedContract}
-              contracts={contracts}
-              nextRefreshAt={gameState.nextRefreshAt}
-              currentTime={Date.now()}
-              acceptedContract={gameState.acceptedContract}
-              voyage={voyage}
-              progress={progress}
-              operationTime={gameState.operationTime}
-              onSelectContract={selectContract}
-            />
-          ) : activeTab === "chart" ? (
-            <WorldMapTab />
-          ) : (
-            <FleetPanel
-              ships={gameState.ships}
-              voyage={voyage}
-              contract={gameState.acceptedContract}
-              operationTime={gameState.operationTime}
-              onSelectShip={selectShip}
-            />
-          )}
-        </div>
-      </main>
-
-      <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
-
-      <button className="btn btn-secondary" type="button" onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
-      <button className="btn btn-secondary" type="button" onClick={() => useGameStore.getState().resetGame()}>デバッグ: 初期化</button>
-    </div>
-  );
+  if (selectedContract) return <div className="phone">
+    <ContractDetailScreen contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId) => handleAccept(selectedContract.id, shipId)} onClose={() => selectContract(null)} />
+  </div>;
+  if (selectedShip) return <div className="phone">
+    <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onBack={() => selectShip(null)} />
+  </div>;
+  return <div className="phone">
+    <AppHeader />
+    <TabBar activeTab={activeTab} onChange={setActiveTab} />
+    <main className="page"><div className="page-body">
+      {activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={selectPort} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} onSelectContract={selectContract} />
+        : activeTab === "chart" ? <WorldMapTab />
+        : <FleetPanel ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} />}
+    </div></main>
+    <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
+    <button className="btn btn-secondary" type="button" onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
+    <button className="btn btn-secondary" type="button" onClick={() => useGameStore.getState().resetGame()}>デバッグ: 初期化</button>
+  </div>;
 }

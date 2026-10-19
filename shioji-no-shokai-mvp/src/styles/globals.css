@@ -141,6 +141,23 @@ main>section{width:100%;min-width:0}
 .detail-tab.active{color:var(--text);border-color:var(--gold);background:var(--panel2)}
 .detail-tab-panel{animation:detailFadeIn .2s ease}
 .chart-tab-panel{display:flex;flex:1;min-height:0}
-.chart-fullscreen{flex:1;min-height:60vh;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--card-radius);background:var(--panel)}
-.chart-fullscreen .route-sea-condition-tab{min-width:max-content;margin-bottom:0}
+.chart-fullscreen{flex:1;min-height:60vh;overflow:hidden;border:1px solid var(--line);border-radius:var(--card-radius);background:var(--panel)}
+.chart-fullscreen .route-sea-condition-tab{min-width:0;margin-bottom:0}
+
+/* 海況予報ウィンドウ */
+.route-sea-condition-tab{background:#0f1a24;color:#e8f1f5}
+.route-sea-condition-tab .route-sea-header,
+.route-sea-condition-tab .route-sea-time-labels,
+.route-sea-condition-tab .route-sea-hint,
+.route-sea-condition-tab .route-sea-status{color:#e8f1f5}
+.route-sea-condition-tab .kv span{color:#e8f1f5}
+.route-sea-condition-tab .kv span:first-child{color:#9db4c0}
+.route-sea-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;padding:8px 10px;border-radius:8px;background:#f8fafc;color:#0f172a;font-size:12px}
+.route-sea-legend span{display:inline-flex;align-items:center;gap:5px;color:#0f172a}
+.legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(15,23,42,.25)}
+.legend-swatch.calm{background:#dbe7ef}
+.legend-swatch.followingWind{background:#bbf7d0}
+.legend-swatch.headwind{background:#fecaca}
+.legend-swatch.route{background:linear-gradient(90deg,#f4c95d,#fb923c)}
+.route-sea-map svg{max-height:38vh}
 @keyframes detailFadeIn{from{opacity:0}to{opacity:1}}

@@ -14,6 +14,9 @@ export function WorldMapTab() {
         padding: "16px",
         borderRadius: "12px",
         background: "#eaf3fb",
+        width: "100%",
+        minHeight: "100%",
+        flex: 1,
       }}
     >
       <h2 style={{ margin: 0, fontSize: "18px" }}>海図</h2>

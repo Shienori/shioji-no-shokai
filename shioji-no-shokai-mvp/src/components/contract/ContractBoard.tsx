@@ -1,9 +1,10 @@
+import { useState } from "react";
 import type { AcceptedContract, ContractTemplate, PortId, Voyage } from "../../domain/types";
 import { ContractCard } from "./ContractCard";
 import { ports, getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
-import { ceilTo5Minutes, formatDateTime, formatDuration } from "../../domain/time";
+import { ceilTo1Minute, formatDateTime, formatDuration } from "../../domain/time";
 
 interface ContractBoardProps {
   selectedPortId: PortId;
@@ -39,6 +40,7 @@ export function ContractBoard({
   operationTime,
   onSelectContract
 }: ContractBoardProps) {
+  const [showActiveContract, setShowActiveContract] = useState(false);
   const selectedPort = getPortById(selectedPortId);
   const route = acceptedContract ? getRouteById(acceptedContract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
@@ -48,7 +50,7 @@ export function ContractBoard({
   const remainingMs = remainingOperationMs / 6;
   const deadlineLabel = acceptedContract ? formatDateTime(acceptedContract.deadlineAt) : "";
   const estimatedArrivalLabel = voyage?.phase === "sailing"
-    ? formatDateTime(ceilTo5Minutes(Date.now() + remainingMs))
+    ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs))
     : "";
   const sailingProgress = voyage?.phase === "sailing"
     ? progress
@@ -90,40 +92,51 @@ export function ContractBoard({
           <div className="contract-card active-contract-card">
             <div className="contract-card-heading">
               <h3>進行中の依頼</h3>
-              <span className="contract-card-detail">{voyage?.phase ?? "loading"}</span>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={() => setShowActiveContract((value) => !value)}
+              >
+                {showActiveContract ? "閉じる" : "見る"}
+              </button>
             </div>
-            <p className="contract-card-route">
-              {fromPort.name}
-              <span className="contract-route-arrow">→</span>
-              {toPort.name}
-            </p>
-            <div className="contract-facts">
-              <div>
-                <span className="contract-fact-label">貨物</span>
-                <span className="contract-fact-value">{cargo.name} ×{acceptedContract.quantity}</span>
-              </div>
-              <div>
-                <span className="contract-fact-label">到着期限</span>
-                <span className="contract-fact-value">{deadlineLabel}</span>
-              </div>
-            </div>
-            <div className="progress-block">
-              <div className="progress-heading">
-                <span>進捗状況</span>
-                <span>{Math.round(sailingProgress * 100)}%</span>
-              </div>
-              <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
-            </div>
-            <div className="contract-facts">
-              <div>
-                <span className="contract-fact-label">到着まで</span>
-                <span className="contract-fact-value">{voyage?.phase === "sailing" ? formatDuration(remainingMs) : "-"}</span>
-              </div>
-              <div>
-                <span className="contract-fact-label">ETA</span>
-                <span className="contract-fact-value">{estimatedArrivalLabel || "-"}</span>
-              </div>
-            </div>
+
+            {showActiveContract && (
+              <>
+                <p className="contract-card-route">
+                  {fromPort.name}
+                  <span className="contract-route-arrow">→</span>
+                  {toPort.name}
+                </p>
+                <div className="contract-facts">
+                  <div>
+                    <span className="contract-fact-label">貨物</span>
+                    <span className="contract-fact-value">{cargo.name} ×{acceptedContract.quantity}</span>
+                  </div>
+                  <div>
+                    <span className="contract-fact-label">到着期限</span>
+                    <span className="contract-fact-value">{deadlineLabel}</span>
+                  </div>
+                </div>
+                <div className="progress-block">
+                  <div className="progress-heading">
+                    <span>進捗状況</span>
+                    <span>{Math.round(sailingProgress * 100)}%</span>
+                  </div>
+                  <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+                </div>
+                <div className="contract-facts">
+                  <div>
+                    <span className="contract-fact-label">到着まで</span>
+                    <span className="contract-fact-value">{voyage?.phase === "sailing" ? formatDuration(remainingMs) : "-"}</span>
+                  </div>
+                  <div>
+                    <span className="contract-fact-label">ETA</span>
+                    <span className="contract-fact-value">{estimatedArrivalLabel || "-"}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
