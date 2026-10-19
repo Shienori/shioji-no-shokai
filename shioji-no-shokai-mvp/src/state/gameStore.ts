@@ -309,7 +309,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       activeVoyage: voyage,
       acceptedContract,
       portOffers,
-      acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id]
+      acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id],
+      tutorialCompleted: template.id === tutorialWheatContract.id ? true : current.tutorialCompleted
     };
 
     saveGame(next);
@@ -351,8 +352,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ships: updatedShips,
       activeVoyage: null,
       acceptedContract: null,
-      reputations: updatedReputations,
-      tutorialCompleted: true
+      reputations: updatedReputations
     };
 
     saveGame(next);
