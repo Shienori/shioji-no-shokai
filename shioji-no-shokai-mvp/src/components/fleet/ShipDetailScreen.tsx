@@ -45,6 +45,7 @@ function getEtaDiffLabel(diffMinutes: number | null) {
 
 export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyageMemos, onBack }: ShipDetailScreenProps) {
   const [showVoyageMemo, setShowVoyageMemo] = useState(false);
+  const [selectedVoyageNumber, setSelectedVoyageNumber] = useState<number | null>(null);
   const route = contract ? getRouteById(contract.routeId) : null;
   const cargo = contract ? getCargoById(contract.cargoId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
@@ -56,6 +57,9 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
   const shipMemos = voyageMemos
     .filter((memo) => memo.shipId === ship.id)
     .sort((a, b) => b.voyageNumber - a.voyageNumber);
+  const selectedMemo = selectedVoyageNumber === null
+    ? null
+    : shipMemos.find((memo) => memo.voyageNumber === selectedVoyageNumber) ?? null;
 
   const currentHexData = getHexById(ship.currentHexId);
   const currentLocation = currentHexData.kind === "port"
@@ -71,6 +75,12 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
     ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs))
     : "-";
   const deadlineLabel = contract ? formatDateTime(contract.deadlineAt) : "-";
+
+  function getMemoStatus(memo: VoyageMemo) {
+    if (memo.settlement) return "精算済み";
+    if (voyage?.contractId === memo.contractId && voyage.shipId === memo.shipId) return "航海中";
+    return "精算待ち";
+  }
 
   return (
     <div className="ship-detail-screen">
@@ -119,52 +129,76 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
         </div>
       </section>
 
-      <button className="btn btn-secondary voyage-memo-btn" type="button" onClick={() => setShowVoyageMemo(true)}>
+      <button className="btn btn-secondary voyage-memo-btn" type="button" onClick={() => {
+        setSelectedVoyageNumber(null);
+        setShowVoyageMemo(true);
+      }}>
         Voyage Memo
       </button>
 
       {showVoyageMemo && (
         <div className="modal-backdrop open">
           <div className="modal voyage-memo-modal">
-            <h2>Voyage Memo</h2>
-            {shipMemos.length === 0 ? (
-              <p className="voyage-memo-empty">航海記録はまだありません。</p>
-            ) : (
-              <div className="voyage-memo-list">
-                {shipMemos.map((memo) => (
-                  <article key={memo.voyageNumber} className="contract-card fleet-card voyage-memo-item">
-                    <div className="contract-card-heading">
-                      <h3>{memo.label}</h3>
-                      <span className="contract-card-detail">
-                        {memo.settlement
-                          ? "精算済み"
-                          : voyage?.contractId === memo.contractId && voyage.shipId === memo.shipId
-                            ? "航海中"
-                            : "精算待ち"}
-                      </span>
+            {selectedMemo ? (
+              <>
+                <div className="voyage-memo-detail-header">
+                  <h2>{selectedMemo.label}</h2>
+                  <span className="contract-card-detail">{getMemoStatus(selectedMemo)}</span>
+                </div>
+                <div className="voyage-memo-list">
+                  <div className="kv"><span>航路</span><span>{selectedMemo.routeLabel}</span></div>
+                  <div className="kv"><span>積荷</span><span>{selectedMemo.cargoLabel}</span></div>
+                  <div className="kv"><span>受注日時</span><span>{formatDateTime(selectedMemo.acceptedAt)}</span></div>
+                  <div className="kv"><span>予定ETA</span><span>{formatDateTime(selectedMemo.plannedEtaRealTime)}</span></div>
+                  <div className="kv"><span>実到着</span><span>{selectedMemo.actualArrivalRealTime === null ? "-" : formatDateTime(selectedMemo.actualArrivalRealTime)}</span></div>
+                  <div className="kv"><span>ETA差分</span><span>{getEtaDiffLabel(selectedMemo.etaDiffMinutes)}</span></div>
+                  {selectedMemo.settlement ? (
+                    <div className="voyage-memo-settlement">
+                      <div className="kv"><span>提示報酬</span><span>{selectedMemo.settlement.offeredReward}G</span></div>
+                      <div className="kv"><span>遅延減額</span><span>-{selectedMemo.settlement.latePenalty}G</span></div>
+                      <div className="kv"><span>減額後報酬</span><span>{selectedMemo.settlement.receivedReward}G</span></div>
+                      <div className="kv"><span>経費</span><span>-{selectedMemo.settlement.expense}G</span></div>
+                      <div className="kv"><span>最低利益保証</span><span>+{selectedMemo.settlement.guaranteeAmount}G</span></div>
+                      <div className="kv voyage-memo-final"><span>最終受取額</span><span>{selectedMemo.settlement.finalPayout}G</span></div>
                     </div>
-                    <div className="kv"><span>航路</span><span>{memo.routeLabel}</span></div>
-                    <div className="kv"><span>積荷</span><span>{memo.cargoLabel}</span></div>
-                    <div className="kv"><span>予定ETA</span><span>{formatDateTime(memo.plannedEtaRealTime)}</span></div>
-                    <div className="kv"><span>実到着</span><span>{memo.actualArrivalRealTime === null ? "-" : formatDateTime(memo.actualArrivalRealTime)}</span></div>
-                    <div className="kv"><span>ETA差分</span><span>{getEtaDiffLabel(memo.etaDiffMinutes)}</span></div>
-                    {memo.settlement && (
-                      <div className="voyage-memo-settlement">
-                        <div className="kv"><span>提示報酬</span><span>{memo.settlement.offeredReward}G</span></div>
-                        <div className="kv"><span>遅延減額</span><span>-{memo.settlement.latePenalty}G</span></div>
-                        <div className="kv"><span>減額後報酬</span><span>{memo.settlement.receivedReward}G</span></div>
-                        <div className="kv"><span>経費</span><span>-{memo.settlement.expense}G</span></div>
-                        <div className="kv"><span>最低利益保証</span><span>+{memo.settlement.guaranteeAmount}G</span></div>
-                        <div className="kv voyage-memo-final"><span>最終受取額</span><span>{memo.settlement.finalPayout}G</span></div>
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
+                  ) : (
+                    <p className="voyage-memo-empty">精算後、収支内訳が記録されます。</p>
+                  )}
+                </div>
+                <div className="confirmation-actions">
+                  <button className="btn btn-secondary" type="button" onClick={() => setSelectedVoyageNumber(null)}>一覧へ戻る</button>
+                  <button className="btn btn-secondary" type="button" onClick={() => {
+                    setSelectedVoyageNumber(null);
+                    setShowVoyageMemo(false);
+                  }}>閉じる</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2>Voyage Memo</h2>
+                {shipMemos.length === 0 ? (
+                  <p className="voyage-memo-empty">航海記録はまだありません。</p>
+                ) : (
+                  <div className="voyage-memo-list">
+                    {shipMemos.map((memo) => (
+                      <button
+                        key={memo.voyageNumber}
+                        className="voyage-memo-row"
+                        type="button"
+                        onClick={() => setSelectedVoyageNumber(memo.voyageNumber)}
+                      >
+                        <span className="voyage-memo-row-label">{memo.label}</span>
+                        <span className="voyage-memo-row-route">{memo.routeLabel}</span>
+                        <span className="voyage-memo-row-status">{getMemoStatus(memo)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="confirmation-actions">
+                  <button className="btn btn-secondary" type="button" onClick={() => setShowVoyageMemo(false)}>閉じる</button>
+                </div>
+              </>
             )}
-            <div className="confirmation-actions">
-              <button className="btn btn-secondary" type="button" onClick={() => setShowVoyageMemo(false)}>閉じる</button>
-            </div>
           </div>
         </div>
       )}
