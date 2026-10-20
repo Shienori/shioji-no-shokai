@@ -12,7 +12,7 @@ export type CargoVolume = number;
 export type CargoWeight = number;
 export type NauticalMiles = number;
 
-export type CommodityId = "wheat" | "steel" | "silk" | "iron_ore";
+export type CommodityId = "wheat" | "steel" | "silk" | "iron_ore" | "pottery" | "timber" | "wine";
 export type CargoPackaging = "bag" | "pallet" | "box";
 export type CargoCategory = "normal" | "perishable" | "valuable" | "dangerous";
 export type ShipRole = "general_cargo";
