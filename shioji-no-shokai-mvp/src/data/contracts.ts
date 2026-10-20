@@ -35,7 +35,12 @@ export const contractTemplates: ContractTemplate[] = [
   { id: "contract_rigel_002", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_steel", quantity: 8, offeredReward: 91, deadlineHours: 24, difficulty: "hard" },
   { id: "contract_rigel_003", shipperId: "shipper_aldera_merchants", routeId: "route_rigel_aldera", cargoId: "cargo_silk", quantity: 2, offeredReward: 45, deadlineHours: 20, difficulty: "normal" },
   { id: "contract_rigel_004", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_steel", quantity: 3, offeredReward: 56, deadlineHours: 16, difficulty: "easy" },
-  { id: "contract_rigel_005", shipperId: "shipper_aldera_merchants", routeId: "route_rigel_aldera", cargoId: "cargo_silk", quantity: 4, offeredReward: 55, deadlineHours: 26, difficulty: "normal" }
+  { id: "contract_rigel_005", shipperId: "shipper_aldera_merchants", routeId: "route_rigel_aldera", cargoId: "cargo_silk", quantity: 4, offeredReward: 55, deadlineHours: 26, difficulty: "normal" },
+
+  // 鉄鉱石
+  { id: "contract_rigel_006", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 3, offeredReward: 47, deadlineHours: 18, difficulty: "normal" },
+  { id: "contract_rigel_007", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 4, offeredReward: 51, deadlineHours: 20, difficulty: "normal" },
+  { id: "contract_rigel_008", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 5, offeredReward: 55, deadlineHours: 22, difficulty: "normal" }
 ];
 
 export function getContractTemplateById(id: string): ContractTemplate {
