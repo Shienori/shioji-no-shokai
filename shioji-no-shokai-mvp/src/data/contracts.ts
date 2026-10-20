@@ -40,7 +40,22 @@ export const contractTemplates: ContractTemplate[] = [
   // 鉄鉱石
   { id: "contract_rigel_006", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 3, offeredReward: 47, deadlineHours: 18, difficulty: "normal" },
   { id: "contract_rigel_007", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 4, offeredReward: 51, deadlineHours: 20, difficulty: "normal" },
-  { id: "contract_rigel_008", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 5, offeredReward: 55, deadlineHours: 22, difficulty: "normal" }
+  { id: "contract_rigel_008", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_iron_ore", quantity: 5, offeredReward: 55, deadlineHours: 22, difficulty: "normal" },
+
+  // 陶器
+  { id: "contract_aldera_006", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_rigel", cargoId: "cargo_pottery", quantity: 2, offeredReward: 49, deadlineHours: 20, difficulty: "normal" },
+  { id: "contract_aldera_007", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_rigel", cargoId: "cargo_pottery", quantity: 3, offeredReward: 56, deadlineHours: 22, difficulty: "normal" },
+  { id: "contract_aldera_008", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_selene", cargoId: "cargo_pottery", quantity: 4, offeredReward: 48, deadlineHours: 20, difficulty: "normal" },
+
+  // 木材
+  { id: "contract_rigel_009", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_timber", quantity: 4, offeredReward: 43, deadlineHours: 18, difficulty: "normal" },
+  { id: "contract_rigel_010", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_timber", quantity: 6, offeredReward: 47, deadlineHours: 20, difficulty: "normal" },
+  { id: "contract_rigel_011", shipperId: "shipper_rigel_forge", routeId: "route_rigel_aldera", cargoId: "cargo_timber", quantity: 8, offeredReward: 51, deadlineHours: 22, difficulty: "normal" },
+
+  // ワイン
+  { id: "contract_aldera_009", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_rigel", cargoId: "cargo_wine", quantity: 2, offeredReward: 55, deadlineHours: 22, difficulty: "normal" },
+  { id: "contract_aldera_010", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_rigel", cargoId: "cargo_wine", quantity: 3, offeredReward: 65, deadlineHours: 24, difficulty: "normal" },
+  { id: "contract_aldera_011", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_selene", cargoId: "cargo_wine", quantity: 4, offeredReward: 60, deadlineHours: 22, difficulty: "normal" }
 ];
 
 export function getContractTemplateById(id: string): ContractTemplate {
