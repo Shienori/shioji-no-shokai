@@ -37,7 +37,7 @@ export function MainPage() {
     : fixedContract && selectedContractId === fixedContract.id ? fixedContract : null;
   const selectedShip = selectedShipId === null ? null : gameState.ships.find((ship) => ship.id === selectedShipId) ?? null;
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
-  const acceptanceChecks = selectedContract ? gameState.ships.map((ship) => ({ ship, check: evaluateContractAcceptance(selectedContract, ship, gameState) })) : [];
+  const acceptanceChecks = selectedContract ? gameState.ships.map((ship) => ({ ship, check: evaluateContractAcceptance(selectedContract, ship, gameState, Date.now(), selectedOffer?.id) })) : [];
   const eligibleShips = acceptanceChecks.filter((item) => item.check.canAccept).map((item) => item.ship);
   const acceptReason = !selectedContract || !selectedRoute ? null
     : acceptanceChecks.find((item) => !item.check.canAccept)?.check.reason ?? null;
@@ -48,21 +48,7 @@ export function MainPage() {
   const handleAccept = (selectionId: string, shipId: string) => {
     const before = useGameStore.getState().gameState;
     if (before.selectedPortId !== selectedPortId) { selectContract(null); return; }
-    let templateId: string;
-    if (selectionId === tutorialWheatContract.id) {
-      if (before.selectedPortId !== "port_selene" || before.tutorialCompleted
-        || before.acceptedContractIds.includes(tutorialWheatContract.id)
-        || before.acceptedContract?.templateId === tutorialWheatContract.id) return;
-      templateId = tutorialWheatContract.id;
-    } else {
-      const offers = before.portOffers[before.selectedPortId] ?? [];
-      const offer = offers.find((item) => item.id === selectionId);
-      if (!offer || offer.deadlineAt <= Date.now()) { selectContract(null); return; }
-      // The legacy store still resolves by template; refuse ambiguous substitution.
-      if (offers.find((item) => item.templateId === offer.templateId)?.id !== offer.id) return;
-      templateId = offer.templateId;
-    }
-    acceptContract(templateId, shipId);
+    acceptContract(selectionId, shipId);
     const after = useGameStore.getState().gameState;
     if (after.acceptedContract === before.acceptedContract || after.activeVoyage === before.activeVoyage) return;
     selectContract(null);
@@ -73,7 +59,7 @@ export function MainPage() {
     <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId) => handleAccept(selectedContractId, shipId)} onClose={() => selectContract(null)} />
   </div>;
   if (selectedShip) return <div className="phone">
-    <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
+    <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.acceptedContract ? gameState.operationTime : gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
   </div>;
   return <div className="phone">
     <AppHeader />
