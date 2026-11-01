@@ -1,0 +1,119 @@
+name: Materialize verified Mira trade changes
+on:
+  push:
+    branches: [feat/mira-trade-contracts]
+    paths: [.github/workflows/materialize-mira-trade.yml]
+permissions:
+  contents: write
+concurrency:
+  group: materialize-mira-trade
+  cancel-in-progress: false
+jobs:
+  materialize:
+    if: github.repository == 'Shienori/shioji-no-shokai' && github.ref == 'refs/heads/feat/mira-trade-contracts'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mira-trade-contracts
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply immutable verified proposal and restrict changed paths
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        shell: python
+        run: |
+          import hashlib, os, subprocess, textwrap
+          from pathlib import Path
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          assert git('rev-parse', 'HEAD') == os.environ['EXPECTED_HEAD'], 'Branch advanced; stop without rewriting history'
+          subprocess.run(['git', 'diff', '--exit-code', '69bdc977b13947aac4bd47ab3075ea907a502f2c', '--', 'shioji-no-shokai-mvp'], check=True)
+          frozen = git('show', 'e2328b8e9191854fedb1f7aac8eecaea5ae31352:.github/workflows/mira-trade-verification.yml')
+          marker = '      - name: Apply proposed changes in disposable checkout'
+          start = frozen.index('        run: |\n', frozen.index(marker)) + len('        run: |\n')
+          end = frozen.index('\n      - name: Record exact proposed patch', start)
+          script = textwrap.dedent(frozen[start:end])
+          exec(compile(script, '<verified-mira-proposal>', 'exec'), {})
+          paths = [
+              'src/domain/types.ts', 'src/data/shippers.ts', 'src/data/cargos.ts',
+              'src/data/contracts.ts', 'src/state/gameStore.ts',
+              'src/components/contract/ContractDetailScreen.tsx',
+              'tests/miraTrade.test.mjs', 'tests/worldMapIntegration.test.mjs',
+              'tests/normalOfferReplenishment.test.mjs',
+          ]
+          paths = ['shioji-no-shokai-mvp/' + path for path in paths]
+          subprocess.run(['git', 'add', '-N', *paths], check=True)
+          assert set(git('diff', '--name-only').splitlines()) == set(paths), 'Unexpected changed paths'
+          subprocess.run(['git', 'diff', '--check'], check=True)
+          out = Path('verification')
+          out.mkdir()
+          (out / 'paths.txt').write_text('\n'.join(paths) + '\n')
+          (out / 'source.txt').write_text('base=69bdc977b13947aac4bd47ab3075ea907a502f2c\nproposal=e2328b8e9191854fedb1f7aac8eecaea5ae31352\nworkflow=' + os.environ['EXPECTED_HEAD'] + '\n')
+          (out / 'applied.patch').write_bytes(subprocess.check_output(['git', 'diff', '--binary', '--', *paths]))
+          (out / 'source-sha256.txt').write_text(''.join(hashlib.sha256(Path(path).read_bytes()).hexdigest() + '  ' + path + '\n' for path in paths))
+      - name: Install dependencies
+        working-directory: shioji-no-shokai-mvp
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund 2>&1 | tee ../verification/install.log
+      - name: Run all six tests and build
+        working-directory: shioji-no-shokai-mvp
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=0
+          printf '| Check | Result |\n| --- | --- |\n' >> "$GITHUB_STEP_SUMMARY"
+          for test in miraTrade worldMapIntegration contractIdentity contractAcceptanceStore normalOfferReplenishment contractDifficultySchedule; do
+            if node "tests/$test.test.mjs" 2>&1 | tee "../verification/$test.log"; then
+              result=success
+            else
+              result=failure
+              failed=1
+            fi
+            printf '| %s | %s |\n' "$test" "$result" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s %s\n' "$test" "$result" >> ../verification/results.txt
+          done
+          if npm run build 2>&1 | tee ../verification/build.log; then
+            result=success
+          else
+            result=failure
+            failed=1
+          fi
+          printf '| Build | %s |\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          printf 'build %s\n' "$result" >> ../verification/results.txt
+          exit "$failed"
+      - name: Commit and push only verified implementation files
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/feat/mira-trade-contracts
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote origin refs/heads/feat/mira-trade-contracts | cut -f1)" = "$EXPECTED_HEAD"
+          sha256sum -c verification/source-sha256.txt
+          mapfile -t files < verification/paths.txt
+          git add -- "${files[@]}"
+          git diff --cached --name-only | sort > verification/staged-paths.txt
+          sort verification/paths.txt > verification/expected-paths.txt
+          diff -u verification/expected-paths.txt verification/staged-paths.txt
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: add Mira salt guild, cargo, and trade contracts' -m 'Apply the immutable proposal from e2328b8 after all six tests and build pass. Preserve three offers per port, existing maps, and save version 7.'
+          git rev-parse HEAD > verification/implementation-sha.txt
+          git show --format=fuller --stat HEAD > verification/implementation-commit.txt
+          git push origin HEAD:refs/heads/feat/mira-trade-contracts
+          printf '\nImplementation committed and pushed: `%s`\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-trade-materialization
+          path: verification/
+          retention-days: 7
