@@ -1,0 +1,214 @@
+name: Mira trade proposal verification
+on:
+  push:
+    branches: [feat/mira-trade-contracts]
+    paths: [.github/workflows/mira-trade-verification.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 69bdc977b13947aac4bd47ab3075ea907a502f2c
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply proposed changes in disposable checkout
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          root = Path('shioji-no-shokai-mvp')
+          def replace(path, old, new):
+              p = root / path
+              s = p.read_text()
+              assert s.count(old) == 1, f'Unexpected source: {path}: {old[:80]}'
+              p.write_text(s.replace(old, new))
+          def create(path, text):
+              p = root / path
+              assert not p.exists(), f'Already exists: {path}'
+              p.write_text(text)
+          replace('src/domain/types.ts', '"timber" | "wine";', '"timber" | "wine" | "salt" | "spices";')
+          replace('src/domain/types.ts', 'export interface Shipper { id: ShipperId; name: string; }', '''export interface Shipper {
+            id: ShipperId;
+            name: string;
+            homePortId?: PortId;
+            description?: string;
+            organizationType?: "guild";
+            primaryCargoIds?: CargoId[];
+            secondaryCargoIds?: CargoId[];
+          }''')
+          create('src/data/shippers.ts', '''import type { ReputationState, Shipper, ShipperId } from "../domain/types";
+          export const miraSaltGuild: Shipper = {
+            id: "shipper_mira_salt_guild",
+            name: "ミラ塩商組合",
+            homePortId: "port_mira",
+            description: "ミラの塩田主と交易商がつくる組合。各地への塩の出荷と、市場に集まる香辛料の輸送を取りまとめる。",
+            organizationType: "guild",
+            primaryCargoIds: ["cargo_salt"],
+            secondaryCargoIds: ["cargo_spices"],
+          };
+          export function findShipperById(id: ShipperId): Shipper | undefined {
+            return id === miraSaltGuild.id ? miraSaltGuild : undefined;
+          }
+          export function ensureMiraReputation(reputations: ReputationState[]): ReputationState[] {
+            if (reputations.some((item) => item.shipperId === miraSaltGuild.id)) return reputations;
+            return [...reputations, { shipperId: miraSaltGuild.id, value: 0 }];
+          }
+          ''')
+          cargo_rows = [
+              dict(id='cargo_salt', name='塩(袋)', commodity='salt', packaging='bag', category='normal', unitPrice=3, unitVolume=1, weightPerUnit=2, loadingTimeMsPerUnit=30000, unloadingTimeMsPerUnit=30000),
+              dict(id='cargo_spices', name='香辛料(箱)', commodity='spices', packaging='box', category='valuable', unitPrice=12, unitVolume=1, weightPerUnit=1, loadingTimeMsPerUnit=45000, unloadingTimeMsPerUnit=45000),
+          ]
+          replace('src/data/cargos.ts', '\n];', ',\n' + ',\n'.join(json.dumps(row, ensure_ascii=False) for row in cargo_rows) + '\n];')
+          replace('src/data/contracts.ts', 'import { routesById } from "./routes";', 'import { routesById } from "./routes";\nimport { miraSaltGuild } from "./shippers";')
+          specs = [
+              ('contract_mira_001', None, 'route_mira_rigel', 'cargo_salt', 6, 38, 12, 'normal'),
+              ('contract_mira_002', None, 'route_mira_aldera', 'cargo_salt', 8, 84, 32, 'normal'),
+              ('contract_mira_003', None, 'route_mira_selene', 'cargo_spices', 3, 96, 32, 'normal'),
+              ('contract_mira_004', None, 'route_mira_rigel', 'cargo_spices', 2, 44, 16, 'easy'),
+              ('contract_mira_005', None, 'route_mira_aldera', 'cargo_spices', 5, 120, 20, 'hard'),
+              ('contract_selene_mira_001', 'shipper_selene_farmers', 'route_selene_mira', 'cargo_wheat', 8, 84, 32, 'normal'),
+              ('contract_aldera_mira_001', 'shipper_aldera_merchants', 'route_aldera_mira', 'cargo_pottery', 3, 81, 32, 'normal'),
+              ('contract_rigel_mira_001', 'shipper_rigel_forge', 'route_rigel_mira', 'cargo_timber', 4, 28, 12, 'normal'),
+          ]
+          rows = []
+          for ident, shipper, route, cargo, quantity, reward, deadline, difficulty in specs:
+              row = dict(id=ident, shipperId=shipper or '__MIRA_ID__', routeId=route, cargoId=cargo, quantity=quantity, offeredReward=reward, deadlineHours=deadline, difficulty=difficulty)
+              rows.append(json.dumps(row, ensure_ascii=False).replace('"__MIRA_ID__"', 'miraSaltGuild.id'))
+          replace('src/data/contracts.ts', '\n];', ',\n' + ',\n'.join(rows) + '\n];')
+          path = 'src/state/gameStore.ts'
+          replace(path, 'import { initialShip } from "../data/ships";', 'import { initialShip } from "../data/ships";\nimport { ensureMiraReputation } from "../data/shippers";')
+          replace(path, '    reputations: [', '    reputations: ensureMiraReputation([')
+          replace(path, '    ],\n    tutorialCompleted:', '    ]),\n    tutorialCompleted:')
+          replace(path, 'port_mira: []', 'port_mira: pickPortOffers("port_mira")')
+          replace(path, '  ...defaultGameState, ...loadedGameState,', '  ...defaultGameState, ...loadedGameState,\n  reputations: ensureMiraReputation(loadedGameState.reputations ?? defaultGameState.reputations),')
+          replace(path, 'const updatedReputations = current.reputations.map(', 'const updatedReputations = ensureMiraReputation(current.reputations).map(')
+          path = 'src/components/contract/ContractDetailScreen.tsx'
+          replace(path, 'import { getCargoById } from "../../data/cargos";', 'import { getCargoById } from "../../data/cargos";\nimport { findShipperById } from "../../data/shippers";')
+          replace(path, '  const cargo = getCargoById(contract.cargoId);', '  const cargo = getCargoById(contract.cargoId);\n  const shipper = findShipperById(contract.shipperId);')
+          replace(path, '<h3>依頼</h3>', '''<h3>依頼</h3>
+                  {shipper && <>
+                    <div className="kv"><span>荷主</span><span>{shipper.name}</span></div>
+                    {shipper.description && <p style={{ margin: "8px 0", fontSize: 12, lineHeight: 1.6, color: "var(--sub)" }}>{shipper.description}</p>}
+                  </>}''')
+          replace(path, '<h3>受注内容の確認</h3>', '<h3>受注内容の確認</h3>\n      {shipper && <div className="kv"><span>荷主</span><span>{shipper.name}</span></div>}')
+          replace('tests/worldMapIntegration.test.mjs', 'assert.deepEqual(seed.portOffers.port_mira, []);', 'assert.equal(seed.portOffers.port_mira.length, 3);')
+          path = 'tests/normalOfferReplenishment.test.mjs'
+          replace(path, "const existingPortIds = ['port_selene', 'port_aldera', 'port_rigel'];", "const existingPortIds = ['port_selene', 'port_aldera', 'port_rigel', 'port_mira'];")
+          replace(path, "    assert.deepEqual(initialOffers.port_mira, [], 'Mira has no contract templates at this stage');\n", '')
+          replace(path, "    assert.deepEqual(refreshedOffers.port_mira, [], 'Refreshing must keep Mira empty until templates are added');\n", '')
+          create('tests/miraTrade.test.mjs', '''import assert from "node:assert/strict";
+          import { fileURLToPath } from "node:url";
+          import { createServer } from "vite";
+          const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+          const storage = new Map();
+          Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+            getItem: key => storage.get(key) ?? null,
+            setItem: (key, value) => storage.set(key, String(value)),
+            removeItem: key => storage.delete(key), clear: () => storage.clear(),
+          }});
+          let server;
+          try {
+            server = await createServer({ root: fileURLToPath(new URL("../", import.meta.url)), server: { middlewareMode: true }, appType: "custom" });
+            const load = path => server.ssrLoadModule(path);
+            const { miraSaltGuild, findShipperById, ensureMiraReputation } = await load("/src/data/shippers.ts");
+            const { getCargoById } = await load("/src/data/cargos.ts");
+            const { contractTemplates, getContractTemplateById, getContractDifficulty } = await load("/src/data/contracts.ts");
+            const { getRouteById } = await load("/src/data/routes.ts");
+            const { initialShip } = await load("/src/data/ships.ts");
+            const { calculateCargoValue, calculateVoyageDistanceAllowance } = await load("/src/domain/reward.ts");
+            const { useGameStore: store } = await load("/src/state/gameStore.ts");
+            assert.equal(miraSaltGuild.name, "ミラ塩商組合");
+            assert.equal(miraSaltGuild.homePortId, "port_mira");
+            assert.equal(findShipperById(miraSaltGuild.id), miraSaltGuild);
+            assert.equal(findShipperById("unknown"), undefined);
+            for (const id of [...miraSaltGuild.primaryCargoIds, ...miraSaltGuild.secondaryCargoIds]) assert.equal(getCargoById(id).id, id);
+            const salt = getCargoById("cargo_salt"), spices = getCargoById("cargo_spices");
+            assert.deepEqual([salt.unitPrice, salt.unitVolume, salt.weightPerUnit], [3, 1, 2]);
+            assert.deepEqual([spices.unitPrice, spices.unitVolume, spices.weightPerUnit], [12, 1, 1]);
+            const outbound = contractTemplates.filter(t => getRouteById(t.routeId).fromPortId === "port_mira");
+            const inbound = contractTemplates.filter(t => getRouteById(t.routeId).toPortId === "port_mira");
+            assert.equal(outbound.length, 5);
+            assert.equal(inbound.length, 3);
+            for (const t of [...outbound, ...inbound]) {
+              const cargo = getCargoById(t.cargoId), route = getRouteById(t.routeId);
+              assert.ok(cargo.unitVolume * t.quantity <= initialShip.maxCargoVolume);
+              assert.ok(cargo.weightPerUnit * t.quantity <= initialShip.maxCargoWeight);
+              assert.equal(t.offeredReward, calculateCargoValue(cargo.unitPrice, t.quantity) + calculateVoyageDistanceAllowance(route.distance));
+            }
+            for (const t of outbound) assert.equal(t.shipperId, miraSaltGuild.id);
+            assert.deepEqual(ensureMiraReputation([]), [{ shipperId: miraSaltGuild.id, value: 0 }]);
+            const existing = [{ shipperId: miraSaltGuild.id, value: 1.25 }];
+            assert.equal(ensureMiraReputation(existing), existing);
+            store.getState().resetGame();
+            const state = store.getState().gameState, offers = state.portOffers.port_mira;
+            assert.equal(offers.length, 3);
+            assert.equal(state.reputations.find(r => r.shipperId === miraSaltGuild.id)?.value, 0);
+            assert.equal(new Set(offers.map(o => o.templateId)).size, 3);
+            assert.ok(offers.filter(o => getContractDifficulty(getContractTemplateById(o.templateId)) === "normal").length >= 2);
+            store.setState({ gameState: { ...state, selectedPortId: "port_mira", ships: state.ships.map(s => ({ ...s, currentPortId: "port_mira", currentHexId: "hex_port_mira" })) }});
+            const offer = offers[0], retained = offers.slice(1);
+            store.getState().acceptContract(offer.id, state.ships[0].id);
+            const accepted = store.getState().gameState;
+            assert.equal(accepted.acceptedContract?.shipperId, miraSaltGuild.id);
+            assert.equal(accepted.acceptedContract?.deadlineAt, offer.deadlineAt);
+            assert.ok(accepted.activeVoyage);
+            assert.equal(accepted.activeVoyage.contractId, accepted.acceptedContract.id);
+            assert.equal(accepted.portOffers.port_mira.length, 3);
+            for (const item of retained) assert.deepEqual(accepted.portOffers.port_mira.find(o => o.id === item.id), item);
+            assert.equal(accepted.voyageMemos.at(-1)?.contractId, accepted.acceptedContract.id);
+            console.log(JSON.stringify({ result: "success", verified: ["shipper", "cargo", "8 templates", "capacity", "rewards", "reputation initialization", "offer generation", "acceptance", "deadline retention", "replenishment", "memo reference"] }));
+          } finally {
+            if (server) await server.close();
+            if (previousStorage) Object.defineProperty(globalThis, "localStorage", previousStorage);
+            else delete globalThis.localStorage;
+          }
+          ''')
+      - name: Record exact proposed patch
+        run: |
+          mkdir -p verification
+          git rev-parse HEAD > verification/base-sha.txt
+          printf '%s\n' '${{ github.sha }}' > verification/workflow-sha.txt
+          git add -N shioji-no-shokai-mvp/src/data/shippers.ts shioji-no-shokai-mvp/tests/miraTrade.test.mjs
+          git diff -- shioji-no-shokai-mvp > verification/applied.patch
+          sha256sum verification/applied.patch > verification/patch-sha256.txt
+          git diff --check
+      - name: Install dependencies
+        id: install
+        working-directory: shioji-no-shokai-mvp
+        run: |
+          set -o pipefail
+          npm install --no-audit --no-fund 2>&1 | tee ../verification/install.log
+      - name: Run all six tests and build
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        working-directory: shioji-no-shokai-mvp
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=0
+          printf '| Check | Exit code |\n| --- | --- |\n' >> "$GITHUB_STEP_SUMMARY"
+          for test in miraTrade worldMapIntegration contractIdentity contractAcceptanceStore normalOfferReplenishment contractDifficultySchedule; do
+            node "tests/$test.test.mjs" 2>&1 | tee "../verification/$test.log"
+            code=${PIPESTATUS[0]}
+            printf '| %s | %s |\n' "$test" "$code" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s %s\n' "$test" "$code" >> ../verification/results.txt
+            if [ "$code" -ne 0 ]; then failed=1; fi
+          done
+          npm run build 2>&1 | tee ../verification/build.log
+          code=${PIPESTATUS[0]}
+          printf '| Build | %s |\n' "$code" >> "$GITHUB_STEP_SUMMARY"
+          printf 'build %s\n' "$code" >> ../verification/results.txt
+          if [ "$code" -ne 0 ]; then failed=1; fi
+          exit "$failed"
+      - name: Upload patch and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mira-trade-verification
+          path: verification/
+          retention-days: 7
