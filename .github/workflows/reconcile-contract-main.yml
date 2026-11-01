@@ -25,6 +25,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/contract-validation"
+          exec > >(tee "$RUNNER_TEMP/contract-validation/merge.log") 2>&1
           git fetch origin main fix/contract-id-integrity
           test "$(git rev-parse origin/fix/contract-id-integrity)" = "$GITHUB_SHA"
           main_sha=4b4359d1b72703a994732ec9c8de138af99d348d
@@ -65,7 +67,7 @@ jobs:
           p.write_text(text)
           store = Path('shioji-no-shokai-mvp/src/state/gameStore.ts').read_text()
           schedule = Path('shioji-no-shokai-mvp/src/domain/contractSchedule.ts').read_text()
-          for required in ['remainingNormalCount', 'requiredNormalCount', 'item.id === offerId']:
+          for required in ['remainingNormalCount', 'requiredNormalCount', 'offer.id === offerId']:
               assert required in store, required
           for required in ['createContractInstanceId("offer")', 'createContractInstanceId("accepted")', 'TIME_ALLOWANCE_RANGES']:
               assert required in schedule, required
