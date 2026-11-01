@@ -95,12 +95,11 @@ try {
     contractTemplates.forEach((template, index) => { template.difficulty = difficulties[index]; });
   }
 
-  const existingPortIds = ['port_selene', 'port_aldera', 'port_rigel'];
+  const existingPortIds = ['port_selene', 'port_aldera', 'port_rigel', 'port_mira'];
   for (const random of [() => 0, () => 0.999999]) {
     Math.random = random;
     store.getState().resetGame();
     const initialOffers = store.getState().gameState.portOffers;
-    assert.deepEqual(initialOffers.port_mira, [], 'Mira has no contract templates at this stage');
     for (const id of existingPortIds) {
       const offers = initialOffers[id];
       assert.equal(offers.length, 3);
@@ -113,7 +112,6 @@ try {
     store.setState({ gameState: { ...state, nextRefreshAt: now } });
     store.getState().tick();
     const refreshedOffers = store.getState().gameState.portOffers;
-    assert.deepEqual(refreshedOffers.port_mira, [], 'Refreshing must keep Mira empty until templates are added');
     for (const id of existingPortIds) {
       const offers = refreshedOffers[id];
       assert.equal(offers.length, 3);

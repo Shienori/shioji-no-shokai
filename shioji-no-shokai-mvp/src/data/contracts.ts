@@ -3,6 +3,7 @@ export type ContractDifficulty = "easy" | "normal" | "hard";
 
 import type { ContractTemplate, PortId } from "../domain/types";
 import { routesById } from "./routes";
+import { miraSaltGuild } from "./shippers";
 
 export const tutorialWheatContract: ContractTemplate = {
   id: "contract_tutorial_001",
@@ -55,7 +56,15 @@ export const contractTemplates: ContractTemplate[] = [
   // ワイン
   { id: "contract_aldera_009", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_rigel", cargoId: "cargo_wine", quantity: 2, offeredReward: 55, deadlineHours: 22, difficulty: "normal" },
   { id: "contract_aldera_010", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_rigel", cargoId: "cargo_wine", quantity: 3, offeredReward: 65, deadlineHours: 24, difficulty: "normal" },
-  { id: "contract_aldera_011", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_selene", cargoId: "cargo_wine", quantity: 4, offeredReward: 60, deadlineHours: 22, difficulty: "normal" }
+  { id: "contract_aldera_011", shipperId: "shipper_aldera_merchants", routeId: "route_aldera_selene", cargoId: "cargo_wine", quantity: 4, offeredReward: 60, deadlineHours: 22, difficulty: "normal" },
+{"id": "contract_mira_001", "shipperId": miraSaltGuild.id, "routeId": "route_mira_rigel", "cargoId": "cargo_salt", "quantity": 6, "offeredReward": 38, "deadlineHours": 12, "difficulty": "normal"},
+{"id": "contract_mira_002", "shipperId": miraSaltGuild.id, "routeId": "route_mira_aldera", "cargoId": "cargo_salt", "quantity": 8, "offeredReward": 84, "deadlineHours": 32, "difficulty": "normal"},
+{"id": "contract_mira_003", "shipperId": miraSaltGuild.id, "routeId": "route_mira_selene", "cargoId": "cargo_spices", "quantity": 3, "offeredReward": 96, "deadlineHours": 32, "difficulty": "normal"},
+{"id": "contract_mira_004", "shipperId": miraSaltGuild.id, "routeId": "route_mira_rigel", "cargoId": "cargo_spices", "quantity": 2, "offeredReward": 44, "deadlineHours": 16, "difficulty": "easy"},
+{"id": "contract_mira_005", "shipperId": miraSaltGuild.id, "routeId": "route_mira_aldera", "cargoId": "cargo_spices", "quantity": 5, "offeredReward": 120, "deadlineHours": 20, "difficulty": "hard"},
+{"id": "contract_selene_mira_001", "shipperId": "shipper_selene_farmers", "routeId": "route_selene_mira", "cargoId": "cargo_wheat", "quantity": 8, "offeredReward": 84, "deadlineHours": 32, "difficulty": "normal"},
+{"id": "contract_aldera_mira_001", "shipperId": "shipper_aldera_merchants", "routeId": "route_aldera_mira", "cargoId": "cargo_pottery", "quantity": 3, "offeredReward": 81, "deadlineHours": 32, "difficulty": "normal"},
+{"id": "contract_rigel_mira_001", "shipperId": "shipper_rigel_forge", "routeId": "route_rigel_mira", "cargoId": "cargo_timber", "quantity": 4, "offeredReward": 28, "deadlineHours": 12, "difficulty": "normal"}
 ];
 
 export function getContractTemplateById(id: string): ContractTemplate {

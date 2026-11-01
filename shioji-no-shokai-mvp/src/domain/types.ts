@@ -12,7 +12,7 @@ export type CargoVolume = number;
 export type CargoWeight = number;
 export type NauticalMiles = number;
 
-export type CommodityId = "wheat" | "steel" | "silk" | "iron_ore" | "pottery" | "timber" | "wine";
+export type CommodityId = "wheat" | "steel" | "silk" | "iron_ore" | "pottery" | "timber" | "wine" | "salt" | "spices";
 export type CargoPackaging = "bag" | "pallet" | "box";
 export type CargoCategory = "normal" | "perishable" | "valuable" | "dangerous";
 export type ShipRole = "general_cargo";
@@ -26,7 +26,15 @@ import type { RouteSeaForecast } from "./seaCondition";
 export interface Port { id: PortId; name: string; description: string; }
 export interface Route { id: RouteId; fromPortId: PortId; toPortId: PortId; distance: NauticalMiles; baseVoyageHours: number; }
 export interface Cargo { id: CargoId; name: string; commodity: CommodityId; packaging: CargoPackaging; category: CargoCategory; unitPrice: Gold; unitVolume: CargoVolume; weightPerUnit: CargoWeight; loadingTimeMsPerUnit: number; unloadingTimeMsPerUnit: number; }
-export interface Shipper { id: ShipperId; name: string; }
+export interface Shipper {
+  id: ShipperId;
+  name: string;
+  homePortId?: PortId;
+  description?: string;
+  organizationType?: "guild";
+  primaryCargoIds?: CargoId[];
+  secondaryCargoIds?: CargoId[];
+}
 export interface ContractTemplate { id: ContractId; shipperId: ShipperId; routeId: RouteId; cargoId: CargoId; quantity: number; offeredReward: Gold; deadlineHours: number; difficulty: ContractDifficulty; }
 export interface ContractRewardBreakdown { cargoValue: Gold; voyageDistanceAllowance: Gold; otherAdjustment: Gold; offeredReward: Gold; }
 export interface OfferedContract { id: string; templateId: ContractId; generatedAt: RealTimeMs; deadlineAt: RealTimeMs; timeAllowanceRatio: number; }

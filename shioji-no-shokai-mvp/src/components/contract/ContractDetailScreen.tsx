@@ -3,6 +3,7 @@ import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoById } from "../../data/cargos";
+import { findShipperById } from "../../data/shippers";
 import { getHexById } from "../../data/hexMap";
 import { getRouteHexIds } from "../../domain/routePath";
 import { calculateEstimatedArrivalAt } from "../../domain/seaCondition";
@@ -44,6 +45,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const etaLabel = estimatedArrivalAt === null ? "—" : formatDateTime(ceilTo1Minute(estimatedArrivalAt));
   if (!contract || !route) return null;
   const cargo = getCargoById(contract.cargoId);
+  const shipper = findShipperById(contract.shipperId);
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
@@ -78,6 +80,10 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
     <div className="detail-body">
       <section className="detail-tab-panel"><div className="card detail-card">
         <h3>依頼</h3>
+        {shipper && <>
+          <div className="kv"><span>荷主</span><span>{shipper.name}</span></div>
+          {shipper.description && <p style={{ margin: "8px 0", fontSize: 12, lineHeight: 1.6, color: "var(--sub)" }}>{shipper.description}</p>}
+        </>}
         <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
         <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
         <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
@@ -122,6 +128,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
     </footer>
     {showConfirmation && selectedShip && <div className="confirmation-overlay"><div className="confirmation-modal">
       <h3>受注内容の確認</h3>
+      {shipper && <div className="kv"><span>荷主</span><span>{shipper.name}</span></div>}
       <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
       <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
       <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>

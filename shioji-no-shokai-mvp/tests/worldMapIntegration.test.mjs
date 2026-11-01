@@ -118,7 +118,7 @@ try {
   const seed = structuredClone(store.getState().gameState);
   assert.equal(seed.playerId, 'player_001');
   assert.deepEqual(Object.keys(seed.portOffers).sort(), ports.map(port => port.id).sort());
-  assert.deepEqual(seed.portOffers.port_mira, []);
+  assert.equal(seed.portOffers.port_mira.length, 3);
   for (const ship of seed.ships) assert.equal(ship.currentHexId, getPortHexId(ship.currentPortId));
   saveGame(seed);
   assert.deepEqual(JSON.parse(JSON.stringify(loadGame())), JSON.parse(JSON.stringify(seed)));
