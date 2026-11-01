@@ -7,6 +7,11 @@ import { createContractInstanceId } from "./contractIdentity";
 const HOUR_MS = 60 * 60 * 1000;
 const BASE_SPEED_KNOTS = 6;
 const OFFER_BUFFER_HOURS = 1;
+const TIME_ALLOWANCE_RANGES = {
+  hard: [1, 1.5],
+  normal: [1.5, 2.5],
+  easy: [2.5, 3]
+} as const;
 
 export interface ContractSchedule {
   voyageDurationMs: number;
@@ -19,7 +24,10 @@ export function createOfferedContract(
   route: Route,
   generatedAt: number,
 ): OfferedContract {
-  const timeAllowanceRatio = 1 + Math.random() * 2;
+  const [minimum, maximum] = TIME_ALLOWANCE_RANGES[template.difficulty ?? "normal"];
+  // Keep hard/normal upper bounds exclusive even after floating-point rounding.
+  const upperBound = template.difficulty === "easy" ? maximum : maximum - Number.EPSILON * maximum;
+  const timeAllowanceRatio = Math.min(upperBound, minimum + Math.random() * (maximum - minimum));
   const baseVoyageHours = route.distance / BASE_SPEED_KNOTS;
   const deadlineHours = baseVoyageHours * timeAllowanceRatio + OFFER_BUFFER_HOURS;
 
