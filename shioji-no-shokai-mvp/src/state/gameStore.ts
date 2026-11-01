@@ -103,7 +103,7 @@ function createInitialGameState(): GameState {
       { shipperId: "shipper_rigel_forge", value: 0 }
     ],
     tutorialCompleted: false, selectedPortId: "port_selene",
-    portOffers: { port_selene: pickPortOffers("port_selene"), port_aldera: pickPortOffers("port_aldera"), port_rigel: pickPortOffers("port_rigel") },
+    portOffers: { port_selene: pickPortOffers("port_selene"), port_aldera: pickPortOffers("port_aldera"), port_rigel: pickPortOffers("port_rigel"), port_mira: [] },
     nextRefreshAt: getNextRefreshTime(now)
   };
 }

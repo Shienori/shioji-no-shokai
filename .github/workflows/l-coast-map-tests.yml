@@ -1,0 +1,73 @@
+name: L-coast map integration tests
+on:
+  push:
+    branches:
+      - feat/l-coast-map-integration
+permissions:
+  contents: read
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: shioji-no-shokai-mvp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit
+        run: |
+          git rev-parse HEAD
+          printf 'Tested commit: %s\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install dependencies
+        id: install
+        run: npm install --no-audit --no-fund
+      - name: World map integration tests
+        id: map
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        run: node tests/worldMapIntegration.test.mjs
+      - name: Contract identity tests
+        id: identity
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        run: node tests/contractIdentity.test.mjs
+      - name: Contract acceptance tests
+        id: acceptance
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        run: node tests/contractAcceptanceStore.test.mjs
+      - name: Normal offer replenishment tests
+        id: replenishment
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        run: node tests/normalOfferReplenishment.test.mjs
+      - name: Contract difficulty schedule tests
+        id: difficulty
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        run: node tests/contractDifficultySchedule.test.mjs
+      - name: Build
+        id: build
+        if: '!cancelled() && steps.install.outcome == ''success'''
+        run: npm run build
+      - name: Summarize results
+        if: always()
+        env:
+          INSTALL_RESULT: ${{ steps.install.outcome }}
+          MAP_RESULT: ${{ steps.map.outcome }}
+          IDENTITY_RESULT: ${{ steps.identity.outcome }}
+          ACCEPTANCE_RESULT: ${{ steps.acceptance.outcome }}
+          REPLENISHMENT_RESULT: ${{ steps.replenishment.outcome }}
+          DIFFICULTY_RESULT: ${{ steps.difficulty.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+        run: |
+          {
+            printf '\n| Check | Result |\n| --- | --- |\n'
+            printf '| Install | %s |\n' "$INSTALL_RESULT"
+            printf '| World map | %s |\n' "$MAP_RESULT"
+            printf '| Identity | %s |\n' "$IDENTITY_RESULT"
+            printf '| Acceptance | %s |\n' "$ACCEPTANCE_RESULT"
+            printf '| Replenishment | %s |\n' "$REPLENISHMENT_RESULT"
+            printf '| Difficulty | %s |\n' "$DIFFICULTY_RESULT"
+            printf '| Build | %s |\n' "$BUILD_RESULT"
+          } >> "$GITHUB_STEP_SUMMARY"

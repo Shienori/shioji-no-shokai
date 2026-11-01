@@ -66,7 +66,7 @@ export function MainPage() {
     <TabBar activeTab={activeTab} onChange={setActiveTab} />
     <main className="page"><div className="page-body">
       {activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} onSelectContract={selectContract} />
-        : activeTab === "chart" ? <WorldMapTab />
+        : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
         : <FleetPanel ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} />}
     </div></main>
     <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
