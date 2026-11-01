@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AcceptedContract, ContractTemplate, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
+import { ensureMiraReputation } from "../data/shippers";
 import { getContractDifficulty, getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { ports, getPortById } from "../data/ports";
 import { getRouteById } from "../data/routes";
@@ -97,13 +98,13 @@ function createInitialGameState(): GameState {
   return {
     playerId: "player_001", currentGameTime: now, operationTime: 0, lastRealTimeSyncedAt: now, money: STARTING_MONEY,
     ships: [{ ...initialShip }], activeVoyage: null, acceptedContract: null, offeredContractIds: [], acceptedContractIds: [], voyageMemos: [],
-    reputations: [
+    reputations: ensureMiraReputation([
       { shipperId: "shipper_selene_farmers", value: 0 },
       { shipperId: "shipper_aldera_merchants", value: 0 },
       { shipperId: "shipper_rigel_forge", value: 0 }
-    ],
+    ]),
     tutorialCompleted: false, selectedPortId: "port_selene",
-    portOffers: { port_selene: pickPortOffers("port_selene"), port_aldera: pickPortOffers("port_aldera"), port_rigel: pickPortOffers("port_rigel"), port_mira: [] },
+    portOffers: { port_selene: pickPortOffers("port_selene"), port_aldera: pickPortOffers("port_aldera"), port_rigel: pickPortOffers("port_rigel"), port_mira: pickPortOffers("port_mira") },
     nextRefreshAt: getNextRefreshTime(now)
   };
 }
@@ -156,6 +157,7 @@ const loadedGameState = loadGame();
 const defaultGameState = createInitialGameState();
 const initialGameState = loadedGameState ? {
   ...defaultGameState, ...loadedGameState,
+  reputations: ensureMiraReputation(loadedGameState.reputations ?? defaultGameState.reputations),
   selectedPortId: loadedGameState.selectedPortId ?? defaultGameState.selectedPortId,
   portOffers: loadedGameState.portOffers ?? defaultGameState.portOffers,
   nextRefreshAt: loadedGameState.nextRefreshAt ?? defaultGameState.nextRefreshAt
@@ -236,7 +238,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updatedShips = current.ships.map((ship) => ship.activeContractId === contract.id ? {
       ...ship, status: "docked" as const, currentPortId: route.toPortId, currentHexId: getPortHexId(route.toPortId), activeContractId: null
     } : ship);
-    const updatedReputations = current.reputations.map((reputation) => reputation.shipperId === contract.shipperId ? {
+    const updatedReputations = ensureMiraReputation(current.reputations).map((reputation) => reputation.shipperId === contract.shipperId ? {
       ...reputation, value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange))
     } : reputation);
     let memoIndex = -1;
