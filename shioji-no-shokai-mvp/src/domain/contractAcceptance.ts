@@ -3,18 +3,16 @@ import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { tutorialWheatContract } from "../data/contracts";
 
-export interface AcceptanceCheck {
-  canAccept: boolean;
-  reason: string | null;
-}
+export interface AcceptanceCheck { canAccept: boolean; reason: string | null; }
 
 export function evaluateContractAcceptance(
   contract: ContractTemplate,
   ship: Ship,
   gameState: GameState,
   now: number = Date.now(),
+  offerId?: string,
 ): AcceptanceCheck {
-  if (gameState.acceptedContract) {
+  if (gameState.acceptedContract || gameState.activeVoyage) {
     return { canAccept: false, reason: "すでに依頼を受注しています" };
   }
   const route = getRouteById(contract.routeId);
@@ -25,9 +23,7 @@ export function evaluateContractAcceptance(
     return { canAccept: false, reason: "船がフリーではありません" };
   }
   const cargo = getCargoById(contract.cargoId);
-  const requiredCargoVolume = cargo.unitVolume * contract.quantity;
-  const requiredCargoWeight = cargo.weightPerUnit * contract.quantity;
-  if (ship.maxCargoVolume < requiredCargoVolume || ship.maxCargoWeight < requiredCargoWeight) {
+  if (ship.maxCargoVolume < cargo.unitVolume * contract.quantity || ship.maxCargoWeight < cargo.weightPerUnit * contract.quantity) {
     return { canAccept: false, reason: "スペースまたは積載量が不足しています" };
   }
   if (contract.id === tutorialWheatContract.id) {
@@ -36,11 +32,11 @@ export function evaluateContractAcceptance(
     }
     return { canAccept: true, reason: null };
   }
-  const offer = (gameState.portOffers[route.fromPortId] ?? []).find((item) => item.templateId === contract.id);
-  if (!offer) {
-    return { canAccept: false, reason: "この依頼は現在提示されていません" };
-  }
-  if (offer.deadlineAt <= now) {
+  const offer = (gameState.portOffers[route.fromPortId] ?? []).find(
+    (item) => item.id === offerId && item.templateId === contract.id
+  );
+  if (!offer) return { canAccept: false, reason: "この依頼は現在提示されていません" };
+  if (!Number.isFinite(offer.deadlineAt) || offer.deadlineAt <= now) {
     return { canAccept: false, reason: "この依頼は到着期限を過ぎています" };
   }
   return { canAccept: true, reason: null };

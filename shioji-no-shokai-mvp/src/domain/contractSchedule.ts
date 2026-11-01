@@ -2,6 +2,7 @@ import type { AcceptedContract, Cargo, ContractTemplate, ContractRewardBreakdown
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { ceilTo30Minutes } from "./time";
 import { calculateCargoValue, calculateVoyageDistanceAllowance } from "./reward";
+import { createContractInstanceId } from "./contractIdentity";
 
 const HOUR_MS = 60 * 60 * 1000;
 const BASE_SPEED_KNOTS = 6;
@@ -31,7 +32,7 @@ export function createOfferedContract(
   const deadlineHours = baseVoyageHours * timeAllowanceRatio + OFFER_BUFFER_HOURS;
 
   return {
-    id: `${template.id}_${generatedAt}`,
+    id: createContractInstanceId("offer"),
     templateId: template.id,
     generatedAt,
     deadlineAt: ceilTo30Minutes(generatedAt + deadlineHours * HOUR_MS / GAME_TIME_MULTIPLIER),
@@ -46,7 +47,6 @@ export function calculateContractSchedule(
 ): ContractSchedule {
   const voyageDurationMs =
     route.baseVoyageHours * HOUR_MS / GAME_TIME_MULTIPLIER;
-
   const deadlineDurationMs =
     contract.deadlineHours * HOUR_MS / GAME_TIME_MULTIPLIER;
 
@@ -62,21 +62,12 @@ export function createContractReward(
   cargo: Cargo,
   route: Route,
 ): ContractRewardBreakdown {
-  const cargoValue = calculateCargoValue(
-    cargo.unitPrice,
-    contract.quantity,
-  );
-
-  const voyageDistanceAllowance =
-    calculateVoyageDistanceAllowance(route.distance);
-
+  const cargoValue = calculateCargoValue(cargo.unitPrice, contract.quantity);
+  const voyageDistanceAllowance = calculateVoyageDistanceAllowance(route.distance);
   return {
     cargoValue,
     voyageDistanceAllowance,
-    otherAdjustment:
-      contract.offeredReward
-      - cargoValue
-      - voyageDistanceAllowance,
+    otherAdjustment: contract.offeredReward - cargoValue - voyageDistanceAllowance,
     offeredReward: contract.offeredReward,
   };
 }
@@ -89,7 +80,7 @@ export function createAcceptedContract(
   deadlineAt: number,
 ): AcceptedContract {
   return {
-    id: template.id,
+    id: createContractInstanceId("accepted"),
     templateId: template.id,
     shipperId: template.shipperId,
     routeId: template.routeId,
