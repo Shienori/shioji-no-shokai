@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AcceptedContract, ContractDifficulty, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
+import type { AcceptedContract, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
 import { getContractDifficulty, getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { ports, getPortById } from "../data/ports";
@@ -47,7 +47,13 @@ function shuffle<T>(items: T[]): T[] {
   return result;
 }
 
-function pickPortOffers(portId: PortId, keepTemplateIds: ContractId[] = []): OfferedContract[] {
+function pickPortOffers(
+  portId: PortId,
+  keepTemplateIds: ContractId[] = [],
+  count = 3,
+  requiredNormalCount = MIN_NORMAL_CONTRACTS
+): OfferedContract[] {
+  if (count <= 0) return [];
   const generatedAt = Date.now();
   const pool = getContractPoolByPort(portId)
     .filter((template) => template.id !== FIXED_CONTRACT_ID && !keepTemplateIds.includes(template.id));
@@ -55,10 +61,10 @@ function pickPortOffers(portId: PortId, keepTemplateIds: ContractId[] = []): Off
   const normalPool = shuffle(pool.filter((template) => getContractDifficulty(template) === "normal"));
   const otherPool = shuffle(pool.filter((template) => getContractDifficulty(template) !== "normal"));
 
-  const normalCount = Math.min(MIN_NORMAL_CONTRACTS, normalPool.length);
+  const normalCount = Math.min(count, Math.max(0, requiredNormalCount), normalPool.length);
   const selectedTemplates = normalPool.slice(0, normalCount);
 
-  const remainingSlots = Math.max(0, 3 - selectedTemplates.length);
+  const remainingSlots = Math.max(0, count - selectedTemplates.length);
   const remainingCandidates = shuffle([
     ...normalPool.slice(normalCount),
     ...otherPool
@@ -71,14 +77,20 @@ function pickPortOffers(portId: PortId, keepTemplateIds: ContractId[] = []): Off
   );
 }
 
-function replenishAcceptedOffer(state: GameState, portId: PortId, acceptedTemplateId: ContractId): OfferedContract[] {
+function replenishAcceptedOffer(state: GameState, portId: PortId, acceptedOfferId: string): OfferedContract[] {
   const remainingOffers = (state.portOffers[portId] ?? []).filter(
-    (offer) => offer.templateId !== acceptedTemplateId
+    (offer) => offer.id !== acceptedOfferId
   );
+  const remainingNormalCount = remainingOffers.filter((offer) =>
+    getContractDifficulty(getContractTemplateById(offer.templateId)) === "normal"
+  ).length;
+  const slots = Math.max(0, 3 - remainingOffers.length);
+  const requiredNormalCount = Math.max(0, MIN_NORMAL_CONTRACTS - remainingNormalCount);
   const keepTemplateIds = remainingOffers.map((offer) => offer.templateId);
-  const replacement = pickPortOffers(portId, keepTemplateIds);
+  const replacement = pickPortOffers(portId, keepTemplateIds, slots, requiredNormalCount);
 
-  return [...remainingOffers, ...replacement].slice(0, 3);
+  // Preserve existing offers, even when an older save cannot recover the minimum in one refill.
+  return [...remainingOffers, ...replacement];
 }
 
 function createInitialGameState(): GameState {
@@ -314,7 +326,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       portOffers[current.selectedPortId] = replenishAcceptedOffer(
         current,
         current.selectedPortId,
-        contractId
+        offeredContract.id
       );
     }
 
