@@ -10,6 +10,7 @@ import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
 import { getSeaConditionAt } from "../../domain/seaCondition";
 import { HexMap } from "./HexMap";
+import { PortRefuelPanel } from "./PortRefuelPanel";
 
 interface ShipDetailScreenProps {
   ship: Ship;
@@ -115,6 +116,8 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
           />
         </div>
       </section>
+
+      <PortRefuelPanel key={ship.id} shipId={ship.id} />
 
       <section className="contract-card fleet-card">
         <h3>船のスペック</h3>
