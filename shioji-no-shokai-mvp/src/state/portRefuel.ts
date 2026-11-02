@@ -9,10 +9,12 @@ export interface PortRefuelCheck {
   canRefuel: boolean;
   reason: string | null;
   amountTons: number;
+  targetTons: number;
 }
 
-export function checkPortRefuel(state: GameState, shipId: ShipId): PortRefuelCheck {
-  const reject = (reason: string): PortRefuelCheck => ({ canRefuel: false, reason, amountTons: 0 });
+/** Target is the total coal aboard after refueling, not the amount to add. */
+export function checkPortRefuel(state: GameState, shipId: ShipId, targetTons?: number): PortRefuelCheck {
+  const reject = (reason: string): PortRefuelCheck => ({ canRefuel: false, reason, amountTons: 0, targetTons: 0 });
   const ship = state.ships.find((item) => item.id === shipId);
   if (!ship) return reject("船が見つかりません");
   if (ship.kind !== "powered") return reject("石炭を使用する動力船のみ補給できます");
@@ -26,24 +28,29 @@ export function checkPortRefuel(state: GameState, shipId: ShipId): PortRefuelChe
     getPortById(ship.currentPortId);
     if (hex.kind !== "port" || hex.portId !== ship.currentPortId) return reject("船の現在位置が所在港と一致しません");
   } catch { return reject("船の所在港を確認できません"); }
-  const amountTons = ship.fuel.capacityTons - ship.fuel.remainingTons;
-  if (amountTons <= 0) return reject("石炭は満載です");
-  return { canRefuel: true, reason: null, amountTons };
+  const target = targetTons === undefined ? ship.fuel.capacityTons : targetTons;
+  if (!Number.isFinite(target) || target < 0 || target > ship.fuel.capacityTons) {
+    return reject("目標積載量は0から最大搭載量の範囲で指定してください");
+  }
+  if (target < ship.fuel.remainingTons) return reject("現在残量より少なくできません。石炭の積み下ろしは未対応です");
+  const amountTons = target - ship.fuel.remainingTons;
+  if (amountTons === 0) return reject(target === ship.fuel.capacityTons ? "石炭は満載です" : "石炭は選択した目標量に達しています");
+  return { canRefuel: true, reason: null, amountTons, targetTons: target };
 }
 
 /** Recheck live state on every click; save successfully before publishing it. */
-export function refuelShipAtPort(shipId: ShipId): { ok: boolean; message: string } {
+export function refuelShipAtPort(shipId: ShipId, targetTons?: number): { ok: boolean; message: string } {
   const current = useGameStore.getState().gameState;
-  const check = checkPortRefuel(current, shipId);
+  const check = checkPortRefuel(current, shipId, targetTons);
   if (!check.canRefuel) return { ok: false, message: check.reason ?? "補給できません" };
   const next: GameState = {
     ...current,
     ships: current.ships.map((ship) => ship.id === shipId && isValidShipFuel(ship.fuel) ? {
-      ...ship, fuel: { ...ship.fuel, remainingTons: ship.fuel.capacityTons },
+      ...ship, fuel: { ...ship.fuel, remainingTons: check.targetTons },
     } : ship),
   };
   try { saveGame(next); }
   catch { return { ok: false, message: "保存できなかったため補給していません。保存領域を確認してください" }; }
   useGameStore.setState({ gameState: next });
-  return { ok: true, message: "石炭を満載に補給しました（無料・待ち時間なし）" };
+  return { ok: true, message: "選択した目標量まで石炭を補給しました（無料・待ち時間なし）" };
 }
