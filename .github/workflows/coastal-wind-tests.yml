@@ -1,0 +1,51 @@
+name: Coastal wind integration and build
+on:
+  push:
+    branches: [feature/coastal-wind-timeline]
+permissions:
+  contents: read
+jobs:
+  coastal-wind-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: shioji-no-shokai-mvp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit
+        run: |
+          mkdir -p ../verification
+          git rev-parse HEAD | tee ../verification/commit.txt
+          printf 'Tested commit: `%s`\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install dependencies
+        id: install
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund 2>&1 | tee ../verification/install.log
+      - name: Run coastal wind integration tests
+        run: |
+          set -uo pipefail
+          if node tests/coastalWindTimeline.test.mjs 2>&1 | tee ../verification/coastalWindTimeline.log; then result=0; else result=$?; fi
+          printf 'Integration test exit code: %s\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+      - name: Type check and build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          set -uo pipefail
+          if npm run build 2>&1 | tee ../verification/build.log; then result=0; else result=$?; fi
+          printf 'Build exit code: %s\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coastal-wind-verification-logs
+          path: verification/
+          retention-days: 7
