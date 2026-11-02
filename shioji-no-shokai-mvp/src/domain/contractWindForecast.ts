@@ -67,7 +67,9 @@ export function normalizeContractWindForecast(state: GameState): GameState {
   const contract = state.acceptedContract;
   if (!contract || contract.windForecastSnapshot === undefined) return state;
   if (isValidContractWindForecast(contract.windForecastSnapshot, contract.routeId, contract.acceptedAt)) return state;
-  return { ...state, acceptedContract: { ...contract, windForecastSnapshot: undefined, windForecastSnapshotIssue: "invalid" } };
+  const acceptedContract = { ...contract, windForecastSnapshotIssue: "invalid" as const };
+  delete acceptedContract.windForecastSnapshot;
+  return { ...state, acceptedContract };
 }
 export function getSavedWindForecastAt(snapshot: ContractWindForecastSnapshot | undefined, hexId: string, targetMs: number): WindForecastSlot | null {
   if (!snapshot || !time(targetMs) || targetMs < snapshot.validFrom || targetMs >= snapshot.validTo) return null;
