@@ -3,6 +3,7 @@ import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { ceilTo30Minutes } from "./time";
 import { calculateCargoValue, calculateVoyageDistanceAllowance } from "./reward";
 import { createContractInstanceId } from "./contractIdentity";
+import { createContractWindForecast } from "./contractWindForecast";
 
 const HOUR_MS = 60 * 60 * 1000;
 const BASE_SPEED_KNOTS = 6;
@@ -79,6 +80,7 @@ export function createAcceptedContract(
   acceptedAt: number,
   deadlineAt: number,
 ): AcceptedContract {
+  const windForecastSnapshot = createContractWindForecast(route, acceptedAt);
   return {
     id: createContractInstanceId("accepted"),
     templateId: template.id,
@@ -89,5 +91,6 @@ export function createAcceptedContract(
     reward: createContractReward(template, cargo, route),
     acceptedAt,
     deadlineAt,
+    windForecastSnapshot,
   };
 }
