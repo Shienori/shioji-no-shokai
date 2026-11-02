@@ -11,6 +11,7 @@ import { getRouteHexIds } from "../../domain/routePath";
 import { getSeaConditionAt } from "../../domain/seaCondition";
 import { HexMap } from "./HexMap";
 import { PortRefuelPanel } from "./PortRefuelPanel";
+import { ShipDesignPanel } from "./ShipDesignPanel";
 
 interface ShipDetailScreenProps {
   ship: Ship;
@@ -93,7 +94,7 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
         <button className="btn btn-secondary" type="button" onClick={onBack}>戻る</button>
       </header>
 
-      <div className="ship-photo" aria-hidden="true">⛵</div>
+      <div className="ship-photo" aria-hidden="true">{ship.kind === "powered" ? "🚢" : "⛵"}</div>
 
       <section className="contract-card fleet-card">
         <h3>現在状況</h3>
@@ -118,14 +119,15 @@ export function ShipDetailScreen({ ship, voyage, contract, operationTime, voyage
       </section>
 
       <PortRefuelPanel key={ship.id} shipId={ship.id} />
+      <ShipDesignPanel shipId={ship.id} />
 
       <section className="contract-card fleet-card">
-        <h3>船のスペック</h3>
+        <h3>現在の運用データ</h3>
         <div className="contract-facts">
-          <div><span className="contract-fact-label">船種</span><span className="contract-fact-value">{ship.kind === "sailing" ? "帆船" : "機帆船"}</span></div>
+          <div><span className="contract-fact-label">船種</span><span className="contract-fact-value">{ship.kind === "sailing" ? "帆船" : "動力船"}</span></div>
           <div><span className="contract-fact-label">用途</span><span className="contract-fact-value">一般貨物船</span></div>
-          <div><span className="contract-fact-label">積載スペース</span><span className="contract-fact-value">{ship.maxCargoVolume}</span></div>
-          <div><span className="contract-fact-label">最大積載量</span><span className="contract-fact-value">{ship.maxCargoWeight}</span></div>
+          <div><span className="contract-fact-label">貨物容積上限（旧単位）</span><span className="contract-fact-value">{ship.maxCargoVolume}</span></div>
+          <div><span className="contract-fact-label">貨物重量上限（旧単位）</span><span className="contract-fact-value">{ship.maxCargoWeight}</span></div>
           <div><span className="contract-fact-label">巡航速度</span><span className="contract-fact-value">{ship.cruisingSpeedKnots}ノット</span></div>
           <div><span className="contract-fact-label">最大速度</span><span className="contract-fact-value">{ship.maxSpeedKnots}ノット</span></div>
           <div><span className="contract-fact-label">機関</span><span className="contract-fact-value">{ship.engineType}／{ship.engineOutput}</span></div>
