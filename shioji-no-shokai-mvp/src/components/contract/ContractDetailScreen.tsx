@@ -13,6 +13,7 @@ import { getHeavyLoadSpeedFactor } from "../../domain/voyage";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { CapacityGauge } from "./CapacityGauge";
 import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
+import { FuelTrialPanel } from "./FuelTrialPanel";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -115,6 +116,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
             <CapacityGauge requiredLabel="必要積載量" maximumLabel="最大積載量" required={requiredCargoWeight} maximum={ship.maxCargoWeight} />
           </button>;
         })}</div>
+        {selectedShip ? <FuelTrialPanel key={`${selectedShip.id}:${departureAt}`} route={route} ship={selectedShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, selectedShip)} /> : <p>船を選択すると、試算用の燃料入力欄が表示されます。</p>}
       </div></section>
       <section className="detail-tab-panel chart-tab-panel"><div className="chart-fullscreen">
         <RouteSeaConditionTab routeId={contract.routeId} fromPortId={route.fromPortId} toPortId={route.toPortId} selectedShip={selectedShip} departureAt={departureAt} estimatedArrivalAt={estimatedArrivalAt} etaLabel={etaLabel} />
