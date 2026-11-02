@@ -1,0 +1,52 @@
+name: Route wind navigation verification
+on:
+  push:
+    branches: [feature/route-wind-navigation]
+permissions:
+  contents: read
+jobs:
+  route-wind-navigation-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: shioji-no-shokai-mvp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit
+        run: |
+          mkdir -p ../verification
+          git rev-parse HEAD | tee ../verification/commit.txt
+          printf 'Tested commit: `%s`\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install dependencies
+        id: install
+        run: npm install --no-audit --no-fund
+      - name: Navigation and regression tests
+        run: |
+          set -uo pipefail
+          failed=0
+          for suite in windNavigation shipPerformance contractWindForecastSnapshot contractAcceptanceStore contractIdentity contractDifficultySchedule normalOfferReplenishment windForecastAccuracy windForecastGeneration windForecastTimeline windForecastIntegration coastalWindTimeline; do
+            if node "tests/$suite.test.mjs" 2>&1 | tee "../verification/$suite.log"; then result=0; else result=$?; failed=1; fi
+            printf '%s exit code: %s\n' "$suite" "$result" >> "$GITHUB_STEP_SUMMARY"
+          done
+          exit "$failed"
+      - name: Type check and build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          set -uo pipefail
+          if npm run build 2>&1 | tee ../verification/build.log; then result=0; else result=$?; fi
+          printf 'Build exit code: %s\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-wind-navigation-verification-logs
+          path: verification/
+          retention-days: 7
