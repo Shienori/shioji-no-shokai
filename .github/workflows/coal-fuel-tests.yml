@@ -1,0 +1,76 @@
+name: Coal fuel integration verification
+on:
+  push:
+    branches: [feature/coal-fuel-system]
+permissions:
+  contents: read
+concurrency:
+  group: coal-fuel-tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  coal-fuel-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: shioji-no-shokai-mvp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit and environment
+        run: |
+          set -euo pipefail
+          mkdir -p ../verification
+          git rev-parse HEAD | tee ../verification/commit.txt
+          node --version | tee ../verification/node-version.txt
+          npm --version | tee ../verification/npm-version.txt
+          printf 'Tested commit: `%s`\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          printf '| Check | Exit code |\n| --- | --- |\n' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install dependencies
+        id: install
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund 2>&1 | tee ../verification/install.log
+          cp package-lock.json ../verification/package-lock.json
+      - name: Run every regression suite
+        run: |
+          set -uo pipefail
+          failed=0
+          suites=(tests/*.test.mjs)
+          if [[ ! -f "${suites[0]}" ]]; then
+            echo 'No test suites found' | tee ../verification/results.txt
+            exit 1
+          fi
+          printf 'Test suite count: %s\n' "${#suites[@]}" | tee ../verification/suite-count.txt
+          for suite in "${suites[@]}"; do
+            name=$(basename "$suite" .test.mjs)
+            if timeout 180s node "$suite" 2>&1 | tee "../verification/$name.log"; then
+              result=0
+            else
+              result=$?
+              failed=1
+            fi
+            printf '| %s | %s |\n' "$name" "$result" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s exit_code=%s\n' "$name" "$result" >> ../verification/results.txt
+          done
+          exit "$failed"
+      - name: Type check and production build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          set -uo pipefail
+          if npm run build 2>&1 | tee ../verification/build.log; then result=0; else result=$?; fi
+          printf '| Type check and build | %s |\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          printf 'build exit_code=%s\n' "$result" >> ../verification/results.txt
+          exit "$result"
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coal-fuel-verification-${{ github.sha }}-${{ github.run_attempt }}
+          path: verification/
+          retention-days: 7
