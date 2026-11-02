@@ -1,0 +1,51 @@
+name: v0.2.4 integration tests
+on:
+  push:
+    branches: [release/v0.2.4]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: shioji-no-shokai-mvp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit
+        run: |
+          git rev-parse HEAD
+          printf 'Tested commit: `%s`\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p ../verification
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund 2>&1 | tee ../verification/install.log
+      - name: Run seven tests and build
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=0
+          printf '| Check | Result |\n| --- | --- |\n' >> "$GITHUB_STEP_SUMMARY"
+          for test in requesterDisplay miraTrade worldMapIntegration contractIdentity contractAcceptanceStore normalOfferReplenishment contractDifficultySchedule; do
+            if node "tests/$test.test.mjs" 2>&1 | tee "../verification/$test.log"; then result=success; else result=failure; failed=1; fi
+            printf '| %s | %s |\n' "$test" "$result" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s %s\n' "$test" "$result" >> ../verification/results.txt
+          done
+          if npm run build 2>&1 | tee ../verification/build.log; then result=success; else result=failure; failed=1; fi
+          printf '| Build | %s |\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          printf 'build %s\n' "$result" >> ../verification/results.txt
+          exit "$failed"
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-024-test-logs
+          path: verification/
+          retention-days: 7
