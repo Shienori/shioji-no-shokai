@@ -6,7 +6,9 @@ import { getContractDifficulty, getContractPoolByPort, getContractTemplateById, 
 import { ports, getPortById } from "../data/ports";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
-import { createVoyage, progressVoyage } from "../domain/voyage";
+import { createVoyage, progressVoyage, getHeavyLoadSpeedFactor, calculateArrivalLateHours } from "../domain/voyage";
+import { advanceCoalVoyage, createCoalVoyageNavigation } from "../domain/coalVoyage";
+import { isValidShipFuel } from "../domain/coalFuel";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
@@ -139,9 +141,78 @@ function syncActiveShipPosition(state: GameState): GameState {
 }
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
-  const voyage = progressVoyage(state.activeVoyage, state.acceptedContract, state.operationTime, currentRealTime);
-  const ships = state.ships.map((ship) => ship.activeContractId === voyage.contractId ? { ...ship, status: getShipStatusForVoyage(voyage.phase) } : ship);
-  return { ...state, activeVoyage: voyage, ships };
+  const contract = state.acceptedContract;
+  let voyage = state.activeVoyage;
+  if (voyage.fuelNavigation === undefined) {
+    voyage = progressVoyage(voyage, contract, state.operationTime, currentRealTime);
+    const ships = state.ships.map((ship) => ship.activeContractId === voyage.contractId ? { ...ship, status: getShipStatusForVoyage(voyage.phase) } : ship);
+    return { ...state, activeVoyage: voyage, ships };
+  }
+  let ship = state.ships.find((item) => item.id === voyage.shipId);
+  if (!ship || ship.activeContractId !== contract.id || voyage.contractId !== contract.id) throw new Error("Invalid coal voyage references");
+  let memoIndex = -1;
+  for (let index = state.voyageMemos.length - 1; index >= 0; index -= 1) {
+    const memo = state.voyageMemos[index];
+    if (memo.contractId === contract.id && memo.shipId === ship.id && memo.settlement === null && !memo.fuelDepletionReturn) { memoIndex = index; break; }
+  }
+  if (memoIndex < 0) throw new Error("Missing active coal voyage memo");
+  if (voyage.phase === "loading" && state.operationTime >= voyage.loadingCompletedAt && currentRealTime >= voyage.departedRealTime) {
+    voyage = { ...voyage, phase: "sailing", departedAt: voyage.loadingCompletedAt };
+  }
+  if (voyage.phase === "sailing") {
+    const advanced = advanceCoalVoyage(voyage, ship, currentRealTime);
+    voyage = advanced.voyage;
+    ship = advanced.ship;
+    if (advanced.navigation?.status === "fuelDepleted") {
+      const fuel = ship.fuel;
+      const navigation = voyage.fuelNavigation!;
+      if (!isValidShipFuel(fuel)) throw new Error("Invalid depleted fuel balance");
+      const route = getRouteById(contract.routeId);
+      const stoppedLeg = navigation.routeLegs[voyage.currentSeaHexIndex];
+      if (!stoppedLeg) throw new Error("Invalid depletion position");
+      const returnedShip: Ship = {
+        ...ship, status: "docked", activeContractId: null,
+        currentPortId: route.fromPortId, currentHexId: getPortHexId(route.fromPortId),
+        fuel: { ...fuel, remainingTons: fuel.capacityTons },
+      };
+      const fuelDepletionReturn = {
+        reason: "fuel_depleted" as const,
+        occurredAtRealTime: advanced.navigation.state.processedRealTime,
+        stoppedHexId: stoppedLeg.hexId,
+        distanceIntoHexNm: voyage.distanceIntoHexNm,
+        returnedToPortId: route.fromPortId,
+        fuelConsumedTons: navigation.fuelConsumedTons,
+        fuelRefilledTons: fuel.capacityTons - fuel.remainingTons,
+      };
+      return {
+        ...state, activeVoyage: null, acceptedContract: null,
+        ships: state.ships.map((item) => item.id === returnedShip.id ? returnedShip : item),
+        voyageMemos: state.voyageMemos.map((memo, index) => index === memoIndex ? {
+          ...memo, fuelConsumedTons: navigation.fuelConsumedTons, fuelDepletionReturn,
+        } : memo),
+      };
+    }
+    if (advanced.navigation?.status === "arrived") {
+      const arrivedAt = voyage.departedAt + (advanced.navigation.arrivalRealTime! - voyage.departedRealTime) * GAME_TIME_MULTIPLIER;
+      const arrivalLateHours = calculateArrivalLateHours(arrivedAt, voyage.arrivalDeadlineAt);
+      voyage = {
+        ...voyage, phase: "unloading", arrivedAt, estimatedArrivalAt: arrivedAt,
+        arrivalLateHours, isOnTime: arrivalLateHours <= 0, unloadingStartedAt: arrivedAt,
+      };
+    }
+  }
+  // Never send a fuel-enabled sailing voyage through the legacy sea multiplier.
+  if (voyage.phase === "unloading" || voyage.phase === "completed") {
+    voyage = progressVoyage(voyage, contract, state.operationTime, currentRealTime);
+  }
+  const updatedShip: Ship = { ...ship, status: getShipStatusForVoyage(voyage.phase) };
+  return {
+    ...state, activeVoyage: voyage,
+    ships: state.ships.map((item) => item.id === updatedShip.id ? updatedShip : item),
+    voyageMemos: state.voyageMemos.map((memo, index) => index === memoIndex ? {
+      ...memo, fuelConsumedTons: voyage.fuelNavigation!.fuelConsumedTons,
+    } : memo),
+  };
 }
 function refreshContractsIfDue(state: GameState, currentRealTime: number): GameState {
   if (state.nextRefreshAt > currentRealTime) return state;
@@ -203,6 +274,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const cargo = getCargoById(template.cargoId);
     const acceptedContract = createAcceptedContract(template, route, cargo, currentRealTime, deadlineAt);
     const voyage = createVoyage(acceptedContract, ship, current.operationTime, currentRealTime);
+    if (ship.kind === "powered") {
+      voyage.fuelNavigation = createCoalVoyageNavigation(ship, route, getHeavyLoadSpeedFactor(acceptedContract, ship));
+    }
     const updatedShip = { ...ship, status: "loading" as const, currentHexId: getPortHexId(route.fromPortId), activeContractId: acceptedContract.id };
     const portOffers = { ...current.portOffers };
     if (offeredContract) {

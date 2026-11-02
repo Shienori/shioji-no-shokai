@@ -2,6 +2,7 @@ import type { ContractTemplate, GameState, Ship } from "./types";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { tutorialWheatContract } from "../data/contracts";
+import { isValidShipFuel } from "./coalFuel";
 
 export interface AcceptanceCheck { canAccept: boolean; reason: string | null; }
 
@@ -21,6 +22,10 @@ export function evaluateContractAcceptance(
   }
   if (ship.status !== "docked") {
     return { canAccept: false, reason: "船がフリーではありません" };
+  }
+  if (ship.kind === "powered") {
+    if (!isValidShipFuel(ship.fuel)) return { canAccept: false, reason: "燃料データが未設定または不正です" };
+    if (ship.fuel.remainingTons === 0) return { canAccept: false, reason: "石炭がありません。補給が必要です" };
   }
   const cargo = getCargoById(contract.cargoId);
   if (ship.maxCargoVolume < cargo.unitVolume * contract.quantity || ship.maxCargoWeight < cargo.weightPerUnit * contract.quantity) {
