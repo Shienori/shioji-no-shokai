@@ -21,7 +21,7 @@ interface ContractDetailScreenProps {
   eligibleShips: Ship[];
   acceptReason: string | null;
   offeredDeadlineAt: number | null;
-  onAccept: (shipId: string) => void;
+  onAccept: (shipId: string, selectedSpeedKnots: number) => void;
   onClose: () => void;
 }
 export function ContractDetailScreen(props: ContractDetailScreenProps) {
@@ -36,12 +36,15 @@ function formatMargin(hours: number) {
 }
 function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredDeadlineAt, onAccept, onClose }: ContractDetailScreenProps) {
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
+  const [selectedSpeedKnots, setSelectedSpeedKnots] = useState<number | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [departureAt, setDepartureAt] = useState(() => Date.now());
   const route = contract ? getRouteById(contract.routeId) : null;
   const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
   const seaHexIds = useMemo(() => route ? (getRouteHexIds(route.fromPortId, route.toPortId) ?? []).filter((id) => getHexById(id).kind === "sea") : [], [route]);
-  const speed = selectedShip?.cruisingSpeedKnots;
+  const speed = selectedShip ? selectedSpeedKnots ?? selectedShip.cruisingSpeedKnots : undefined;
+  // Calculation copy only: the actual ship specification is never edited here.
+  const previewShip = useMemo(() => selectedShip && speed !== undefined ? { ...selectedShip, cruisingSpeedKnots: speed } : null, [selectedShip, speed]);
   const estimatedArrivalAt = useMemo(() => speed && seaHexIds.length > 0 && selectedShip && contract ? calculateEstimatedArrivalAt(seaHexIds, departureAt, speed * getHeavyLoadSpeedFactor(contract, selectedShip)) : null, [seaHexIds, departureAt, speed, selectedShip, contract]);
   const etaLabel = estimatedArrivalAt === null ? "—" : formatDateTime(ceilTo1Minute(estimatedArrivalAt));
   if (!contract || !route) return null;
@@ -54,13 +57,17 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const netProfit = contract.offeredReward - expense;
   const deadlineLabel = formatDateTime(offeredDeadlineAt ?? getContractSchedule(contract, route, departureAt).deadlineAt);
   const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
-  const canAccept = eligibleShips.some((ship) => ship.id === selectedShipId);
+  const validSpeed = selectedShip !== null && speed !== undefined && Number.isSafeInteger(speed) &&
+    speed >= selectedShip.cruisingSpeedKnots && speed <= selectedShip.maxSpeedKnots &&
+    (selectedShip.kind === "powered" || speed === selectedShip.cruisingSpeedKnots);
+  const canAccept = eligibleShips.some((ship) => ship.id === selectedShipId) && validSpeed;
   const getSuitability = (ship: Ship) => {
     if (!eligibleShips.some((item) => item.id === ship.id)) {
       return { label: "受注不可", color: "#64748b", background: "#f1f5f9" };
     }
+    const setting = ship.id === selectedShipId ? speed ?? ship.cruisingSpeedKnots : ship.cruisingSpeedKnots;
     const shipEta = seaHexIds.length > 0
-      ? calculateEstimatedArrivalAt(seaHexIds, departureAt, ship.cruisingSpeedKnots * getHeavyLoadSpeedFactor(contract, ship))
+      ? calculateEstimatedArrivalAt(seaHexIds, departureAt, setting * getHeavyLoadSpeedFactor(contract, ship))
       : null;
     const etaMarginHours = shipEta !== null && offeredDeadlineAt !== null
       ? (offeredDeadlineAt - shipEta) / 3600000
@@ -105,7 +112,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
           const suitability = getSuitability(ship);
           const isHeavyLoad = ship.maxCargoWeight > 0 && requiredCargoWeight / ship.maxCargoWeight >= 0.9;
           return <button key={ship.id} type="button" className={`ship-select-item${isEligible ? " eligible" : ""}${selectedShipId === ship.id ? " selected" : ""}`} disabled={!isEligible} onClick={() => {
-            if (selectedShipId !== ship.id) { setSelectedShipId(ship.id); setDepartureAt(Date.now()); setShowConfirmation(false); }
+            if (selectedShipId !== ship.id) { setSelectedShipId(ship.id); setSelectedSpeedKnots(ship.cruisingSpeedKnots); setDepartureAt(Date.now()); setShowConfirmation(false); }
           }}>
             <span className="ship-select-name">
               {ship.name}
@@ -116,10 +123,17 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
             <CapacityGauge requiredLabel="必要積載量" maximumLabel="最大積載量" required={requiredCargoWeight} maximum={ship.maxCargoWeight} />
           </button>;
         })}</div>
-        {selectedShip ? <FuelTrialPanel key={`${selectedShip.id}:${departureAt}`} route={route} ship={selectedShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, selectedShip)} /> : <p>船を選択すると、試算用の燃料入力欄が表示されます。</p>}
+        {selectedShip?.kind === "powered" && <div style={{ marginTop: 12 }}>
+          <label htmlFor="voyage-speed-setting">設定速力：{speed}ノット</label>
+          <input id="voyage-speed-setting" type="range" min={selectedShip.cruisingSpeedKnots} max={selectedShip.maxSpeedKnots} step={1}
+            value={speed ?? selectedShip.cruisingSpeedKnots} style={{ width: "100%" }} aria-valuetext={`${speed}ノット`}
+            onChange={(event) => { setSelectedSpeedKnots(Number(event.target.value)); setShowConfirmation(false); }} />
+          <p style={{ fontSize: 12, lineHeight: 1.6 }}>巡航{selectedShip.cruisingSpeedKnots}〜連続最大{selectedShip.maxSpeedKnots}ノットを1ノット刻みで選択します。速力を上げると毎時の石炭消費が増えます。受注確定後は今回の航海設定として固定します。</p>
+        </div>}
+        {previewShip ? <FuelTrialPanel key={`${previewShip.id}:${departureAt}`} route={route} ship={previewShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, previewShip)} /> : <p>船を選択すると、速力設定と石炭予測が表示されます。</p>}
       </div></section>
       <section className="detail-tab-panel chart-tab-panel"><div className="chart-fullscreen">
-        <RouteSeaConditionTab routeId={contract.routeId} fromPortId={route.fromPortId} toPortId={route.toPortId} selectedShip={selectedShip} departureAt={departureAt} estimatedArrivalAt={estimatedArrivalAt} etaLabel={etaLabel} />
+        <RouteSeaConditionTab routeId={contract.routeId} fromPortId={route.fromPortId} toPortId={route.toPortId} selectedShip={previewShip} departureAt={departureAt} estimatedArrivalAt={estimatedArrivalAt} etaLabel={etaLabel} />
       </div></section>
     </div>
     <footer className="detail-footer">
@@ -133,12 +147,13 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
       <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
       <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
       <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>
+      <div className="kv"><span>設定速力</span><span>{speed}ノット</span></div>
       <div className="kv"><span>ETA</span><span>{etaLabel}</span></div>
       <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
       <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
       <div className="confirmation-actions">
         <button className="btn btn-secondary" type="button" onClick={() => setShowConfirmation(false)}>キャンセル</button>
-        <button className="btn btn-primary" type="button" disabled={!canAccept} onClick={() => onAccept(selectedShip.id)}>受注する</button>
+        <button className="btn btn-primary" type="button" disabled={!canAccept} onClick={() => onAccept(selectedShip.id, speed ?? selectedShip.cruisingSpeedKnots)}>受注する</button>
       </div>
     </div></div>}
   </div>;

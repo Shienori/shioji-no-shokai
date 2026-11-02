@@ -33,7 +33,7 @@ interface GameStore {
   setActiveTab: (tab: "contracts" | "fleet" | "chart") => void;
   selectPort: (portId: PortId) => void;
   // Normal requests use offer IDs; only the fixed tutorial uses its template ID.
-  acceptContract: (offerId: string, shipId: string) => void;
+  acceptContract: (offerId: string, shipId: string, selectedSpeedKnots?: number) => void;
   settleContract: () => void;
   resetGame: () => void;
 }
@@ -253,7 +253,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectShip: (shipId) => set({ selectedShipId: shipId }),
   setActiveTab: (tab) => set({ activeTab: tab }),
   selectPort: (portId) => set({ gameState: { ...get().gameState, selectedPortId: portId } }),
-  acceptContract: (offerId, shipId) => {
+  acceptContract: (offerId, shipId, selectedSpeedKnots) => {
     const current = get().gameState;
     const currentRealTime = Date.now();
     if (current.acceptedContract || current.activeVoyage) return;
@@ -266,6 +266,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!isTutorial && template.id === FIXED_CONTRACT_ID) return;
     const ship = current.ships.find((item) => item.id === shipId);
     if (!ship) return;
+    const speed = selectedSpeedKnots === undefined ? ship.cruisingSpeedKnots : selectedSpeedKnots;
+    if (!Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
+        !Number.isSafeInteger(ship.maxSpeedKnots) || !Number.isSafeInteger(speed) ||
+        speed < ship.cruisingSpeedKnots || speed > ship.maxSpeedKnots ||
+        (ship.kind !== "powered" && speed !== ship.cruisingSpeedKnots)) return;
     const acceptance = evaluateContractAcceptance(template, ship, current, currentRealTime, offeredContract?.id);
     if (!acceptance.canAccept) return;
     const route = getRouteById(template.routeId);
@@ -273,9 +278,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const deadlineAt = isTutorial ? calculateContractSchedule(template, route, currentRealTime).deadlineAt : offeredContract!.deadlineAt;
     const cargo = getCargoById(template.cargoId);
     const acceptedContract = createAcceptedContract(template, route, cargo, currentRealTime, deadlineAt);
-    const voyage = createVoyage(acceptedContract, ship, current.operationTime, currentRealTime);
+    // Calculation copy only: retain the ship's original cruising specification.
+    const voyageShip: Ship = { ...ship, cruisingSpeedKnots: speed };
+    const voyage = createVoyage(acceptedContract, voyageShip, current.operationTime, currentRealTime);
     if (ship.kind === "powered") {
-      voyage.fuelNavigation = createCoalVoyageNavigation(ship, route, getHeavyLoadSpeedFactor(acceptedContract, ship));
+      voyage.fuelNavigation = createCoalVoyageNavigation(ship, route, getHeavyLoadSpeedFactor(acceptedContract, ship), speed);
     }
     const updatedShip = { ...ship, status: "loading" as const, currentHexId: getPortHexId(route.fromPortId), activeContractId: acceptedContract.id };
     const portOffers = { ...current.portOffers };
