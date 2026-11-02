@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { Route, Ship } from "../../domain/types";
+import { isValidShipFuel } from "../../domain/coalFuel";
 import { createContractWindForecast } from "../../domain/contractWindForecast";
 import { getRouteWindLegs } from "../../domain/routeWind";
 import { estimateSavedWindArrival } from "../../domain/windNavigation";
@@ -7,49 +8,55 @@ import type { WindNavigationStatus } from "../../domain/windNavigation";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 
 interface Props { route: Route; ship: Ship; departureAt: number; loadSpeedFactor: number; }
-// UI trial assumptions only, shared by all ships; not actual ship fuel data.
-const TRIAL_FUEL = 100;
-const TRIAL_FUEL_PER_VOYAGE_HOUR = 1;
 const labels: Record<WindNavigationStatus, string> = {
-  arrived: "仮設定では到着可能", timeReached: "予報期間内に到着せず、ETA未確定",
-  fuelDepleted: "仮設定では途中で燃料不足、ETA未確定", windUnavailable: "予報が不足しているためETA未確定",
+  arrived: "予報上は現在の石炭で到着可能", timeReached: "予報期間内に到着せず、ETA未確定",
+  fuelDepleted: "予報上は石炭不足、ETA未確定", windUnavailable: "予報が不足しているためETA未確定",
 };
-const amount = (value: number) => value.toLocaleString("ja-JP", { maximumFractionDigits: 4 });
+function tons(value: number): string {
+  return value > 0 && value < 0.01 ? "0.01t未満" : `${value.toLocaleString("ja-JP", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}t`;
+}
 
 export function FuelTrialPanel({ route, ship, departureAt, loadSpeedFactor }: Props) {
+  const fuel = isValidShipFuel(ship.fuel) ? ship.fuel : null;
+  const remainingTons = fuel?.remainingTons;
+  const referenceRate = fuel?.referenceConsumptionTonsPerVoyageHour;
+  const referenceSpeed = fuel?.referenceSpeedKnots;
   const source = useMemo(() => {
     try {
       return { ok: true as const, legs: getRouteWindLegs(route), snapshot: createContractWindForecast(route, departureAt) };
     } catch { return { ok: false as const }; }
   }, [route, departureAt]);
   const prediction = useMemo(() => {
-    if (!source.ok) return null;
+    if (!source.ok || remainingTons === undefined || referenceRate === undefined || referenceSpeed === undefined) return null;
     try {
       return { ok: true as const, result: estimateSavedWindArrival({
         legs: source.legs,
-        state: { processedRealTime: departureAt, legIndex: 0, distanceIntoLegNm: 0, fuelRemaining: TRIAL_FUEL, totalFuelUsed: 0 },
+        state: { processedRealTime: departureAt, legIndex: 0, distanceIntoLegNm: 0, fuelRemaining: remainingTons, totalFuelUsed: 0 },
         selectedSpeedKnots: ship.cruisingSpeedKnots, loadSpeedFactor,
-        referenceFuelPerVoyageHour: TRIAL_FUEL_PER_VOYAGE_HOUR, referenceSpeedKnots: 6,
+        referenceFuelPerVoyageHour: referenceRate, referenceSpeedKnots: referenceSpeed,
       }, source.snapshot) };
     } catch { return { ok: false as const }; }
-  }, [source, departureAt, ship.cruisingSpeedKnots, loadSpeedFactor]);
+  }, [source, remainingTons, referenceRate, referenceSpeed, departureAt, ship.cruisingSpeedKnots, loadSpeedFactor]);
   return <div style={{ borderTop: "1px solid #cbd5e1", marginTop: 14, paddingTop: 14 }}>
-    <h4 style={{ margin: "0 0 8px" }}>数値風予報・燃料自動試算</h4>
-    <p style={{ fontSize: 12, lineHeight: 1.6 }}>船を選ぶだけで自動試算します。正式な燃料設定が未実装のため、全船共通の仮設定を使います。船の実際の搭載量・残量ではなく、実燃料・所持金・受注条件・セーブには反映しません。</p>
-    <div className="kv"><span>試算設定速力</span><span>{ship.cruisingSpeedKnots}ノット</span></div>
-    <div className="kv"><span>積載による速力倍率</span><span>{amount(loadSpeedFactor)}倍</span></div>
-    <div className="kv"><span>仮の搭載量（自動設定）</span><span>{TRIAL_FUEL}試算単位</span></div>
-    <div className="kv"><span>6ノット時の仮消費量</span><span>{TRIAL_FUEL_PER_VOYAGE_HOUR}単位／航海1時間</span></div>
-    <p style={{ fontSize: 12, lineHeight: 1.6 }}>現実の1時間ではなく、6倍速で進む航海時間1時間あたりの消費量です。船選択時刻に即時出港すると仮定し、積込・荷卸時間は含めません。既存の地図・受注確認のETAと実航行は旧方式のため、この試算と異なる場合があります。</p>
-    {source.ok && <p style={{ fontSize: 12 }}>試算予報発行：{formatDateTime(source.snapshot.issuedAt)}（この試算用。受注時の保存予報とは別です）</p>}
+    <h4 style={{ margin: "0 0 8px" }}>数値風予報・石炭自動予測</h4>
+    <p style={{ fontSize: 12, lineHeight: 1.6 }}>船に記録された石炭残量と基準消費量から自動予測します。予測表示だけでは石炭や所持金を変更しません。仮の100単位による試算は使用しません。</p>
+    <div className="kv"><span>予測設定速力</span><span>{ship.cruisingSpeedKnots}ノット</span></div>
+    <div className="kv"><span>積載による速力倍率</span><span>{loadSpeedFactor}倍</span></div>
+    {fuel ? <>
+      <div className="kv"><span>現在の石炭残量</span><span>{tons(fuel.remainingTons)}</span></div>
+      <div className="kv"><span>最大石炭搭載量</span><span>{tons(fuel.capacityTons)}</span></div>
+      <div className="kv"><span>{fuel.referenceSpeedKnots}ノット時の基準消費</span><span>{tons(fuel.referenceConsumptionTonsPerVoyageHour)}／航海1時間</span></div>
+    </> : <p role="alert">この船の燃料データが未設定または不正なため、石炭予測は利用できません。残量を自動補充して計算することはありません。</p>}
+    <p style={{ fontSize: 12, lineHeight: 1.6 }}>船選択時刻に即時出港する仮定です。積込・荷卸時間は含めず、予報が外れると実際の消費は変わります。燃料の実消費・無料復帰の定期更新接続は実装中です。地図・既存の受注確認ETAはまだ旧方式なので、この予測と一致するとは限りません。</p>
+    {source.ok && <p style={{ fontSize: 12 }}>予報発行：{formatDateTime(source.snapshot.issuedAt)}（閲覧用。受注時の保存予報は受注時点で別に確定します）</p>}
     <div aria-live="polite" aria-atomic="true">
-      {!source.ok ? <p>航路または予報を準備できませんでした。</p> :
-        prediction && !prediction.ok ? <p>自動試算できません。航路や予報の範囲を確認してください。</p> :
+      {!fuel ? null : !source.ok ? <p>航路または予報を準備できませんでした。</p> :
+        prediction && !prediction.ok ? <p>予測できません。航路や予報の範囲を確認してください。</p> :
         prediction?.ok ? <>
           <p>{labels[prediction.result.status]}</p>
-          <div className="kv"><span>試算ETA（港到着）</span><span>{prediction.result.arrivalRealTime === null ? "未確定" : formatDateTime(ceilTo1Minute(prediction.result.arrivalRealTime))}</span></div>
-          <div className="kv"><span>{prediction.result.status === "arrived" ? "到着までの仮消費量" : "計算終了までの仮消費量"}</span><span>{amount(prediction.result.state.totalFuelUsed)}試算単位</span></div>
-          <div className="kv"><span>{prediction.result.status === "arrived" ? "到着時の仮残量" : "計算終了時の仮残量"}</span><span>{amount(prediction.result.state.fuelRemaining)}試算単位</span></div>
+          <div className="kv"><span>予測ETA（港到着）</span><span>{prediction.result.arrivalRealTime === null ? "未確定" : formatDateTime(ceilTo1Minute(prediction.result.arrivalRealTime))}</span></div>
+          <div className="kv"><span>{prediction.result.status === "arrived" ? "到着までの予測消費" : "計算終了までの予測消費"}</span><span>{tons(prediction.result.state.totalFuelUsed)}</span></div>
+          <div className="kv"><span>{prediction.result.status === "arrived" ? "到着時の予測残量" : "計算終了時の予測残量"}</span><span>{tons(prediction.result.state.fuelRemaining)}</span></div>
         </> : null}
     </div>
   </div>;
