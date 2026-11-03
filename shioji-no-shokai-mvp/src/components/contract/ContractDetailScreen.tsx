@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoById } from "../../data/cargos";
+import { getCargoPresentation, getLotCapacityForDisplay } from "../../domain/cargoPresentation";
 import { findShipperById } from "../../data/shippers";
 import { getHexById } from "../../data/hexMap";
 import { getRouteHexIds } from "../../domain/routePath";
 import { calculateEstimatedArrivalAt } from "../../domain/seaCondition";
-import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
+import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { getHeavyLoadSpeedFactor } from "../../domain/voyage";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
@@ -48,7 +48,9 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const estimatedArrivalAt = useMemo(() => speed && seaHexIds.length > 0 && selectedShip && contract ? calculateEstimatedArrivalAt(seaHexIds, departureAt, speed * getHeavyLoadSpeedFactor(contract, selectedShip)) : null, [seaHexIds, departureAt, speed, selectedShip, contract]);
   const etaLabel = estimatedArrivalAt === null ? "—" : formatDateTime(ceilTo1Minute(estimatedArrivalAt));
   if (!contract || !route) return null;
-  const cargo = getCargoById(contract.cargoId);
+  const display = getCargoPresentation(contract);
+  if (!display) return <div className="contract-detail-screen"><p role="alert">貨物の数量・単位データを確認できません。</p><button className="btn btn-secondary" type="button" onClick={onClose}>戻る</button></div>;
+  const cargo = display.cargo;
   const shipper = findShipperById(contract.shipperId);
   const requesterName = shipper?.name ?? "不明な依頼主";
   const fromPort = getPortById(route.fromPortId);
@@ -56,7 +58,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = contract.offeredReward - expense;
   const deadlineLabel = formatDateTime(offeredDeadlineAt ?? getContractSchedule(contract, route, departureAt).deadlineAt);
-  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
+  const { requiredCargoVolume, requiredCargoWeight } = display;
   const validSpeed = selectedShip !== null && speed !== undefined && Number.isSafeInteger(speed) &&
     speed >= selectedShip.cruisingSpeedKnots && speed <= selectedShip.maxSpeedKnots &&
     (selectedShip.kind === "powered" || speed === selectedShip.cruisingSpeedKnots);
@@ -91,12 +93,13 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
         <h3>依頼</h3>
         <div className="kv"><span>依頼主</span><span>{requesterName}</span></div>
         {shipper?.description && <p style={{ margin: "8px 0", fontSize: 12, lineHeight: 1.6, color: "var(--sub)" }}>{shipper.description}</p>}
-        <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
+        <div className="kv"><span>貨物</span><span>{display.label}</span></div>
+        <div className="kv"><span>荷姿</span><span>{display.packagingLabel}</span></div>
         <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
         <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
         <div className="requirement-grid">
-          <div className="requirement-item"><span className="requirement-label">必要スペース</span><span className="requirement-value">{requiredCargoVolume}</span></div>
-          <div className="requirement-item"><span className="requirement-label">必要積載量</span><span className="requirement-value">{requiredCargoWeight}</span></div>
+          <div className="requirement-item"><span className="requirement-label">必要貨物容積</span><span className="requirement-value">{display.volumeLabel}</span></div>
+          <div className="requirement-item"><span className="requirement-label">必要貨物重量</span><span className="requirement-value">{display.weightLabel}</span></div>
         </div>
         <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
         <div className="reward-row">
@@ -110,17 +113,19 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
         <div className="ship-select-list">{ships.map((ship) => {
           const isEligible = eligibleShips.some((item) => item.id === ship.id);
           const suitability = getSuitability(ship);
-          const isHeavyLoad = ship.maxCargoWeight > 0 && requiredCargoWeight / ship.maxCargoWeight >= 0.9;
+          const capacity = getLotCapacityForDisplay(ship);
+          const isHeavyLoad = isEligible && getHeavyLoadSpeedFactor(contract, ship) === 0.9;
           return <button key={ship.id} type="button" className={`ship-select-item${isEligible ? " eligible" : ""}${selectedShipId === ship.id ? " selected" : ""}`} disabled={!isEligible} onClick={() => {
             if (selectedShipId !== ship.id) { setSelectedShipId(ship.id); setSelectedSpeedKnots(ship.cruisingSpeedKnots); setDepartureAt(Date.now()); setShowConfirmation(false); }
           }}>
             <span className="ship-select-name">
               {ship.name}
               <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, fontSize: 12, color: suitability.color, background: suitability.background }}>{suitability.label}</span>
-              {isHeavyLoad && <span style={{ marginLeft: 6, fontSize: 12, color: "#92400e" }}>積載90%超：速度-10%</span>}
+              {isHeavyLoad && <span style={{ marginLeft: 6, fontSize: 12, color: "#92400e" }}>貨物重量90%以上：速度-10%</span>}
             </span>
-            <CapacityGauge requiredLabel="必要スペース" maximumLabel="最大スペース" required={requiredCargoVolume} maximum={ship.maxCargoVolume} />
-            <CapacityGauge requiredLabel="必要積載量" maximumLabel="最大積載量" required={requiredCargoWeight} maximum={ship.maxCargoWeight} />
+            <CapacityGauge requiredLabel="必要貨物容積" maximumLabel="最大貨物容積" required={requiredCargoVolume} maximum={capacity?.maxCargoVolumeM3 ?? null} unit="m³" />
+            <CapacityGauge requiredLabel="必要貨物重量" maximumLabel="最大貨物重量" required={requiredCargoWeight} maximum={capacity?.maxCargoWeightTons ?? null} unit="t" />
+            {!capacity && <span>新ロット方式の積載上限が未設定です</span>}
           </button>;
         })}</div>
         {selectedShip?.kind === "powered" && <div style={{ marginTop: 12 }}>
@@ -144,7 +149,9 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
     {showConfirmation && selectedShip && <div className="confirmation-overlay"><div className="confirmation-modal">
       <h3>受注内容の確認</h3>
       <div className="kv"><span>依頼主</span><span>{requesterName}</span></div>
-      <div className="kv"><span>貨物</span><span>{cargo.name} ×{contract.quantity}</span></div>
+      <div className="kv"><span>貨物</span><span>{display.label}</span></div>
+      <div className="kv"><span>貨物重量</span><span>{display.weightLabel}</span></div>
+      <div className="kv"><span>貨物容積</span><span>{display.volumeLabel}</span></div>
       <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
       <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>
       <div className="kv"><span>設定速力</span><span>{speed}ノット</span></div>
