@@ -1,19 +1,19 @@
 {
-  "testedCommit": "7d34a93e88d5bdf94bbfbe28be61259b26e761d7",
-  "recordedCommit": "7d34a93e88d5bdf94bbfbe28be61259b26e761d7",
-  "runId": 41568759345,
+  "testedCommit": "deda158a0706f24d219c7f8684f619fc4736bd40",
+  "recordedCommit": "deda158a0706f24d219c7f8684f619fc4736bd40",
+  "runId": 41569472403,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41568759345",
-  "recordedAt": "2026-11-03T02:53:09.598Z",
-  "verificationConclusion": "success",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41569472403",
+  "recordedAt": "2026-11-03T03:00:47.854Z",
+  "verificationConclusion": "failure",
   "installConclusion": "success",
-  "testStepConclusion": "success",
+  "testStepConclusion": "failure",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
-  "allPassed": true,
-  "suiteCount": 26,
+  "allPassed": false,
+  "suiteCount": 27,
   "passed": 26,
-  "failed": 0,
+  "failed": 1,
   "notRun": 0,
   "suites": [
     {
@@ -127,6 +127,11 @@
       "conclusion": "passed"
     },
     {
+      "name": "windForecastMap",
+      "exitCode": 1,
+      "conclusion": "failed"
+    },
+    {
       "name": "windForecastTimeline",
       "exitCode": 0,
       "conclusion": "passed"
@@ -148,5 +153,7 @@
     }
   ],
   "buildExitCode": 0,
-  "failureExcerpts": {}
+  "failureExcerpts": {
+    "windForecastMap": "PASS time conversion, arrival, repeatability and no state mutation\nPASS loading delay preserves pre-departure position\nPASS current checkpoint and fuel are used together\nnode:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   axial: {\n+     q: 0,\n+     r: 0\n+   },\n+   distanceTravelledNm: 30,\n+   hexId: 'hex_port_aldera',\n+   legIndex: 2,\n+   legProgress: 1,\n+   nextHexId: null,\n+   remainingDistanceNm: 0,\n+   routeProgress: 1\n+ }\n- null\n\n    at file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/windForecastMap.test.mjs:52:10 {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: {\n    hexId: 'hex_port_aldera',\n    nextHexId: null,\n    legIndex: 2,\n    legProgress: 1,\n    routeProgress: 1,\n    distanceTravelledNm: 30,\n    remainingDistanceNm: 0,\n    axial: { q: 0, r: 0 }\n  },\n  expected: null,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.22.1\n"
+  }
 }
