@@ -1,18 +1,18 @@
 {
-  "testedCommit": "94ae4055c52dafe5f3acd6a1a9d3b738c852c827",
-  "recordedCommit": "94ae4055c52dafe5f3acd6a1a9d3b738c852c827",
-  "runId": 41570215243,
+  "testedCommit": "f02055bb2e8075700b282cab1f5f17377902f5de",
+  "recordedCommit": "f02055bb2e8075700b282cab1f5f17377902f5de",
+  "runId": 41576832444,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41570215243",
-  "recordedAt": "2026-11-03T03:07:40.910Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41576832444",
+  "recordedAt": "2026-11-03T04:14:15.577Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 28,
-  "passed": 28,
+  "suiteCount": 29,
+  "passed": 29,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -53,6 +53,11 @@
     },
     {
       "name": "contractWindForecastSnapshot",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractWindPreview",
       "exitCode": 0,
       "conclusion": "passed"
     },
