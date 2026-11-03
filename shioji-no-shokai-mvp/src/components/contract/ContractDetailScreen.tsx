@@ -11,6 +11,10 @@ import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { getHeavyLoadSpeedFactor } from "../../domain/voyage";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
+import { createContractWindForecast } from "../../domain/contractWindForecast";
+import { prepareContractWindPreview, formatContractPreviewEta } from "../../domain/contractWindPreview";
+import { ForecastMap } from "../map/ForecastMap";
+import { UnifiedWindFuelSummary } from "./UnifiedWindFuelSummary";
 import { CapacityGauge } from "./CapacityGauge";
 import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
 import { FuelTrialPanel } from "./FuelTrialPanel";
@@ -45,8 +49,18 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const speed = selectedShip ? selectedSpeedKnots ?? selectedShip.cruisingSpeedKnots : undefined;
   // Calculation copy only: the actual ship specification is never edited here.
   const previewShip = useMemo(() => selectedShip && speed !== undefined ? { ...selectedShip, cruisingSpeedKnots: speed } : null, [selectedShip, speed]);
-  const estimatedArrivalAt = useMemo(() => speed && seaHexIds.length > 0 && selectedShip && contract ? calculateEstimatedArrivalAt(seaHexIds, departureAt, speed * getHeavyLoadSpeedFactor(contract, selectedShip)) : null, [seaHexIds, departureAt, speed, selectedShip, contract]);
-  const etaLabel = estimatedArrivalAt === null ? "—" : formatDateTime(ceilTo1Minute(estimatedArrivalAt));
+  const forecast = useMemo(() => {
+    try { return route ? createContractWindForecast(route, departureAt) : null; } catch { return null; }
+  }, [route, departureAt]);
+  const previews = useMemo(() => new Map(ships.filter(ship => ship.kind === "powered").map(ship => [ship.id,
+    contract ? prepareContractWindPreview(contract, ship, ship.id === selectedShipId ? speed ?? ship.cruisingSpeedKnots : ship.cruisingSpeedKnots, departureAt, forecast) : { kind: "unavailable" as const, message: "依頼を選択してください。" },
+  ])), [ships, contract, selectedShipId, speed, departureAt, forecast]);
+  const numericPreview = selectedShip?.kind === "powered" ? previews.get(selectedShip.id) ?? null : null;
+  const estimatedArrivalAt = useMemo(() => selectedShip?.kind === "powered"
+    ? numericPreview?.kind === "ready" ? numericPreview.prediction.etaRealTime : null
+    : speed && seaHexIds.length > 0 && selectedShip && contract ? calculateEstimatedArrivalAt(seaHexIds, departureAt, speed * getHeavyLoadSpeedFactor(contract, selectedShip)) : null,
+  [numericPreview, seaHexIds, departureAt, speed, selectedShip, contract]);
+  const etaLabel = selectedShip?.kind === "powered" ? formatContractPreviewEta(numericPreview) : estimatedArrivalAt === null ? "—" : formatDateTime(ceilTo1Minute(estimatedArrivalAt));
   if (!contract || !route) return null;
   const display = getCargoPresentation(contract);
   if (!display) return <div className="contract-detail-screen"><p role="alert">貨物の数量・単位データを確認できません。</p><button className="btn btn-secondary" type="button" onClick={onClose}>戻る</button></div>;
@@ -68,19 +82,14 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
       return { label: "受注不可", color: "#64748b", background: "#f1f5f9" };
     }
     const setting = ship.id === selectedShipId ? speed ?? ship.cruisingSpeedKnots : ship.cruisingSpeedKnots;
-    const shipEta = seaHexIds.length > 0
-      ? calculateEstimatedArrivalAt(seaHexIds, departureAt, setting * getHeavyLoadSpeedFactor(contract, ship))
-      : null;
-    const etaMarginHours = shipEta !== null && offeredDeadlineAt !== null
-      ? (offeredDeadlineAt - shipEta) / 3600000
-      : null;
+    const candidate = previews.get(ship.id);
+    const shipEta = ship.kind === "powered" ? candidate?.kind === "ready" ? candidate.prediction.etaRealTime : null : seaHexIds.length > 0
+      ? calculateEstimatedArrivalAt(seaHexIds, departureAt, setting * getHeavyLoadSpeedFactor(contract, ship)) : null;
+    if (ship.kind === "powered" && shipEta === null) return { label: "ETA予測不可", color: "#64748b", background: "#f1f5f9" };
+    const etaMarginHours = shipEta !== null && offeredDeadlineAt !== null ? (offeredDeadlineAt - shipEta) / 3600000 : null;
     const marginLabel = etaMarginHours === null ? "" : `（余裕 ${formatMargin(etaMarginHours)}）`;
-    if (etaMarginHours !== null && etaMarginHours > 2) {
-      return { label: `余裕あり${marginLabel}`, color: "#166534", background: "#dcfce7" };
-    }
-    if (etaMarginHours !== null && etaMarginHours >= 0.5) {
-      return { label: `注意${marginLabel}`, color: "#92400e", background: "#fef3c7" };
-    }
+    if (etaMarginHours !== null && etaMarginHours > 2) return { label: `余裕あり${marginLabel}`, color: "#166534", background: "#dcfce7" };
+    if (etaMarginHours !== null && etaMarginHours >= 0.5) return { label: `注意${marginLabel}`, color: "#92400e", background: "#fef3c7" };
     return { label: `ぎりぎり${marginLabel}`, color: "#991b1b", background: "#fee2e2" };
   };
   return <div className="contract-detail-screen">
@@ -134,16 +143,17 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
             value={speed ?? selectedShip.cruisingSpeedKnots} style={{ width: "100%" }} aria-valuetext={`${speed}ノット`}
             onChange={(event) => { setSelectedSpeedKnots(Number(event.target.value)); setShowConfirmation(false); }} />
           <p style={{ fontSize: 12, lineHeight: 1.6 }}>巡航{selectedShip.cruisingSpeedKnots}〜連続最大{selectedShip.maxSpeedKnots}ノットを1ノット刻みで選択します。速力を上げると毎時の石炭消費が増えます。受注確定後は今回の航海設定として固定します。</p>
+          <button type="button" onClick={() => { setDepartureAt(Date.now()); setShowConfirmation(false); }}>予報・試算を更新</button>
         </div>}
-        {previewShip ? <FuelTrialPanel key={`${previewShip.id}:${departureAt}`} route={route} ship={previewShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, previewShip)} /> : <p>船を選択すると、速力設定と石炭予測が表示されます。</p>}
+        {selectedShip?.kind === "powered" ? <UnifiedWindFuelSummary preview={numericPreview} /> : previewShip ? <FuelTrialPanel key={`${previewShip.id}:${departureAt}`} route={route} ship={previewShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, previewShip)} /> : <p>船を選択すると、速力設定と石炭予測が表示されます。</p>}
       </div></section>
       <section className="detail-tab-panel chart-tab-panel"><div className="chart-fullscreen">
-        <RouteSeaConditionTab routeId={contract.routeId} fromPortId={route.fromPortId} toPortId={route.toPortId} selectedShip={previewShip} departureAt={departureAt} estimatedArrivalAt={estimatedArrivalAt} etaLabel={etaLabel} />
+        {selectedShip?.kind === "powered" && numericPreview ? <ForecastMap key={`${selectedShip.id}:${departureAt}:${speed}`} ships={[selectedShip]} voyage={null} contract={null} currentRealTime={departureAt} preview={numericPreview} /> : <RouteSeaConditionTab routeId={contract.routeId} fromPortId={route.fromPortId} toPortId={route.toPortId} selectedShip={previewShip} departureAt={departureAt} estimatedArrivalAt={estimatedArrivalAt} etaLabel={etaLabel} />}
       </div></section>
     </div>
     <footer className="detail-footer">
       {acceptReason && <p className="accept-reason">{acceptReason}</p>}
-      <button className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`} disabled={!canAccept} onClick={() => setShowConfirmation(true)}>{selectedShipId ? "受注する" : "船を選択してください"}</button>
+      <button className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`} disabled={!canAccept} onClick={() => { setDepartureAt(Date.now()); setShowConfirmation(true); }}>{selectedShipId ? "受注する" : "船を選択してください"}</button>
       <button className="btn btn-secondary" onClick={onClose}>断る</button>
     </footer>
     {showConfirmation && selectedShip && <div className="confirmation-overlay"><div className="confirmation-modal">
@@ -156,6 +166,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
       <div className="kv"><span>船</span><span>{selectedShip.name}</span></div>
       <div className="kv"><span>設定速力</span><span>{speed}ノット</span></div>
       <div className="kv"><span>ETA</span><span>{etaLabel}</span></div>
+      {selectedShip.kind === "powered" && <p>積込後に出港し、港へ到着する時刻の予測です（荷卸し前）。閲覧用で、受注時に保存する記録ETAの変更は今回含みません。</p>}
       <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
       <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
       <div className="confirmation-actions">
