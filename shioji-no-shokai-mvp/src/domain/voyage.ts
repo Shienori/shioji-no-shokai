@@ -174,7 +174,7 @@ function progressUnloading(voyage: Voyage, contract: AcceptedContract, operation
   if (operationTime < unloadingCompletedAt) return voyage;
 
   const elapsedOperationTime = unloadingCompletedAt - voyage.loadingStartedAt;
-  const completedAtWorldTime = contract.acceptedAt + elapsedOperationTime / 6;
+  const completedAtWorldTime = contract.acceptedAt + elapsedOperationTime / GAME_TIME_MULTIPLIER;
 
   return {
     ...voyage,

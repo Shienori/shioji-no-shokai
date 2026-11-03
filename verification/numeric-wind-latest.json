@@ -1,0 +1,192 @@
+{
+  "testedCommit": "943c6648a92ffd6cd154632c28764cdc9e2df707",
+  "recordedCommit": "943c6648a92ffd6cd154632c28764cdc9e2df707",
+  "runId": 41597317966,
+  "runAttempt": "1",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41597317966",
+  "recordedAt": "2026-11-03T07:36:03.038Z",
+  "verificationConclusion": "success",
+  "installConclusion": "success",
+  "testStepConclusion": "success",
+  "buildConclusion": "success",
+  "artifactDownloadConclusion": "success",
+  "allPassed": true,
+  "suiteCount": 34,
+  "passed": 34,
+  "failed": 0,
+  "notRun": 0,
+  "suites": [
+    {
+      "name": "cargoLotUnits",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "cargoPresentation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "coalVoyageStore",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "coastalWindTimeline",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractAcceptanceStore",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractDifficultySchedule",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractIdentity",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractWindForecastSnapshot",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractWindPreview",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "fleetCargoPresentation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "lotContractAcceptance",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "mapPresentationRefactor",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "miraTrade",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "normalOfferReplenishment",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "numericWindDisplay",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "portRefuel",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "portRefuelTargets",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "requesterDisplay",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "shipDesigns",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "shipPerformance",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "shipSpeedValidationBaseline",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageMemoCargoPersistence",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageMemoSelectionBaseline",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageSpeedSelection",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageSpeedValidation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastAccuracy",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastGeneration",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastIntegration",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastMap",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastMapRendering",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastTimeline",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windNavigation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windVoyagePrediction",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "worldMapIntegration",
+      "exitCode": 0,
+      "conclusion": "passed"
+    }
+  ],
+  "buildExitCode": 0,
+  "failureExcerpts": {}
+}

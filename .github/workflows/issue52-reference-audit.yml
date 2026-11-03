@@ -1,0 +1,72 @@
+name: Issue 52 pinned reference audit
+on:
+  push:
+    branches: [feature/numeric-wind-v030]
+    paths: ['.github/workflows/issue52-reference-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8a8f79b5b3dcbedc0ddc65c8e8af4a81bd555c43
+          persist-credentials: false
+      - name: Scan tracked file paths and contents; save report only
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execFileSync } = require('node:child_process');
+            const branch = 'feature/numeric-wind-v030';
+            const scannedCommit = '8a8f79b5b3dcbedc0ddc65c8e8af4a81bd555c43';
+            if (context.ref !== `refs/heads/${branch}`) throw new Error('Unexpected branch');
+            const actual = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+            if (actual !== scannedCommit) throw new Error('Unexpected scanned commit');
+            const paths = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+            const report = {
+              scannedCommit, workflowCommit: context.sha, runId: context.runId,
+              runUrl: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              trackedFileCount: paths.length, scannedTextFileCount: 0,
+              binaryFiles: [], pathMatches: [], modalReferences: [],
+              hexMapReferences: [], dynamicLoadingCandidates: [],
+              complete: false,
+              limitation: 'Text search, not full static analysis. Review constructed paths and dynamic-loading candidates before deleting files.',
+            };
+            for (const path of paths) {
+              if (/ContractDetailModal|HexMap/i.test(path)) report.pathMatches.push(path);
+              const buffer = execFileSync('git', ['show', `${scannedCommit}:${path}`], { maxBuffer: 32 * 1024 * 1024 });
+              if (buffer.includes(0)) { report.binaryFiles.push(path); continue; }
+              report.scannedTextFileCount++;
+              const lines = buffer.toString('utf8').split(/\r?\n/);
+              lines.forEach((text, index) => {
+                const hit = { path, line: index + 1, text };
+                if (/ContractDetailModal/i.test(text)) report.modalReferences.push(hit);
+                if (/HexMap/i.test(text)) report.hexMapReferences.push(hit);
+                if (/\bimport\s*\(|\brequire\s*\(|import\.meta\.glob/.test(text)) report.dynamicLoadingCandidates.push(hit);
+              });
+            }
+            report.complete = report.scannedTextFileCount + report.binaryFiles.length === report.trackedFileCount;
+            if (!report.complete) throw new Error('Incomplete scan');
+            const target = 'verification/issue52-reference-audit.json';
+            let sha;
+            try {
+              const existing = await github.rest.repos.getContent({ ...context.repo, path: target, ref: branch });
+              if (Array.isArray(existing.data) || !existing.data.sha) throw new Error('Report path is not a file');
+              sha = existing.data.sha;
+            } catch (error) { if (error.status !== 404) throw error; }
+            const head = await github.rest.git.getRef({ ...context.repo, ref: `heads/${branch}` });
+            if (head.data.object.sha !== context.sha) {
+              core.warning('Branch advanced; report not written.');
+              return;
+            }
+            await github.rest.repos.createOrUpdateFileContents({
+              ...context.repo, branch, path: target,
+              message: 'ci: record pinned issue 52 reference audit',
+              content: Buffer.from(JSON.stringify(report, null, 2) + '\n').toString('base64'),
+              ...(sha ? { sha } : {}),
+            });
+            core.info(`Scanned ${report.scannedTextFileCount} text files; ${report.modalReferences.length} modal mentions; ${report.hexMapReferences.length} HexMap mentions.`);

@@ -3,6 +3,7 @@ import "../../styles/shipDetail.css";
 import type { AcceptedContract, Ship, Voyage, VoyageMemo } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
+import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 import { getCargoPresentation, getLotCapacityForDisplay, formatCargoMeasure } from "../../domain/cargoPresentation";
 import { getMemoCargoPresentation, getVoyageMemoStatus } from "../../domain/memoCargoPresentation";
 import { getHexById } from "../../data/hexMap";
@@ -10,7 +11,7 @@ import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
 import { getSeaConditionAt } from "../../domain/seaCondition";
-import { HexMap } from "./HexMap";
+import { HexMap } from "../map/HexMap";
 import { PortRefuelPanel } from "./PortRefuelPanel";
 import { ShipDesignPanel } from "./ShipDesignPanel";
 
@@ -82,7 +83,7 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
     : null;
 
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
-  const remainingMs = remainingOperationMs / 6;
+  const remainingMs = remainingOperationMs / GAME_TIME_MULTIPLIER;
   const etaLabel = voyage?.phase === "sailing"
     ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs))
     : "-";

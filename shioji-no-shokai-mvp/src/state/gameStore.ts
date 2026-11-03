@@ -9,6 +9,7 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage, getHeavyLoadSpeedFactor, calculateArrivalLateHours } from "../domain/voyage";
 import { advanceCoalVoyage, createCoalVoyageNavigation } from "../domain/coalVoyage";
 import { isValidShipFuel } from "../domain/coalFuel";
+import { isSelectedSpeedWithinLimits } from "../domain/voyageSpeedValidation";
 import { readCargoLotSnapshot } from "../domain/lotContract";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
@@ -116,7 +117,7 @@ function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
   if (phase === "sailing") return "sailing";
   return "unloading";
 }
-function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: VoyagePhase; currentSeaHexIndex: number }, operationTime: number): string | null {
+function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: VoyagePhase; currentSeaHexIndex: number }): string | null {
   const route = getRouteById(contract.routeId);
   const startHexId = getPortHexId(route.fromPortId);
   const goalHexId = getPortHexId(route.toPortId);
@@ -130,7 +131,7 @@ function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: Voyage
 }
 function syncActiveShipPosition(state: GameState): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
-  const currentHexId = getShipCurrentHexId(state.acceptedContract, state.activeVoyage, state.operationTime);
+  const currentHexId = getShipCurrentHexId(state.acceptedContract, state.activeVoyage);
   if (!currentHexId) return state;
   let changed = false;
   const ships = state.ships.map((ship): Ship => {
@@ -140,6 +141,16 @@ function syncActiveShipPosition(state: GameState): GameState {
   });
   return changed ? { ...state, ships } : state;
 }
+function findLatestMemoIndex(
+  memos: VoyageMemo[],
+  matches: (memo: VoyageMemo) => boolean
+): number {
+  for (let index = memos.length - 1; index >= 0; index -= 1) {
+    if (matches(memos[index])) return index;
+  }
+  return -1;
+}
+
 /** Copy only a matching active contract's saved values; never regenerate historical cargo. */
 function preserveActiveMemoCargo(state: GameState): GameState {
   const contract = state.acceptedContract;
@@ -149,12 +160,10 @@ function preserveActiveMemoCargo(state: GameState): GameState {
   if (!ship || ship.activeContractId !== contract.id) return state;
   const snapshot = readCargoLotSnapshot(contract);
   if (!snapshot) return state;
-  let memoIndex = -1;
-  for (let index = state.voyageMemos.length - 1; index >= 0; index -= 1) {
-    const memo = state.voyageMemos[index];
-    if (memo.contractId === contract.id && memo.shipId === ship.id && memo.acceptedAt === contract.acceptedAt &&
-        memo.settlement === null && !memo.fuelDepletionReturn) { memoIndex = index; break; }
-  }
+  const memoIndex = findLatestMemoIndex(state.voyageMemos, (memo) =>
+    memo.contractId === contract.id && memo.shipId === ship.id && memo.acceptedAt === contract.acceptedAt &&
+    memo.settlement === null && !memo.fuelDepletionReturn
+  );
   if (memoIndex < 0 || Object.prototype.hasOwnProperty.call(state.voyageMemos[memoIndex], "cargoLotSnapshot")) return state;
   return {
     ...state,
@@ -177,11 +186,11 @@ function progressVoyageIfActive(state: GameState, currentRealTime: number): Game
   }
   let ship = state.ships.find((item) => item.id === voyage.shipId);
   if (!ship || ship.activeContractId !== contract.id || voyage.contractId !== contract.id) throw new Error("Invalid coal voyage references");
-  let memoIndex = -1;
-  for (let index = state.voyageMemos.length - 1; index >= 0; index -= 1) {
-    const memo = state.voyageMemos[index];
-    if (memo.contractId === contract.id && memo.shipId === ship.id && memo.settlement === null && !memo.fuelDepletionReturn) { memoIndex = index; break; }
-  }
+  const memoShipId = ship.id;
+  const memoIndex = findLatestMemoIndex(state.voyageMemos, (memo) =>
+    memo.contractId === contract.id && memo.shipId === memoShipId &&
+    memo.settlement === null && !memo.fuelDepletionReturn
+  );
   if (memoIndex < 0) throw new Error("Missing active coal voyage memo");
   if (voyage.phase === "loading" && state.operationTime >= voyage.loadingCompletedAt && currentRealTime >= voyage.departedRealTime) {
     voyage = { ...voyage, phase: "sailing", departedAt: voyage.loadingCompletedAt };
@@ -295,8 +304,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!ship) return;
     const speed = selectedSpeedKnots === undefined ? ship.cruisingSpeedKnots : selectedSpeedKnots;
     if (!Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
-        !Number.isSafeInteger(ship.maxSpeedKnots) || !Number.isSafeInteger(speed) ||
-        speed < ship.cruisingSpeedKnots || speed > ship.maxSpeedKnots ||
+        !Number.isSafeInteger(ship.maxSpeedKnots) ||
+        !isSelectedSpeedWithinLimits(ship, speed) ||
         (ship.kind !== "powered" && speed !== ship.cruisingSpeedKnots)) return;
     const acceptance = evaluateContractAcceptance(template, ship, current, currentRealTime, offeredContract?.id);
     if (!acceptance.canAccept) return;
@@ -352,11 +361,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updatedReputations = ensureMiraReputation(current.reputations).map((reputation) => reputation.shipperId === contract.shipperId ? {
       ...reputation, value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange))
     } : reputation);
-    let memoIndex = -1;
-    for (let index = current.voyageMemos.length - 1; index >= 0; index -= 1) {
-      const memo = current.voyageMemos[index];
-      if (memo.contractId === contract.id && memo.settlement === null) { memoIndex = index; break; }
-    }
+    const memoIndex = findLatestMemoIndex(current.voyageMemos, (memo) =>
+      memo.contractId === contract.id && memo.settlement === null
+    );
     const voyageMemos = current.voyageMemos.map((memo, index) => {
       if (index !== memoIndex || voyage.arrivedAt === null) return memo;
       const actualArrivalRealTime = contract.acceptedAt + (voyage.arrivedAt - memo.acceptedOperationTime) / GAME_TIME_MULTIPLIER;
