@@ -9,6 +9,7 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage, getHeavyLoadSpeedFactor, calculateArrivalLateHours } from "../domain/voyage";
 import { advanceCoalVoyage, createCoalVoyageNavigation } from "../domain/coalVoyage";
 import { isValidShipFuel } from "../domain/coalFuel";
+import { isSelectedSpeedWithinLimits } from "../domain/voyageSpeedValidation";
 import { readCargoLotSnapshot } from "../domain/lotContract";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
@@ -295,8 +296,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!ship) return;
     const speed = selectedSpeedKnots === undefined ? ship.cruisingSpeedKnots : selectedSpeedKnots;
     if (!Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
-        !Number.isSafeInteger(ship.maxSpeedKnots) || !Number.isSafeInteger(speed) ||
-        speed < ship.cruisingSpeedKnots || speed > ship.maxSpeedKnots ||
+        !Number.isSafeInteger(ship.maxSpeedKnots) ||
+        !isSelectedSpeedWithinLimits(ship, speed) ||
         (ship.kind !== "powered" && speed !== ship.cruisingSpeedKnots)) return;
     const acceptance = evaluateContractAcceptance(template, ship, current, currentRealTime, offeredContract?.id);
     if (!acceptance.canAccept) return;
