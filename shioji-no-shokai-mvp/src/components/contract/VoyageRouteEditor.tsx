@@ -8,7 +8,7 @@ import type { ConfirmedVoyageRoute, VoyagePlanRouteDraft } from "../../domain/vo
 import { getMapCenter, getMapViewBox, MAP_HEX_SIZE } from "../map/mapGeometry";
 import { MAP_COLORS } from "../map/HexMap";
 
-interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean, route: ConfirmedVoyageRoute) => void; }
+interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean, route: ConfirmedVoyageRoute) => void; acceptanceEnabled?: boolean; }
 const initialDraft = (): VoyagePlanRouteDraft => ({ stops: [], legs: [{ waypointHexIds: [] }] });
 const cells = new Map(hexMap.map(hex => [hex.id, hex]));
 const points = (q: number, r: number) => {
@@ -18,7 +18,7 @@ const points = (q: number, r: number) => {
     return `${center.x + MAP_HEX_SIZE * Math.cos(angle)},${center.y + MAP_HEX_SIZE * Math.sin(angle)}`;
   }).join(" ");
 };
-export function VoyageRouteEditor({ departurePortId, destinationPortId, onEditedChange }: Props) {
+export function VoyageRouteEditor({ departurePortId, destinationPortId, onEditedChange, acceptanceEnabled = false }: Props) {
   const [history, setHistory] = useState<VoyagePlanRouteDraft[]>([initialDraft()]);
   const draft = history[history.length - 1];
   const endpoints = useMemo(() => ({ departurePortId, destinationPortId }), [departurePortId, destinationPortId]);
@@ -107,9 +107,9 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
   if (!result.ok) return <p role="alert">{result.message}</p>;
   const displayed = preview?.ok ? preview.route : result.route;
   return <section className="card detail-card" aria-label="航路編集">
-    <h3>航海計画1：ルート編集（試用）</h3>
+    <h3>{acceptanceEnabled ? "航海計画1：ルート編集" : "航海計画1：ルート編集（試用）"}</h3>
     <p>海をタップして通過地点を追加、青い丸をドラッグして移動。港をタップして途中寄港を指定します。</p>
-    <p>編集結果の受注・保存はまだ未接続です。変更中は受注できません。「最短ルートへ戻す」で従来の受注に戻せます。</p>
+    {acceptanceEnabled ? <p>編集した航路は最終確認へ引き継ぎます。受注を確定するまでは保存・燃料消費を行いません。</p> : <p>編集結果の受注・保存はまだ未接続です。変更中は受注できません。「最短ルートへ戻す」で従来の受注に戻せます。</p>}
     <label>編集する区間 <select value={activeSection} onChange={event => setSectionIndex(Number(event.target.value))}>
       {result.route.sections.map((section, index) => <option key={index} value={index}>{index + 1}. {getPortById(section.fromPortId).name} → {getPortById(section.toPortId).name}</option>)}
     </select></label>

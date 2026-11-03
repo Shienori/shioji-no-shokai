@@ -4,6 +4,8 @@ import { AppHeader } from "../components/layout/AppHeader";
 import { TabBar } from "../components/layout/TabBar";
 import { ContractBoard } from "../components/contract/ContractBoard";
 import { ContractDetailScreen } from "../components/contract/ContractDetailScreen";
+import { PlannedContractDetailScreen } from "../components/contract/PlannedContractDetailScreen";
+import type { ConfirmedPlanReview } from "../domain/confirmedPlanReview";
 import { WorldMapTab } from "../components/map/WorldMapTab";
 import { FleetPanel } from "../components/fleet/FleetPanel";
 import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
@@ -45,18 +47,22 @@ export function MainPage() {
   const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
   const settlementResult = shouldShowSettlement && gameState.acceptedContract ? settleContract(gameState.acceptedContract, voyage!) : null;
-  const handleAccept = (selectionId: string, shipId: string, selectedSpeedKnots: number) => {
+  const handleAccept = (selectionId: string, shipId: string, selectedSpeedKnots: number, review?: ConfirmedPlanReview) => {
     const before = useGameStore.getState().gameState;
     if (before.selectedPortId !== selectedPortId) { selectContract(null); return; }
-    acceptContract(selectionId, shipId, selectedSpeedKnots);
+    const result = acceptContract(selectionId, shipId, selectedSpeedKnots, review);
+    if (result?.kind === "reviewRequired") return result;
     const after = useGameStore.getState().gameState;
     if (after.acceptedContract === before.acceptedContract || after.activeVoyage === before.activeVoyage) return;
     selectContract(null);
     selectShip(null);
     setActiveTab("fleet");
+    return result;
   };
   if (selectedContract && selectedContractId !== null) return <div className="phone">
-    <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
+    {gameState.ships.length > 0 && gameState.ships.every(ship => ship.kind === "powered")
+      ? <PlannedContractDetailScreen key={selectedContractId} offerId={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed, review) => handleAccept(selectedContractId, shipId, speed, review)} onClose={() => selectContract(null)} />
+      : <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />}
   </div>;
   if (selectedShip) return <div className="phone">
     <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />

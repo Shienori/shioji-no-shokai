@@ -16,6 +16,8 @@ export interface ConfirmedPlanReview {
   route: ConfirmedVoyageRoute;
   prediction: VoyagePlanPrediction;
   signature: string;
+  contract: ContractTemplate;
+  ship: Ship;
 }
 export type PlanAcceptanceResult = { kind: "accepted" } | { kind: "reviewRequired"; review: ConfirmedPlanReview };
 /** Snapshot for confirmation, not an authorization token. Store always rechecks live conditions.
@@ -42,5 +44,6 @@ export function createConfirmedPlanReview(
     totalRequiredFuelTons: prediction.totalRequiredFuelTons, finalFuelTons: prediction.finalFuelTons,
     assessments: prediction.sections.map(section => section.fuelAssessment) });
   return { offerId, templateId: contract.id, shipId: ship.id, selectedSpeedKnots, baseRealTime, deadlineAt,
-    route: ownedRoute, prediction, signature };
+    route: ownedRoute, prediction, signature, contract: { ...contract },
+    ship: { ...ship, ...(ship.fuel ? { fuel: { ...ship.fuel } } : {}) } };
 }
