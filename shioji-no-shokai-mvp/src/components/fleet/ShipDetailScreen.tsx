@@ -11,7 +11,7 @@ import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getRouteHexIds } from "../../domain/routePath";
 import { getSeaConditionAt } from "../../domain/seaCondition";
-import { HexMap } from "./HexMap";
+import { HexMap } from "../map/HexMap";
 import { PortRefuelPanel } from "./PortRefuelPanel";
 import { ShipDesignPanel } from "./ShipDesignPanel";
 
