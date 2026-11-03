@@ -19,6 +19,7 @@ import { UnifiedWindFuelSummary } from "./UnifiedWindFuelSummary";
 import { CapacityGauge } from "./CapacityGauge";
 import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
 import { FuelTrialPanel } from "./FuelTrialPanel";
+import { VoyageRouteEditor } from "./VoyageRouteEditor";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -43,6 +44,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   const [selectedSpeedKnots, setSelectedSpeedKnots] = useState<number | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [hasEditedRoute, setHasEditedRoute] = useState(false);
   const [departureAt, setDepartureAt] = useState(() => Date.now());
   const route = contract ? getRouteById(contract.routeId) : null;
   const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
@@ -77,8 +79,9 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const validSpeed = selectedShip !== null && speed !== undefined &&
     isSelectedSpeedWithinLimits(selectedShip, speed) &&
     (selectedShip.kind === "powered" || speed === selectedShip.cruisingSpeedKnots);
-  const canAccept = eligibleShips.some((ship) => ship.id === selectedShipId) && validSpeed;
+  const canAccept = !hasEditedRoute && eligibleShips.some((ship) => ship.id === selectedShipId) && validSpeed;
   const getSuitability = (ship: Ship) => {
+    if (hasEditedRoute) return { label: "編集航路の試算は未接続", color: "#64748b", background: "#f1f5f9" };
     if (!eligibleShips.some((item) => item.id === ship.id)) {
       return { label: "受注不可", color: "#64748b", background: "#f1f5f9" };
     }
@@ -106,7 +109,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
         <div className="kv"><span>貨物</span><span>{display.label}</span></div>
         <div className="kv"><span>荷姿</span><span>{display.packagingLabel}</span></div>
         <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
-        <div className="kv"><span>距離</span><span>{route.distance}海里</span></div>
+        <div className="kv"><span>最短距離</span><span>{route.distance}海里</span></div>
         <div className="requirement-grid">
           <div className="requirement-item"><span className="requirement-label">必要貨物容積</span><span className="requirement-value">{display.volumeLabel}</span></div>
           <div className="requirement-item"><span className="requirement-label">必要貨物重量</span><span className="requirement-value">{display.weightLabel}</span></div>
@@ -118,6 +121,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
         </div>
         <div className="kv"><span>経費</span><span>-{expense}G</span></div>
       </div></section>
+      <VoyageRouteEditor departurePortId={route.fromPortId} destinationPortId={route.toPortId} onEditedChange={setHasEditedRoute} />
       <section className="detail-tab-panel"><div className="card detail-card ship-select-card">
         <h3>船</h3>
         <div className="ship-select-list">{ships.map((ship) => {
@@ -146,18 +150,19 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
           <p style={{ fontSize: 12, lineHeight: 1.6 }}>巡航{selectedShip.cruisingSpeedKnots}〜連続最大{selectedShip.maxSpeedKnots}ノットを1ノット刻みで選択します。速力を上げると毎時の石炭消費が増えます。受注確定後は今回の航海設定として固定します。</p>
           <button type="button" onClick={() => { setDepartureAt(Date.now()); setShowConfirmation(false); }}>予報・試算を更新</button>
         </div>}
-        {selectedShip?.kind === "powered" ? <UnifiedWindFuelSummary preview={numericPreview} /> : previewShip ? <FuelTrialPanel key={`${previewShip.id}:${departureAt}`} route={route} ship={previewShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, previewShip)} /> : <p>船を選択すると、速力設定と石炭予測が表示されます。</p>}
+        {hasEditedRoute ? <p>編集航路のETA・燃料試算への接続は次の実装です。元ルートの試算は非表示にしています。</p> : selectedShip?.kind === "powered" ? <UnifiedWindFuelSummary preview={numericPreview} /> : previewShip ? <FuelTrialPanel key={`${previewShip.id}:${departureAt}`} route={route} ship={previewShip} departureAt={departureAt} loadSpeedFactor={getHeavyLoadSpeedFactor(contract, previewShip)} /> : <p>船を選択すると、速力設定と石炭予測が表示されます。</p>}
       </div></section>
-      <section className="detail-tab-panel chart-tab-panel"><div className="chart-fullscreen">
+      {!hasEditedRoute && <section className="detail-tab-panel chart-tab-panel"><div className="chart-fullscreen">
         {selectedShip?.kind === "powered" && numericPreview ? <ForecastMap key={`${selectedShip.id}:${departureAt}:${speed}`} ships={[selectedShip]} voyage={null} contract={null} currentRealTime={departureAt} preview={numericPreview} /> : <RouteSeaConditionTab routeId={contract.routeId} fromPortId={route.fromPortId} toPortId={route.toPortId} selectedShip={previewShip} departureAt={departureAt} estimatedArrivalAt={estimatedArrivalAt} etaLabel={etaLabel} />}
-      </div></section>
+      </div></section>}
     </div>
     <footer className="detail-footer">
+      {hasEditedRoute && <p role="status">航路編集の試用中です。編集航路での受注はまだできません。</p>}
       {acceptReason && <p className="accept-reason">{acceptReason}</p>}
-      <button className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`} disabled={!canAccept} onClick={() => { setDepartureAt(Date.now()); setShowConfirmation(true); }}>{selectedShipId ? "受注する" : "船を選択してください"}</button>
+      <button className={`btn ${canAccept ? "btn-primary" : "btn-secondary"}`} disabled={!canAccept} onClick={() => { setDepartureAt(Date.now()); setShowConfirmation(true); }}>{hasEditedRoute ? "編集航路の受注は未接続" : selectedShipId ? "受注する" : "船を選択してください"}</button>
       <button className="btn btn-secondary" onClick={onClose}>断る</button>
     </footer>
-    {showConfirmation && selectedShip && <div className="confirmation-overlay"><div className="confirmation-modal">
+    {showConfirmation && !hasEditedRoute && selectedShip && <div className="confirmation-overlay"><div className="confirmation-modal">
       <h3>受注内容の確認</h3>
       <div className="kv"><span>依頼主</span><span>{requesterName}</span></div>
       <div className="kv"><span>貨物</span><span>{display.label}</span></div>
