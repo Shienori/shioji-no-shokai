@@ -1,19 +1,19 @@
 {
-  "testedCommit": "5cc98f8f99635dbb9a1df39a70ab33541292180c",
-  "recordedCommit": "5cc98f8f99635dbb9a1df39a70ab33541292180c",
-  "runId": 41559184190,
+  "testedCommit": "208d270745f3b540d45b2c737fc811c886f5ea09",
+  "recordedCommit": "208d270745f3b540d45b2c737fc811c886f5ea09",
+  "runId": 41560360651,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41559184190",
-  "recordedAt": "2026-11-03T01:21:57.738Z",
-  "verificationConclusion": "failure",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41560360651",
+  "recordedAt": "2026-11-03T01:32:45.114Z",
+  "verificationConclusion": "success",
   "installConclusion": "success",
-  "testStepConclusion": "failure",
+  "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
-  "allPassed": false,
+  "allPassed": true,
   "suiteCount": 24,
-  "passed": 22,
-  "failed": 2,
+  "passed": 24,
+  "failed": 0,
   "notRun": 0,
   "suites": [
     {
@@ -63,8 +63,8 @@
     },
     {
       "name": "lotContractAcceptance",
-      "exitCode": 1,
-      "conclusion": "failed"
+      "exitCode": 0,
+      "conclusion": "passed"
     },
     {
       "name": "miraTrade",
@@ -73,8 +73,8 @@
     },
     {
       "name": "normalOfferReplenishment",
-      "exitCode": 1,
-      "conclusion": "failed"
+      "exitCode": 0,
+      "conclusion": "passed"
     },
     {
       "name": "portRefuel",
@@ -138,8 +138,5 @@
     }
   ],
   "buildExitCode": 0,
-  "failureExcerpts": {
-    "lotContractAcceptance": "/home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/src/state/gameStore.ts:148\n  if (!ship || ship.activeContractId !== contract.id || voyage.contractId !== contract.id) throw new Error(\"Invalid coal voyage references\");\n                                                                                                 ^\n\nError: Invalid coal voyage references\n    at progressVoyageIfActive (/home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/src/state/gameStore.ts:148:98)\n    at Object.tick (/home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/src/state/gameStore.ts:264:14)\n    at file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/lotContractAcceptance.test.mjs:74:20\n\nNode.js v24.22.1\n",
-    "normalOfferReplenishment": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: fixture must be accepted\n    at acceptAndCheck (file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/normalOfferReplenishment.test.mjs:49:12)\n    at file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/normalOfferReplenishment.test.mjs:65:5 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.22.1\n"
-  }
+  "failureExcerpts": {}
 }
