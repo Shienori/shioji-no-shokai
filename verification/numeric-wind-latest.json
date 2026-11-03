@@ -1,18 +1,18 @@
 {
-  "testedCommit": "245cb8e1fa479596f9c5094ce023d60669073037",
-  "recordedCommit": "245cb8e1fa479596f9c5094ce023d60669073037",
-  "runId": 41594241822,
+  "testedCommit": "3d17fab3f5b3f6ff178119c9e3b91721de77ca6c",
+  "recordedCommit": "3d17fab3f5b3f6ff178119c9e3b91721de77ca6c",
+  "runId": 41594781114,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41594241822",
-  "recordedAt": "2026-11-03T07:08:27.863Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41594781114",
+  "recordedAt": "2026-11-03T07:13:14.505Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 32,
-  "passed": 32,
+  "suiteCount": 33,
+  "passed": 33,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -128,6 +128,11 @@
     },
     {
       "name": "voyageSpeedSelection",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageSpeedValidation",
       "exitCode": 0,
       "conclusion": "passed"
     },
