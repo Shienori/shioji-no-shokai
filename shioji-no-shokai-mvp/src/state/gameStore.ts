@@ -9,6 +9,7 @@ import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage, getHeavyLoadSpeedFactor, calculateArrivalLateHours } from "../domain/voyage";
 import { advanceCoalVoyage, createCoalVoyageNavigation } from "../domain/coalVoyage";
 import { isValidShipFuel } from "../domain/coalFuel";
+import { readCargoLotSnapshot } from "../domain/lotContract";
 import { settleContract } from "../domain/settlement";
 import { advanceOperationTime } from "../domain/time";
 import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
@@ -139,10 +140,36 @@ function syncActiveShipPosition(state: GameState): GameState {
   });
   return changed ? { ...state, ships } : state;
 }
+/** Copy only a matching active contract's saved values; never regenerate historical cargo. */
+function preserveActiveMemoCargo(state: GameState): GameState {
+  const contract = state.acceptedContract;
+  const voyage = state.activeVoyage;
+  if (!contract || !voyage || voyage.contractId !== contract.id) return state;
+  const ship = state.ships.find(item => item.id === voyage.shipId);
+  if (!ship || ship.activeContractId !== contract.id) return state;
+  const snapshot = readCargoLotSnapshot(contract);
+  if (!snapshot) return state;
+  let memoIndex = -1;
+  for (let index = state.voyageMemos.length - 1; index >= 0; index -= 1) {
+    const memo = state.voyageMemos[index];
+    if (memo.contractId === contract.id && memo.shipId === ship.id && memo.acceptedAt === contract.acceptedAt &&
+        memo.settlement === null && !memo.fuelDepletionReturn) { memoIndex = index; break; }
+  }
+  if (memoIndex < 0 || Object.prototype.hasOwnProperty.call(state.voyageMemos[memoIndex], "cargoLotSnapshot")) return state;
+  return {
+    ...state,
+    voyageMemos: state.voyageMemos.map((memo, index) => index === memoIndex ? {
+      ...memo,
+      cargoLabel: `${snapshot.cargoName} ${snapshot.quantityLots}ロット`,
+      cargoLotSnapshot: { ...snapshot },
+    } : memo),
+  };
+}
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
-  const contract = state.acceptedContract;
-  let voyage = state.activeVoyage;
+  state = preserveActiveMemoCargo(state);
+  const contract = state.acceptedContract!;
+  let voyage = state.activeVoyage!;
   if (voyage.fuelNavigation === undefined) {
     voyage = progressVoyage(voyage, contract, state.operationTime, currentRealTime);
     const ships = state.ships.map((ship) => ship.activeContractId === voyage.contractId ? { ...ship, status: getShipStatusForVoyage(voyage.phase) } : ship);
@@ -296,7 +323,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const voyageNumber = current.voyageMemos.length + 1;
     const voyageMemo: VoyageMemo = {
       voyageNumber, label: `V.${String(voyageNumber).padStart(2, "0")}`, contractId: acceptedContract.id, shipId: ship.id, shipName: ship.name,
-      routeLabel: `${getPortById(route.fromPortId).name} → ${getPortById(route.toPortId).name}`, cargoLabel: `${cargo.name} ×${template.quantity}`,
+      routeLabel: `${getPortById(route.fromPortId).name} → ${getPortById(route.toPortId).name}`,
+      cargoLabel: `${acceptedContract.cargoLotSnapshot.cargoName} ${acceptedContract.cargoLotSnapshot.quantityLots}ロット`,
+      cargoLotSnapshot: { ...acceptedContract.cargoLotSnapshot },
       acceptedAt: currentRealTime, acceptedOperationTime: current.operationTime, plannedEtaRealTime: voyage.forecastEtaRealTime,
       actualArrivalRealTime: null, etaDiffMinutes: null, settlement: null
     };
@@ -310,10 +339,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ gameState: next, selectedContractId: null });
   },
   settleContract: () => {
-    const current = get().gameState;
+    let current = get().gameState;
     const voyage = current.activeVoyage;
     const contract = current.acceptedContract;
     if (!voyage || !contract || voyage.settled || voyage.phase !== "completed") return;
+    current = preserveActiveMemoCargo(current);
     const result = settleContract(contract, voyage);
     const route = getRouteById(contract.routeId);
     const updatedShips = current.ships.map((ship) => ship.activeContractId === contract.id ? {
