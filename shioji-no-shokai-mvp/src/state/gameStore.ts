@@ -8,6 +8,7 @@ import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage, getHeavyLoadSpeedFactor, calculateArrivalLateHours } from "../domain/voyage";
 import { advanceCoalVoyage, createCoalVoyageNavigation } from "../domain/coalVoyage";
+import { progressConfirmedPlanLifecycle } from "../domain/confirmedPlanLifecycle";
 import { isValidShipFuel } from "../domain/coalFuel";
 import { isSelectedSpeedWithinLimits } from "../domain/voyageSpeedValidation";
 import { readCargoLotSnapshot } from "../domain/lotContract";
@@ -131,6 +132,8 @@ function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: Voyage
 }
 function syncActiveShipPosition(state: GameState): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
+  // Planned navigation already supplies the position on its confirmed route.
+  if (state.activeVoyage.plannedNavigation !== undefined) return state;
   const currentHexId = getShipCurrentHexId(state.acceptedContract, state.activeVoyage);
   if (!currentHexId) return state;
   let changed = false;
@@ -175,6 +178,10 @@ function preserveActiveMemoCargo(state: GameState): GameState {
   };
 }
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
+  // Presence selects the new path; malformed or orphaned plans must fail, not fall back.
+  if (state.activeVoyage?.plannedNavigation !== undefined) {
+    return progressConfirmedPlanLifecycle(preserveActiveMemoCargo(state), currentRealTime);
+  }
   if (!state.activeVoyage || !state.acceptedContract) return state;
   state = preserveActiveMemoCargo(state);
   const contract = state.acceptedContract!;
@@ -280,7 +287,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       operationTime: current.activeVoyage ? advanceOperationTime(current.operationTime, current.lastRealTimeSyncedAt, currentRealTime) : current.operationTime,
       lastRealTimeSyncedAt: currentRealTime
     };
-    if (next.activeVoyage && next.acceptedContract) { next = progressVoyageIfActive(next, currentRealTime); next = syncActiveShipPosition(next); }
+    if (next.activeVoyage && (next.acceptedContract || next.activeVoyage.plannedNavigation !== undefined)) { next = progressVoyageIfActive(next, currentRealTime); next = syncActiveShipPosition(next); }
     next = refreshContractsIfDue(next, currentRealTime);
     saveGame(next);
     set({ gameState: next });
