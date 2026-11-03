@@ -7,15 +7,11 @@ import { getContractPreviewMapPrediction, formatContractPreviewEta } from "../..
 import { getNumericWindRows, NumericWindMarkers, NumericWindTable } from "./NumericWindDisplay";
 import { worldMap } from "../../data/worldMap";
 import { HexMap } from "./HexMap";
+import { getMapCenter as center, getMapViewBox } from "./mapGeometry";
 
 interface Props { ships: Ship[]; voyage: Voyage | null; contract: AcceptedContract | null; currentRealTime: number; preview?: ContractWindPreview; }
-const SIZE = 26;
-const center = ({ q, r }: { q: number; r: number }) => ({ x: Math.sqrt(3) * SIZE * (q + r / 2), y: -1.5 * SIZE * r });
 const centers = worldMap.terrain.map(center);
-const padding = SIZE + 48;
-const minX = Math.min(...centers.map(p => p.x)) - padding;
-const minY = Math.min(...centers.map(p => p.y)) - padding;
-const viewBox = `${minX} ${minY} ${Math.max(...centers.map(p => p.x)) + padding - minX} ${Math.max(...centers.map(p => p.y)) + padding - minY}`;
+const viewBox = getMapViewBox(centers);
 const STATUS: Record<PredictedPositionStatus, string> = { notDeparted: "出港前", sailing: "航行予測", arrived: "到着予測", fuelDepleted: "燃料切れ予測（停止地点）", forecastUnavailable: "指定時刻の船位は予測できません" };
 const ISSUE: Record<PredictionIssue, string> = { missingForecast: "保存予報がありません。", invalidForecast: "保存予報が不正です。", routeMismatch: "保存予報と航路が一致しません。", outsideForecast: "現在の航海位置は保存予報の対象期間外です。", forecastHorizon: "保存予報の期間内に到着を予測できません。", insufficientFuel: "到着までに燃料切れとなる予測です。", windUnavailable: "必要な時刻の保存予報がありません。" };
 const formatTime = (time: number) => new Date(time).toLocaleString("ja-JP", { hour12: false });

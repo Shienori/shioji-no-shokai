@@ -1,36 +1,14 @@
-import type { Wind } from "../../domain/coastalWind";
-import type { ContractWindForecastSnapshot } from "../../domain/contractWindForecast";
-import { getSavedWindForecastAt } from "../../domain/contractWindForecast";
-import { buildRouteWindLegs } from "../../domain/routeWind";
-import { calculateWindSpeedFactor } from "../../domain/shipPerformance";
-import { getHexById } from "../../data/hexMap";
 import { worldMap } from "../../data/worldMap";
 import { HexMap } from "./HexMap";
+import type { WindRows } from "./numericWindPresentation";
+import { getMapCenter as center, getMapViewBox } from "./mapGeometry";
 
-export const WIND_IMPACT_COLORS = { positive: "#15803d", negative: "#b91c1c", neutral: "#475569" } as const;
-const DIRECTIONS = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"];
-export function describeNumericWind(wind: Wind, headingDeg: number, assessSpeed = true) {
-  const factor = calculateWindSpeedFactor(headingDeg, wind);
-  const delta = assessSpeed ? (factor - 1) * 100 : null;
-  const effect = delta === null || Math.abs(delta) < 1e-12 ? "neutral" : delta > 0 ? "positive" : "negative";
-  const directionShort = wind.fromDeg === null ? "風向なし" : DIRECTIONS[Math.round(wind.fromDeg / 45) % 8];
-  const directionLabel = wind.fromDeg === null ? "風向なし" : `${directionShort}（${wind.fromDeg.toFixed(1)}°から）`;
-  const speedLabel = wind.speedMps > 0 && wind.speedMps < 0.1 ? "0.1 m/s未満" : `${wind.speedMps.toFixed(1)} m/s`;
-  const magnitude = delta === null ? 0 : Math.abs(delta);
-  const deltaLabel = delta === null ? "補正未評価" : effect === "neutral" ? "±0.00%" : `${delta > 0 ? "＋" : "−"}${magnitude < 0.01 ? "0.01%未満" : `${magnitude.toFixed(2)}%`}`;
-  return { directionShort, directionLabel, speedLabel, deltaLabel, effect, color: WIND_IMPACT_COLORS[effect], factor: assessSpeed ? factor : null };
-}
-export function getNumericWindRows(snapshot: ContractWindForecastSnapshot | null, routeHexIds: readonly string[], targetMs: number, assessSpeed = true) {
-  if (!snapshot || routeHexIds.length < 3) return [];
-  return buildRouteWindLegs(routeHexIds).flatMap(leg => {
-    const slot = getSavedWindForecastAt(snapshot, leg.hexId, Math.floor(targetMs));
-    if (!slot) return [];
-    const hex = getHexById(leg.hexId);
-    return [{ hexId: hex.id, axial: { q: hex.q, r: hex.r }, wind: slot.forecastWind, ...describeNumericWind(slot.forecastWind, leg.headingDeg, assessSpeed) }];
-  });
-}
-type WindRows = ReturnType<typeof getNumericWindRows>;
-const center = ({ q, r }: { q: number; r: number }) => ({ x: Math.sqrt(3) * 26 * (q + r / 2), y: -39 * r });
+export {
+  WIND_IMPACT_COLORS,
+  describeNumericWind,
+  getNumericWindRows,
+} from "./numericWindPresentation";
+
 export function NumericWindMarkers({ rows }: { rows: WindRows }) {
   return <g>{rows.map(row => {
     const point = center(row.axial);
@@ -53,10 +31,7 @@ export function NumericWindTable({ rows }: { rows: WindRows }) {
   </div>;
 }
 const points = worldMap.terrain.map(center);
-const padding = 74;
-const minX = Math.min(...points.map(p => p.x)) - padding;
-const minY = Math.min(...points.map(p => p.y)) - padding;
-const viewBox = `${minX} ${minY} ${Math.max(...points.map(p => p.x)) + padding - minX} ${Math.max(...points.map(p => p.y)) + padding - minY}`;
+const viewBox = getMapViewBox(points);
 export function NumericWindRouteMap({ rows, routeHexIds, ships, currentHexId }: { rows: WindRows; routeHexIds: string[]; ships: { name: string; hexId: string }[]; currentHexId?: string }) {
   return <div style={{ overflow: "auto", maxHeight: "65vh" }}><div style={{ width: 600, position: "relative" }}>
     <HexMap routeHexIds={routeHexIds} ships={ships} currentHexId={currentHexId} ariaLabel="数値風予報の航路海図" />

@@ -49,7 +49,7 @@ const readCurrentModelWind: WindNavigationInput["readWind"] = (hexId, realTime) 
 };
 
 /**
- * Explicit consumption adapter, not called by the store yet.
+ * Actual-wind consumption adapter called by the store during sailing.
  * Legacy voyages, loading, unloading and completed voyages consume nothing here.
  * The default source is actual wind, never a forecast. The optional reader is
  * for deterministic tests or a compatible actual-wind backend.

@@ -2,6 +2,11 @@ import { worldMap } from "../../data/worldMap";
 import { hexMap } from "../../data/hexMap";
 import { getPortById } from "../../data/ports";
 import type { SeaCondition } from "../../domain/hexMap";
+import {
+  MAP_HEX_SIZE,
+  getMapCenter as getCenter,
+  getMapViewBox,
+} from "./mapGeometry";
 
 interface ShipMarker { name: string; hexId: string; }
 interface HexMapProps {
@@ -21,25 +26,15 @@ const CONDITION_MARKERS: Record<SeaCondition, { color: string; icon: string; lab
   followingWind: { color: "#BBF7D0", icon: "➤", label: "追風" },
   headwind: { color: "#FECACA", icon: "⇦", label: "向かい風" },
 };
-const HEX_SIZE = 26;
-const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-function getCenter(hex: { q: number; r: number }) {
-  return { x: HEX_WIDTH * (hex.q + hex.r / 2), y: -1.5 * HEX_SIZE * hex.r };
-}
 function getPoints(center: { x: number; y: number }) {
   return Array.from({ length: 6 }, (_, index) => {
     const angle = ((60 * index - 30) * Math.PI) / 180;
-    return [center.x + HEX_SIZE * Math.cos(angle), center.y + HEX_SIZE * Math.sin(angle)].join(",");
+    return [center.x + MAP_HEX_SIZE * Math.cos(angle), center.y + MAP_HEX_SIZE * Math.sin(angle)].join(",");
   }).join(" ");
 }
 export function HexMap({ ships = [], routeHexIds = [], currentHexId, conditions, focusHexId, ariaLabel = "海図" }: HexMapProps) {
   const cells = worldMap.terrain.map((cell) => ({ cell, center: getCenter(cell) }));
   if (cells.length === 0) return <p>海図データがありません。</p>;
-  const padding = HEX_SIZE + 48;
-  const minX = Math.min(...cells.map(({ center }) => center.x)) - padding;
-  const maxX = Math.max(...cells.map(({ center }) => center.x)) + padding;
-  const minY = Math.min(...cells.map(({ center }) => center.y)) - padding;
-  const maxY = Math.max(...cells.map(({ center }) => center.y)) + padding;
   const byId = new Map(hexMap.map((hex) => [hex.id, hex]));
   const portHexes = hexMap.filter((hex) => hex.kind === "port");
   const routeCenters = routeHexIds.flatMap((id) => {
@@ -51,7 +46,7 @@ export function HexMap({ ships = [], routeHexIds = [], currentHexId, conditions,
   const focusCenter = focusHex ? getCenter(focusHex) : null;
   const viewBox = focusCenter
     ? `${focusCenter.x - 120} ${focusCenter.y - 100} 240 200`
-    : `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+    : getMapViewBox(cells.map(({ center }) => center));
   return (
     <div style={{ width: "100%", overflowX: "auto", borderRadius: 12, background: MAP_COLORS.sea }}>
       <svg viewBox={viewBox} role="img" aria-label={ariaLabel} style={{ display: "block", width: "100%", minWidth: focusCenter ? undefined : 600, height: "auto" }}>

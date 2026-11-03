@@ -47,7 +47,7 @@ export function FuelTrialPanel({ route, ship, departureAt, loadSpeedFactor }: Pr
       <div className="kv"><span>最大石炭搭載量</span><span>{tons(fuel.capacityTons)}</span></div>
       <div className="kv"><span>{fuel.referenceSpeedKnots}ノット時の基準消費</span><span>{tons(fuel.referenceConsumptionTonsPerVoyageHour)}／航海1時間</span></div>
     </> : <p role="alert">この船の燃料データが未設定または不正なため、石炭予測は利用できません。残量を自動補充して計算することはありません。</p>}
-    <p style={{ fontSize: 12, lineHeight: 1.6 }}>船選択時刻に即時出港する仮定です。積込・荷卸時間は含めず、予報が外れると実際の消費は変わります。燃料の実消費・無料復帰の定期更新接続は実装中です。地図・既存の受注確認ETAはまだ旧方式なので、この予測と一致するとは限りません。</p>
+    <p style={{ fontSize: 12, lineHeight: 1.6 }}>この従来表示では、渡された試算開始時刻に即時出港する仮定で計算し、積込・荷卸時間は含めません。動力船の受注前表示は別の共通予測を使用し、積込後の出港時刻を反映します。実航行の燃料対応航海では、実際の風による燃料消費と、燃料切れ時の契約終了・出発港への無料復帰・燃料補充が実装されています。この欄の予測表示自体は船・燃料・所持金を変更しません。</p>
     {source.ok && <p style={{ fontSize: 12 }}>予報発行：{formatDateTime(source.snapshot.issuedAt)}（閲覧用。受注時の保存予報は受注時点で別に確定します）</p>}
     <div aria-live="polite" aria-atomic="true">
       {!fuel ? null : !source.ok ? <p>航路または予報を準備できませんでした。</p> :
