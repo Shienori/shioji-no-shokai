@@ -25,6 +25,7 @@ import type { RouteSeaForecast } from "./seaCondition";
 import type { ContractWindForecastSnapshot } from "./contractWindForecast";
 import type { RouteWindLeg } from "./routeWind";
 import type { CargoLotSnapshot } from "./cargoLotUnits";
+import type { PlannedVoyageState } from "./plannedVoyageState";
 
 export type FuelType = "coal";
 export type FuelTons = number;
@@ -90,7 +91,10 @@ export interface ContractRewardBreakdown { cargoValue: Gold; voyageDistanceAllow
 export interface OfferedContract { id: string; templateId: ContractId; generatedAt: RealTimeMs; deadlineAt: RealTimeMs; timeAllowanceRatio: number; }
 export interface AcceptedContract { id: ContractId; templateId: ContractId; shipperId: ShipperId; routeId: RouteId; cargoId: CargoId; quantity: number; reward: ContractRewardBreakdown; acceptedAt: RealTimeMs; deadlineAt: RealTimeMs; seaForecast?: RouteSeaForecast; windForecastSnapshot?: ContractWindForecastSnapshot; windForecastSnapshotIssue?: "invalid"; cargoLotSnapshot?: CargoLotSnapshot; }
 export interface Ship { id: ShipId; name: string; kind: ShipKind; role: ShipRole; maxCargoVolume: CargoVolume; maxCargoWeight: CargoWeight; cruisingSpeedKnots: number; maxSpeedKnots: number; engineType: string; engineOutput: string; currentPortId: PortId; currentHexId: string; status: ShipStatus; activeContractId: ContractId | null; fuel?: ShipFuelState; }
-export interface Voyage { id: string; shipId: ShipId; contractId: ContractId; phase: VoyagePhase; loadingStartedAt: OperationTimeMs; loadingCompletedAt: OperationTimeMs; departedAt: OperationTimeMs; departedRealTime: RealTimeMs; lastProcessedRealTime: RealTimeMs; currentSeaHexIndex: number; distanceIntoHexNm: number; shipSpeedKnots: number; forecastEtaRealTime: RealTimeMs; estimatedArrivalAt: OperationTimeMs; arrivalDeadlineAt: OperationTimeMs; arrivedAt: OperationTimeMs | null; arrivalLateHours: number; isOnTime: boolean; unloadingStartedAt: OperationTimeMs | null; unloadingCompletedAt: OperationTimeMs | null; completedAtWorldTime: RealTimeMs | null; settled: boolean; fuelNavigation?: VoyageFuelNavigation; }
+export interface Voyage { id: string; shipId: ShipId; contractId: ContractId; phase: VoyagePhase; loadingStartedAt: OperationTimeMs; loadingCompletedAt: OperationTimeMs; departedAt: OperationTimeMs; departedRealTime: RealTimeMs; lastProcessedRealTime: RealTimeMs; currentSeaHexIndex: number; distanceIntoHexNm: number; shipSpeedKnots: number; forecastEtaRealTime: RealTimeMs; estimatedArrivalAt: OperationTimeMs; arrivalDeadlineAt: OperationTimeMs; arrivedAt: OperationTimeMs | null; arrivalLateHours: number; isOnTime: boolean; unloadingStartedAt: OperationTimeMs | null; unloadingCompletedAt: OperationTimeMs | null; completedAtWorldTime: RealTimeMs | null; settled: boolean; fuelNavigation?: VoyageFuelNavigation;
+  /** New voyages only. Missing means legacy; invalid present data must not fall back. */
+  plannedNavigation?: PlannedVoyageState;
+}
 export interface VoyageMemoSettlement { offeredReward: Gold; latePenalty: Gold; receivedReward: Gold; expense: Gold; guaranteeAmount: Gold; finalPayout: Gold; }
 /** cargoLotSnapshot is an independent copy; absence is not permission to reconstruct old cargo. */
 export interface VoyageMemo { voyageNumber: number; label: string; contractId: ContractId; shipId: ShipId; shipName: string; routeLabel: string; cargoLabel: string; acceptedAt: RealTimeMs; acceptedOperationTime: OperationTimeMs; plannedEtaRealTime: RealTimeMs; actualArrivalRealTime: RealTimeMs | null; etaDiffMinutes: number | null; settlement: VoyageMemoSettlement | null; fuelConsumedTons?: FuelTons; fuelDepletionReturn?: FuelDepletionReturn; cargoLotSnapshot?: CargoLotSnapshot; }
