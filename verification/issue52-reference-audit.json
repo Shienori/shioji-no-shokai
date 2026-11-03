@@ -1,0 +1,438 @@
+{
+  "scannedCommit": "8a8f79b5b3dcbedc0ddc65c8e8af4a81bd555c43",
+  "workflowCommit": "0202b232d10a499ca094aa2ac86a9ea8a383d4c7",
+  "runId": 41591620725,
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41591620725",
+  "trackedFileCount": 139,
+  "scannedTextFileCount": 139,
+  "binaryFiles": [],
+  "pathMatches": [
+    "shioji-no-shokai-mvp/src/components/contract/ContractDetailModal.tsx",
+    "shioji-no-shokai-mvp/src/components/fleet/HexMap.tsx",
+    "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+    "shioji-no-shokai-mvp/src/data/hexMap.ts",
+    "shioji-no-shokai-mvp/src/domain/hexMap.ts"
+  ],
+  "modalReferences": [],
+  "hexMapReferences": [
+    {
+      "path": "CHANGELOG.md",
+      "line": 24,
+      "text": "- 地形・港・航路・船・海況の描画を共通HexMapへ統合。船詳細・依頼詳細でも使用。"
+    },
+    {
+      "path": "docs/coastal-wind-timeline.md",
+      "line": 12,
+      "text": "- IMPORTANT: HexMap.tsx screen y=-1.5*size*r; with screen-up=north, world north=+1.5*r. Earlier standalone draft used the opposite north sign. This commit follows the actual renderer, without rotating the map. Historical descriptive north/south labels must not override the rendered geometry."
+    },
+    {
+      "path": "docs/handoff/v0.2.4.md",
+      "line": 18,
+      "text": "- PR #42：L型沿岸・4港・関連航路・共通HexMap・世界海図の全幅表示とパン/ズーム。"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/contract/ContractDetailScreen.tsx",
+      "line": 7,
+      "text": "import { getHexById } from \"../../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/contract/RouteSeaConditionTab.tsx",
+      "line": 4,
+      "text": "import { getHexById } from \"../../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/fleet/FleetPanel.tsx",
+      "line": 5,
+      "text": "import { getHexById } from \"../../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/fleet/HexMap.tsx",
+      "line": 1,
+      "text": "export { HexMap } from \"../map/HexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/fleet/ShipDetailScreen.tsx",
+      "line": 9,
+      "text": "import { getHexById } from \"../../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/fleet/ShipDetailScreen.tsx",
+      "line": 14,
+      "text": "import { HexMap } from \"./HexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/fleet/ShipDetailScreen.tsx",
+      "line": 122,
+      "text": "          <HexMap"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/ForecastMap.tsx",
+      "line": 9,
+      "text": "import { HexMap } from \"./HexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/ForecastMap.tsx",
+      "line": 41,
+      "text": "        <HexMap ariaLabel=\"航路と実際の船の現在位置\" ships={ships.map(ship => ({ name: `${ship.name}（現在）`, hexId: ship.currentHexId }))} routeHexIds={result.routeHexIds} />"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 2,
+      "text": "import { hexMap } from \"../../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 4,
+      "text": "import type { SeaCondition } from \"../../domain/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 12,
+      "text": "interface HexMapProps {"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 35,
+      "text": "export function HexMap({ ships = [], routeHexIds = [], currentHexId, conditions, focusHexId, ariaLabel = \"海図\" }: HexMapProps) {"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 38,
+      "text": "  const byId = new Map(hexMap.map((hex) => [hex.id, hex]));"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 39,
+      "text": "  const portHexes = hexMap.filter((hex) => hex.kind === \"port\");"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/HexMap.tsx",
+      "line": 79,
+      "text": "        {hexMap.map((hex) => {"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/MapViewport.tsx",
+      "line": 2,
+      "text": "import { HexMap } from \"./HexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/MapViewport.tsx",
+      "line": 134,
+      "text": "      <div ref={contentRef} className=\"world-map-content\"><HexMap ariaLabel=\"L型沿岸と4港の世界海図\" /></div>"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/NumericWindDisplay.tsx",
+      "line": 2,
+      "text": "import { HexMap } from \"./HexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/NumericWindDisplay.tsx",
+      "line": 37,
+      "text": "    <HexMap routeHexIds={routeHexIds} ships={ships} currentHexId={currentHexId} ariaLabel=\"数値風予報の航路海図\" />"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/components/map/numericWindPresentation.ts",
+      "line": 6,
+      "text": "import { getHexById } from \"../../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/data/hexMap.ts",
+      "line": 1,
+      "text": "import type { MapHex } from \"../domain/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/data/hexMap.ts",
+      "line": 10,
+      "text": "export const hexMap: MapHex[] = ["
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/data/hexMap.ts",
+      "line": 32,
+      "text": "  const hex = hexMap.find((item) => item.id === id);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/data/hexMap.ts",
+      "line": 38,
+      "text": "  const hex = hexMap.find((item) => item.kind === \"port\" && item.portId === portId);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/coastalWind.ts",
+      "line": 24,
+      "text": "// HexMap.tsx uses screen y=-1.5*r. North is negative screen y."
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/contractWindForecast.ts",
+      "line": 4,
+      "text": "import { getHexById } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 1,
+      "text": "import { findShortestRoute, type AxialHex } from \"./hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 2,
+      "text": "import { getPortHexId, hexMap } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 5,
+      "text": "  const hex = hexMap.find((item) => item.id === hexId);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 17,
+      "text": "  const startHex = hexMap.find((hex) => hex.id === startHexId);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 18,
+      "text": "  const goalHex = hexMap.find((hex) => hex.id === goalHexId);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 25,
+      "text": "    hexMap"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routePath.ts",
+      "line": 33,
+      "text": "    const hex = hexMap.find((item) => item.q === point.q && item.r === point.r);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routeWind.ts",
+      "line": 3,
+      "text": "import { HEX_DISTANCE_NM } from \"./hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/routeWind.ts",
+      "line": 4,
+      "text": "import { getHexById } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/save.ts",
+      "line": 5,
+      "text": "import { getPortHexId } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/seaCondition.ts",
+      "line": 1,
+      "text": "import type { AxialHex, SeaCondition } from \"./hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/seaCondition.ts",
+      "line": 2,
+      "text": "import { BASE_SHIP_SPEED_KNOTS, HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from \"./hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/seaCondition.ts",
+      "line": 3,
+      "text": "import { getHexById } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/voyage.ts",
+      "line": 6,
+      "text": "import { getHexById } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/voyage.ts",
+      "line": 7,
+      "text": "import { HEX_DISTANCE_NM, seaConditionSpeedMultiplier } from \"./hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/windTimeline.ts",
+      "line": 1,
+      "text": "import { hexMap } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/windTimeline.ts",
+      "line": 22,
+      "text": "  const hex = hexMap.find(h => h.id === hexId);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/domain/windVoyagePrediction.ts",
+      "line": 5,
+      "text": "import { getHexById, getPortHexId } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/state/gameStore.ts",
+      "line": 19,
+      "text": "import { getHexById, getPortHexId } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/src/state/portRefuel.ts",
+      "line": 3,
+      "text": "import { getHexById } from \"../data/hexMap\";"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/coalVoyageStore.test.mjs",
+      "line": 23,
+      "text": "  const { getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/coastalWindTimeline.test.mjs",
+      "line": 10,
+      "text": "  const { hexMap } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/coastalWindTimeline.test.mjs",
+      "line": 43,
+      "text": "  const cells=hexMap.filter(h=>h.kind==='sea');assert.ok(cells.length>0);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/coastalWindTimeline.test.mjs",
+      "line": 84,
+      "text": "    const port=hexMap.find(h=>h.kind==='port');if(port)assert.throws(()=>t.getWindAt(port.id,boundary));"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/contractWindForecastSnapshot.test.mjs",
+      "line": 12,
+      "text": "    const {hexMap}=await load('/src/data/hexMap.ts'), {getWindForecastAt}=await load('/src/domain/windForecast.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/contractWindForecastSnapshot.test.mjs",
+      "line": 24,
+      "text": "      for(const [id,rows] of Object.entries(x.forecastsByHex)){assert.equal(hexMap.find(h=>h.id===id).kind,'sea');assert.equal(rows.length,96);for(const r of rows){assert.equal(r.issuedAt,x.issuedAt);assert.equal(r.hexId,id);assert.equal(r.modelVersion,x.forecastModelVersion);assert.ok(!('actualWind'in r)&&!('isHit'in r));}}"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/contractWindForecastSnapshot.test.mjs",
+      "line": 39,
+      "text": "    check('load saved values without current map or weather lookup',()=>{const x=accept(),backup=[...hexMap];try{hexMap.splice(0);assert.deepEqual(loadGame().acceptedContract.windForecastSnapshot,x.acceptedContract.windForecastSnapshot);}finally{hexMap.splice(0,hexMap.length,...backup);}});"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/contractWindForecastSnapshot.test.mjs",
+      "line": 40,
+      "text": "    check('forecast failure aborts before state update or save',()=>{const x=reset(),before=JSON.stringify(x),backup=[...hexMap];try{hexMap.splice(0,hexMap.length,...backup.filter(h=>h.kind==='port'));assert.throws(()=>store.getState().acceptContract(offer.id,ship.id));assert.equal(JSON.stringify(store.getState().gameState),before);assert.equal(storage.size,0);}finally{hexMap.splice(0,hexMap.length,...backup);}});"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/mapPresentationRefactor.test.mjs",
+      "line": 25,
+      "text": "  const { hexMap } = await server.ssrLoadModule("
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/mapPresentationRefactor.test.mjs",
+      "line": 26,
+      "text": "    '/src/data/hexMap.ts',"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/mapPresentationRefactor.test.mjs",
+      "line": 44,
+      "text": "    ...hexMap,"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/normalOfferReplenishment.test.mjs",
+      "line": 24,
+      "text": "  const { getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/portRefuel.test.mjs",
+      "line": 21,
+      "text": "  const { getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastIntegration.test.mjs",
+      "line": 10,
+      "text": "  const {hexMap}=await load('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastIntegration.test.mjs",
+      "line": 11,
+      "text": "  const cells=hexMap.filter(h=>h.kind==='sea');assert.ok(cells.length>0);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastIntegration.test.mjs",
+      "line": 54,
+      "text": "    const port=hexMap.find(h=>h.kind==='port');assert.ok(port);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastMap.test.mjs",
+      "line": 11,
+      "text": "  const { getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastMapRendering.test.mjs",
+      "line": 14,
+      "text": "  const { getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastTimeline.test.mjs",
+      "line": 10,
+      "text": "  const {hexMap}=await load('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windForecastTimeline.test.mjs",
+      "line": 11,
+      "text": "  const id=hexMap.find(h=>h.kind==='sea')?.id;assert.ok(id);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windNavigation.test.mjs",
+      "line": 16,
+      "text": "  const { getHexById } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windNavigation.test.mjs",
+      "line": 18,
+      "text": "  const { HEX_DISTANCE_NM } = await server.ssrLoadModule('/src/domain/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/windVoyagePrediction.test.mjs",
+      "line": 17,
+      "text": "  const { getPortHexId, getHexById } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 22,
+      "text": "  const { hexMap, getHexById, getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 24,
+      "text": "  const { getHexNeighbors, HEX_DISTANCE_NM } = await server.ssrLoadModule('/src/domain/hexMap.ts');"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 37,
+      "text": "  assert.equal(hexMap.length, 54);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 39,
+      "text": "  assert.equal(new Set(hexMap.map(key)).size, 54);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 40,
+      "text": "  assert.equal(new Set(hexMap.map(hex => hex.id)).size, 54);"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 43,
+      "text": "  for (const hex of hexMap) {"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 91,
+      "text": "  const byCoordinate = new Map(hexMap.map(hex => [key(hex), hex]));"
+    },
+    {
+      "path": "shioji-no-shokai-mvp/tests/worldMapIntegration.test.mjs",
+      "line": 103,
+      "text": "  for (const hex of hexMap.filter(item => item.kind === 'sea')) {"
+    }
+  ],
+  "dynamicLoadingCandidates": [
+    {
+      "path": ".github/workflows/coal-fuel-tests.yml",
+      "line": 111,
+      "text": "            const fs = require('fs');"
+    },
+    {
+      "path": ".github/workflows/numeric-wind-tests.yml",
+      "line": 111,
+      "text": "            const fs = require('fs');"
+    }
+  ],
+  "complete": true,
+  "limitation": "Text search, not full static analysis. Review constructed paths and dynamic-loading candidates before deleting files."
+}
