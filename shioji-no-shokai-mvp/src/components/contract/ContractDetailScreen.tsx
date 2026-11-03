@@ -10,6 +10,7 @@ import { calculateEstimatedArrivalAt } from "../../domain/seaCondition";
 import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
 import { getHeavyLoadSpeedFactor } from "../../domain/voyage";
+import { isSelectedSpeedWithinLimits } from "../../domain/voyageSpeedValidation";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { createContractWindForecast } from "../../domain/contractWindForecast";
 import { prepareContractWindPreview, formatContractPreviewEta } from "../../domain/contractWindPreview";
@@ -73,8 +74,8 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const netProfit = contract.offeredReward - expense;
   const deadlineLabel = formatDateTime(offeredDeadlineAt ?? getContractSchedule(contract, route, departureAt).deadlineAt);
   const { requiredCargoVolume, requiredCargoWeight } = display;
-  const validSpeed = selectedShip !== null && speed !== undefined && Number.isSafeInteger(speed) &&
-    speed >= selectedShip.cruisingSpeedKnots && speed <= selectedShip.maxSpeedKnots &&
+  const validSpeed = selectedShip !== null && speed !== undefined &&
+    isSelectedSpeedWithinLimits(selectedShip, speed) &&
     (selectedShip.kind === "powered" || speed === selectedShip.cruisingSpeedKnots);
   const canAccept = eligibleShips.some((ship) => ship.id === selectedShipId) && validSpeed;
   const getSuitability = (ship: Ship) => {
