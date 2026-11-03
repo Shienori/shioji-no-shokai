@@ -43,6 +43,7 @@ try {
   store.getState().acceptContract(tutorialWheatContract.id, ship.id, 7);
   let state = store.getState().gameState;
   assert.ok(state.acceptedContract);
+  const coalState = structuredClone(state);
   const contract = state.acceptedContract;
   const snapshot = readCargoLotSnapshot(contract);
   assert.equal(snapshot.dataVersion, 'cargo-lot-v1');
@@ -70,17 +71,36 @@ try {
   assert.equal(getCargoForContract(legacy).weightPerUnit, getCargoById(legacy.cargoId).weightPerUnit);
   assert.equal(createVoyage(legacy, ship, 0, now).loadingCompletedAt, getCargoById(legacy.cargoId).loadingTimeMsPerUnit * legacy.quantity);
   const legacyBefore = JSON.stringify(legacy);
-  store.setState({ gameState: { ...structuredClone(seed), acceptedContract: legacy, activeVoyage: { ...state.activeVoyage, phase: 'loading' } } });
+  const legacyState = structuredClone(coalState);
+  legacyState.acceptedContract = legacy;
+  legacyState.ships[0].activeContractId = legacy.id;
+  legacyState.ships[0].status = 'loading';
+  legacyState.activeVoyage = createVoyage(legacy, legacyState.ships[0], legacyState.operationTime, now);
+  assert.equal(legacyState.activeVoyage.contractId, legacy.id);
+  assert.equal(legacyState.activeVoyage.shipId, legacyState.ships[0].id);
+  assert.equal(legacyState.activeVoyage.fuelNavigation, undefined);
+  const legacyFuel = legacyState.ships[0].fuel.remainingTons;
+  store.setState({ gameState: legacyState });
   store.getState().tick();
   state = store.getState().gameState;
   assert.equal(JSON.stringify(state.acceptedContract), legacyBefore);
+  assert.equal(state.activeVoyage.fuelNavigation, undefined);
+  assert.equal(state.ships[0].fuel.remainingTons, legacyFuel);
+  assert.equal(readCargoLotSnapshot(loadGame().acceptedContract), null);
+  const broken = structuredClone(coalState);
+  broken.ships[0].activeContractId = null;
+  const brokenBefore = JSON.stringify(broken);
+  store.setState({ gameState: broken });
+  assert.throws(() => store.getState().tick(), /Invalid coal voyage references/);
+  assert.equal(store.getState().gameState, broken);
+  assert.equal(JSON.stringify(broken), brokenBefore);
   for (const value of [null, {}, { ...snapshot, dataVersion: 'future' }, { ...snapshot, totalWeightTons: 999 }]) {
     assert.throws(() => readCargoLotSnapshot({ ...contract, cargoLotSnapshot: value }));
   }
   assert.equal(readCargoLotSnapshot(legacy), null);
   assert.equal(evaluateContractAcceptance({ ...tutorialWheatContract, quantity: 0 }, ship, seed, now).canAccept, false);
   assert.equal(evaluateContractAcceptance(tutorialWheatContract, { ...ship, id: 'unconfigured_ship' }, seed, now).canAccept, false);
-  console.log(JSON.stringify({ result: 'passed', checks: ['10t and 12m3 acceptance boundaries', '9t heavy-load threshold independent of volume', 'store acceptance snapshots and speed navigation', 'save/load retains snapshot', 'frozen unit weight and handling times used', 'legacy contracts remain unconverted', 'invalid saved snapshots fail closed'] }, null, 2));
+  console.log(JSON.stringify({ result: 'passed', checks: ['10t and 12m3 acceptance boundaries', '9t heavy-load threshold independent of volume', 'store acceptance snapshots and speed navigation', 'save/load retains snapshot', 'frozen unit weight and handling times used', 'consistent legacy voyage stays unconverted without fuel debit', 'broken coal references still rejected without state mutation', 'invalid saved snapshots fail closed'] }, null, 2));
 } finally {
   if (server) await server.close();
   Date.now = originalNow;
