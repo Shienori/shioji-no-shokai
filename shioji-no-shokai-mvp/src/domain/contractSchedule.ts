@@ -4,6 +4,9 @@ import { ceilTo30Minutes } from "./time";
 import { calculateCargoValue, calculateVoyageDistanceAllowance } from "./reward";
 import { createContractInstanceId } from "./contractIdentity";
 import { createContractWindForecast } from "./contractWindForecast";
+import { getCargoLotById } from "../data/cargoLots";
+import { createCargoLotSnapshot } from "./cargoLotUnits";
+import type { LotAcceptedContract } from "./lotContract";
 
 const HOUR_MS = 60 * 60 * 1000;
 const BASE_SPEED_KNOTS = 6;
@@ -79,7 +82,9 @@ export function createAcceptedContract(
   cargo: Cargo,
   acceptedAt: number,
   deadlineAt: number,
-): AcceptedContract {
+): LotAcceptedContract {
+  if (cargo.id !== template.cargoId) throw new Error("Cargo identity mismatch");
+  const cargoLotSnapshot = createCargoLotSnapshot(getCargoLotById(template.cargoId), template.quantity);
   const windForecastSnapshot = createContractWindForecast(route, acceptedAt);
   return {
     id: createContractInstanceId("accepted"),
@@ -88,9 +93,10 @@ export function createAcceptedContract(
     routeId: template.routeId,
     cargoId: template.cargoId,
     quantity: template.quantity,
-    reward: createContractReward(template, cargo, route),
+    reward: createContractReward(template, { ...cargo, unitPrice: cargoLotSnapshot.unitPrice }, route),
     acceptedAt,
     deadlineAt,
     windForecastSnapshot,
+    cargoLotSnapshot,
   };
 }

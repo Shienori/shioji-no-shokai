@@ -1,7 +1,7 @@
 import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoById } from "../../data/cargos";
+import { getCargoPresentation, getLotCapacityForDisplay, formatCargoMeasure } from "../../domain/cargoPresentation";
 import { getHexById } from "../../data/hexMap";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
@@ -35,7 +35,7 @@ const STATUS_LABELS = {
 
 export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShip }: FleetPanelProps) {
   const route = contract ? getRouteById(contract.routeId) : null;
-  const cargo = contract ? getCargoById(contract.cargoId) : null;
+  const cargo = contract ? getCargoPresentation(contract) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
@@ -58,7 +58,8 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
       <div className="contract-list">
         {ships.map((ship) => {
           const shipVoyage = voyage?.shipId === ship.id ? voyage : null;
-          const shipContract = shipVoyage ? contract : null;
+          const shipContract = shipVoyage && contract?.id === shipVoyage.contractId ? contract : null;
+          const capacity = getLotCapacityForDisplay(ship);
           const progress = shipVoyage && shipContract
             ? calculateVoyageProgress(shipVoyage, shipContract, operationTime)
             : 0;
@@ -69,8 +70,8 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
           const currentCondition = shipVoyage?.phase === "sailing" && currentHexData.kind === "sea"
             ? getSeaConditionAt(ship.currentHexId, Date.now())
             : null;
-          const contractLabel = shipContract && cargo && fromPort && toPort
-            ? `${cargo.name} ×${shipContract.quantity}／${fromPort.name}→${toPort.name}`
+          const contractLabel = shipContract
+            ? cargo && fromPort && toPort ? `${cargo.label}／${fromPort.name}→${toPort.name}` : "貨物データ確認不可"
             : "なし";
 
           return (
@@ -97,6 +98,14 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
                 <span className="contract-route-arrow">→</span>
                 <span>{contractLabel}</span>
               </div>
+              {shipContract && <div className="contract-facts">
+                <div><span className="contract-fact-label">貨物重量</span><span className="contract-fact-value">{cargo?.weightLabel ?? "確認不可"}</span></div>
+                <div><span className="contract-fact-label">貨物容積</span><span className="contract-fact-value">{cargo?.volumeLabel ?? "確認不可"}</span></div>
+              </div>}
+              <div className="contract-facts">
+                <div><span className="contract-fact-label">新規受注の重量上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoWeightTons, "t") : "未設定"}</span></div>
+                <div><span className="contract-fact-label">新規受注の容積上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoVolumeM3, "m³") : "未設定"}</span></div>
+              </div>
 
               <div className="progress-block">
                 <div className="progress-heading">
@@ -109,11 +118,11 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
               <div className="contract-facts">
                 <div>
                   <span className="contract-fact-label">ETA</span>
-                  <span className="contract-fact-value">{estimatedArrivalLabel}</span>
+                  <span className="contract-fact-value">{shipContract ? estimatedArrivalLabel : "-"}</span>
                 </div>
                 <div>
                   <span className="contract-fact-label">期限</span>
-                  <span className="contract-fact-value">{deadlineLabel}</span>
+                  <span className="contract-fact-value">{shipContract ? deadlineLabel : "-"}</span>
                 </div>
               </div>
 

@@ -15,10 +15,13 @@ const originalRandom = Math.random;
 const now = 1792599200000;
 Date.now = () => now;
 let server;
+let restoreFixture = () => {};
 try {
   server = await createServer({ root: fileURLToPath(new URL('../', import.meta.url)), server: { middlewareMode: true }, appType: 'custom' });
   const { useGameStore: store } = await server.ssrLoadModule('/src/state/gameStore.ts');
   const { contractTemplates, getContractTemplateById, getContractDifficulty, tutorialWheatContract } = await server.ssrLoadModule('/src/data/contracts.ts');
+  const { evaluateContractAcceptance } = await server.ssrLoadModule('/src/domain/contractAcceptance.ts');
+  const { getPortHexId } = await server.ssrLoadModule('/src/data/hexMap.ts');
   const seed = structuredClone(store.getState().gameState);
   const portId = 'port_aldera';
   const ids = ['contract_aldera_001', 'contract_aldera_002', 'contract_aldera_003', 'contract_aldera_004', 'contract_aldera_005'];
@@ -32,7 +35,7 @@ try {
     state.selectedPortId = portId;
     state.acceptedContract = null;
     state.activeVoyage = null;
-    state.ships[0] = { ...state.ships[0], currentPortId: portId, status: 'docked', activeContractId: null, maxCargoVolume: 1000, maxCargoWeight: 1000 };
+    state.ships[0] = { ...state.ships[0], currentPortId: portId, currentHexId: getPortHexId(portId), status: 'docked', activeContractId: null };
     state.portOffers[portId] = templateIds.map(offer);
     store.setState({ gameState: state, selectedContractId: null, selectedShipId: null });
     return state;
@@ -41,6 +44,8 @@ try {
     const before = reset(templateIds);
     const acceptedOffer = before.portOffers[portId].find(item => item.templateId === acceptedId);
     assert.ok(acceptedOffer, 'fixture must contain the requested offer');
+    const acceptance = evaluateContractAcceptance(getContractTemplateById(acceptedId), before.ships[0], before, now, acceptedOffer.id);
+    assert.equal(acceptance.canAccept, true, `replenishment fixture must be eligible: ${acceptance.reason}`);
     const remaining = before.portOffers[portId].filter(item => item.id !== acceptedOffer.id);
     const remainingSnapshot = structuredClone(remaining);
     const otherPorts = Object.fromEntries(Object.entries(before.portOffers).filter(([id]) => id !== portId));
@@ -59,6 +64,21 @@ try {
     passed += 1;
     return result;
   }
+
+  const oversized = getContractTemplateById(n1);
+  assert.equal(oversized.cargoId, 'cargo_steel');
+  assert.equal(oversized.quantity, 6);
+  const blocked = reset([n1, n2, easy]);
+  const blockedOffer = blocked.portOffers[portId].find(item => item.templateId === n1);
+  assert.equal(evaluateContractAcceptance(oversized, blocked.ships[0], blocked, now, blockedOffer.id).canAccept, false);
+  store.getState().acceptContract(blockedOffer.id, blocked.ships[0].id);
+  assert.equal(store.getState().gameState, blocked);
+  assert.equal(storage.size, 0);
+  passed += 1;
+  const originalQuantity = oversized.quantity;
+  restoreFixture = () => { oversized.quantity = originalQuantity; };
+  // Test-local 4-lot payload isolates replenishment from the 10t capacity rule.
+  oversized.quantity = 4;
 
   for (const random of [() => 0, () => 0.999999]) {
     Math.random = random;
@@ -82,7 +102,10 @@ try {
       const before = reset([n1, n2]);
       const acceptedOffer = before.portOffers[portId].find(item => item.templateId === n1);
       assert.ok(acceptedOffer, 'fixture must contain the requested offer');
+      const acceptance = evaluateContractAcceptance(getContractTemplateById(n1), before.ships[0], before, now, acceptedOffer.id);
+      assert.equal(acceptance.canAccept, true, `pool-exhaustion fixture must be eligible: ${acceptance.reason}`);
       store.getState().acceptContract(acceptedOffer.id, before.ships[0].id);
+      assert.ok(store.getState().gameState.acceptedContract);
       const result = store.getState().gameState.portOffers[portId];
       assert.equal(result.length, 2, 'pool exhaustion may leave fewer than three offers');
       assert.equal(new Set(result.map(item => item.templateId)).size, 2);
@@ -122,6 +145,7 @@ try {
   }
   console.log(JSON.stringify({ passed }, null, 2));
 } finally {
+  restoreFixture();
   if (server) await server.close();
   Date.now = originalNow;
   Math.random = originalRandom;

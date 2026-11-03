@@ -3,7 +3,7 @@ import type { AcceptedContract, ContractTemplate, PortId, Voyage } from "../../d
 import { ContractCard } from "./ContractCard";
 import { ports, getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoById } from "../../data/cargos";
+import { getCargoPresentation } from "../../domain/cargoPresentation";
 import { ceilTo1Minute, formatDateTime, formatDuration } from "../../domain/time";
 
 interface ContractBoardProps {
@@ -34,7 +34,7 @@ export function ContractBoard({ selectedPortId, onSelectPort, fixedContract, con
   const route = acceptedContract ? getRouteById(acceptedContract.routeId) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const cargo = acceptedContract ? getCargoById(acceptedContract.cargoId) : null;
+  const cargo = acceptedContract ? getCargoPresentation(acceptedContract) : null;
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
   const deadlineLabel = acceptedContract ? formatDateTime(acceptedContract.deadlineAt) : "";
@@ -55,6 +55,7 @@ export function ContractBoard({ selectedPortId, onSelectPort, fixedContract, con
       </div>
       <div className="refresh-note"><span>依頼更新</span><span>次まで {formatRefreshCountdown(refreshRemainingMs)}</span></div>
       <div className="contract-list">
+        {acceptedContract && !cargo && <p role="alert">進行中依頼の貨物データを確認できません。旧単位へ置き換えず、保存データを保持しています。</p>}
         {acceptedContract && route && fromPort && toPort && cargo && (
           <div className="contract-card active-contract-card">
             <div className="contract-card-heading">
@@ -64,7 +65,9 @@ export function ContractBoard({ selectedPortId, onSelectPort, fixedContract, con
             {showActiveContract && (<>
               <p className="contract-card-route">{fromPort.name}<span className="contract-route-arrow">→</span>{toPort.name}</p>
               <div className="contract-facts">
-                <div><span className="contract-fact-label">貨物</span><span className="contract-fact-value">{cargo.name} ×{acceptedContract.quantity}</span></div>
+                <div><span className="contract-fact-label">貨物</span><span className="contract-fact-value">{cargo.label}</span></div>
+                <div><span className="contract-fact-label">貨物重量</span><span className="contract-fact-value">{cargo.weightLabel}</span></div>
+                <div><span className="contract-fact-label">貨物容積</span><span className="contract-fact-value">{cargo.volumeLabel}</span></div>
                 <div><span className="contract-fact-label">到着期限</span><span className="contract-fact-value">{deadlineLabel}</span></div>
               </div>
               <div className="progress-block">

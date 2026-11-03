@@ -1,6 +1,6 @@
 import type { AcceptedContract, ContractTemplate, Route, Ship, Voyage } from "./types";
 import { getRouteById } from "../data/routes";
-import { getCargoById } from "../data/cargos";
+import { getCargoForContract, getLotShipCapacity, isLegacyCargoContract } from "./lotContract";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { getRouteHexIds } from "./routePath";
 import { getHexById } from "../data/hexMap";
@@ -28,10 +28,12 @@ export function getHeavyLoadSpeedFactor(
   contract: Pick<ContractTemplate, "cargoId" | "quantity">,
   ship: Ship,
 ): number {
-  const cargo = getCargoById(contract.cargoId);
+  const cargo = getCargoForContract(contract);
   const requiredWeight = cargo.weightPerUnit * contract.quantity;
-  const weightRatio = ship.maxCargoWeight > 0 ? requiredWeight / ship.maxCargoWeight : 0;
-  return weightRatio >= HEAVY_LOAD_WEIGHT_RATIO ? HEAVY_LOAD_SPEED_FACTOR : 1;
+  const maximumWeight = isLegacyCargoContract(contract) ? ship.maxCargoWeight : getLotShipCapacity(ship).maxCargoWeightTons;
+  const weightRatio = maximumWeight > 0 ? requiredWeight / maximumWeight : 0;
+  const tolerance = isLegacyCargoContract(contract) ? 0 : Number.EPSILON * 8;
+  return weightRatio >= HEAVY_LOAD_WEIGHT_RATIO - tolerance ? HEAVY_LOAD_SPEED_FACTOR : 1;
 }
 
 export function createVoyage(
@@ -40,7 +42,7 @@ export function createVoyage(
   operationTime: number,
   currentRealTime: number,
 ): Voyage {
-  const cargo = getCargoById(contract.cargoId);
+  const cargo = getCargoForContract(contract);
   const route = getRouteById(contract.routeId);
   const loadingDurationMs = cargo.loadingTimeMsPerUnit * contract.quantity;
   const loadingCompletedAt = operationTime + loadingDurationMs;
@@ -167,7 +169,7 @@ function progressSailing(voyage: Voyage, contract: AcceptedContract, operationTi
 
 function progressUnloading(voyage: Voyage, contract: AcceptedContract, operationTime: number, currentRealTime: number): Voyage {
   if (voyage.phase !== "unloading") return voyage;
-  const cargo = getCargoById(contract.cargoId);
+  const cargo = getCargoForContract(contract);
   const unloadingCompletedAt = (voyage.unloadingStartedAt ?? 0) + cargo.unloadingTimeMsPerUnit * contract.quantity;
   if (operationTime < unloadingCompletedAt) return voyage;
 
@@ -198,7 +200,7 @@ export function calculateVoyageProgress(voyage: Voyage, contract: AcceptedContra
     return Math.min(1, Math.max(0, (operationTime - voyage.departedAt) / total));
   }
   if (voyage.phase === "unloading") {
-    const cargo = getCargoById(contract.cargoId);
+    const cargo = getCargoForContract(contract);
     const total = cargo.unloadingTimeMsPerUnit * contract.quantity;
     return Math.min(1, Math.max(0, (operationTime - (voyage.unloadingStartedAt ?? 0)) / total));
   }

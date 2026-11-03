@@ -45,10 +45,10 @@ export function MainPage() {
   const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
   const settlementResult = shouldShowSettlement && gameState.acceptedContract ? settleContract(gameState.acceptedContract, voyage!) : null;
-  const handleAccept = (selectionId: string, shipId: string) => {
+  const handleAccept = (selectionId: string, shipId: string, selectedSpeedKnots: number) => {
     const before = useGameStore.getState().gameState;
     if (before.selectedPortId !== selectedPortId) { selectContract(null); return; }
-    acceptContract(selectionId, shipId);
+    acceptContract(selectionId, shipId, selectedSpeedKnots);
     const after = useGameStore.getState().gameState;
     if (after.acceptedContract === before.acceptedContract || after.activeVoyage === before.activeVoyage) return;
     selectContract(null);
@@ -56,7 +56,7 @@ export function MainPage() {
     setActiveTab("fleet");
   };
   if (selectedContract && selectedContractId !== null) return <div className="phone">
-    <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId) => handleAccept(selectedContractId, shipId)} onClose={() => selectContract(null)} />
+    <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
   </div>;
   if (selectedShip) return <div className="phone">
     <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.acceptedContract ? gameState.operationTime : gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />

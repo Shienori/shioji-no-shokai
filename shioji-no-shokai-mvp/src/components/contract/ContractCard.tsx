@@ -1,8 +1,8 @@
 import type { ContractTemplate } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoById } from "../../data/cargos";
-import { getContractCargoRequirements, getContractSchedule } from "../../domain/contractOffer";
+import { getCargoPresentation } from "../../domain/cargoPresentation";
+import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense, calculateNetProfit } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
 
@@ -13,21 +13,21 @@ interface ContractCardProps {
 
 export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const route = getRouteById(contract.routeId);
-  const cargo = getCargoById(contract.cargoId);
+  const display = getCargoPresentation(contract);
+  if (!display) return <div className="contract-card" role="alert">貨物の数量・単位データを確認できません。</div>;
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = calculateNetProfit(contract.offeredReward, expense);
-  const { requiredCargoVolume, requiredCargoWeight } = getContractCargoRequirements(contract, cargo);
   const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
   const deadlineLabel = formatDateTime(deadlineAt);
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
   const voyageDurationLabel = formatDuration(voyageDurationMs);
 
   return (
-    <button className="contract-card" onClick={onSelect}>
+    <button className="contract-card" type="button" onClick={onSelect}>
       <div className="contract-card-heading">
-        <h3>{cargo.name}の輸送</h3>
+        <h3>{display.cargo.name}の輸送</h3>
         <span className="contract-card-detail">詳細 ›</span>
       </div>
       <p className="contract-card-route">
@@ -37,18 +37,18 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
       </p>
       <div className="requirement-grid card-requirement-grid">
         <div className="requirement-item">
-          <span className="requirement-label">必要スペース</span>
-          <span className="requirement-value">{requiredCargoVolume}</span>
+          <span className="requirement-label">必要貨物容積</span>
+          <span className="requirement-value">{display.volumeLabel}</span>
         </div>
         <div className="requirement-item">
-          <span className="requirement-label">必要積載量</span>
-          <span className="requirement-value">{requiredCargoWeight}</span>
+          <span className="requirement-label">必要貨物重量</span>
+          <span className="requirement-value">{display.weightLabel}</span>
         </div>
       </div>
       <div className="contract-facts">
         <div className="contract-fact">
           <span className="contract-fact-label">貨物</span>
-          <span className="contract-fact-value">{cargo.name} ×{contract.quantity}</span>
+          <span className="contract-fact-value">{display.label}</span>
         </div>
       </div>
       <p className="contract-deadline">航海所要時間：{voyageDurationLabel}</p>

@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createServer } from 'vite';
+
+let server;
+try {
+  server = await createServer({ root: fileURLToPath(new URL('../', import.meta.url)), server: { middlewareMode: true }, appType: 'custom' });
+  const { getMemoCargoPresentation, getVoyageMemoStatus } = await server.ssrLoadModule('/src/domain/memoCargoPresentation.ts');
+  const { getCargoLotById } = await server.ssrLoadModule('/src/data/cargoLots.ts');
+  const { createCargoLotSnapshot } = await server.ssrLoadModule('/src/domain/cargoLotUnits.ts');
+  const { initialShip } = await server.ssrLoadModule('/src/data/ships.ts');
+  const { tutorialWheatContract } = await server.ssrLoadModule('/src/data/contracts.ts');
+  const { FleetPanel } = await server.ssrLoadModule('/src/components/fleet/FleetPanel.tsx');
+  const { ShipDesignPanel } = await server.ssrLoadModule('/src/components/fleet/ShipDesignPanel.tsx');
+  const contract = { ...tutorialWheatContract, id: 'accepted_test', quantity: 4, acceptedAt: 123, deadlineAt: 1792599200000, cargoLotSnapshot: createCargoLotSnapshot(getCargoLotById('cargo_wheat'), 4) };
+  const voyage = { shipId: initialShip.id, contractId: contract.id, phase: 'loading', loadingStartedAt: 0, loadingCompletedAt: 120000, estimatedArrivalAt: 1000000 };
+  const memo = { contractId: contract.id, shipId: initialShip.id, acceptedAt: 123, cargoLabel: '保存済みラベル', settlement: null };
+  const old = getMemoCargoPresentation(memo, null, null);
+  assert.equal(old.label, memo.cargoLabel);
+  assert.equal(old.weightLabel, '未記録');
+  assert.equal(old.volumeLabel, '未記録');
+  assert.ok(old.sourceLabel.includes('換算しません'));
+  const active = getMemoCargoPresentation(memo, contract, voyage);
+  assert.equal(active.label, '袋詰め小麦 4ロット');
+  assert.equal(active.weightLabel, '2.00t');
+  assert.equal(active.volumeLabel, '4.00m³');
+  assert.equal(getMemoCargoPresentation(memo, contract, { ...voyage, shipId: 'other' }).weightLabel, '未記録');
+  const stored = { ...memo, cargoLotSnapshot: structuredClone(contract.cargoLotSnapshot) };
+  assert.equal(getMemoCargoPresentation(stored, null, null).weightLabel, '2.00t');
+  assert.equal(getMemoCargoPresentation({ ...stored, cargoLotSnapshot: null }, contract, voyage).weightLabel, '確認不可');
+  assert.equal(getVoyageMemoStatus(memo, voyage), '積込中');
+  assert.equal(getVoyageMemoStatus(memo, { ...voyage, phase: 'completed' }), '精算待ち');
+  assert.equal(getVoyageMemoStatus({ ...memo, settlement: {} }, null), '精算済み');
+  assert.equal(getVoyageMemoStatus({ ...memo, fuelDepletionReturn: { reason: 'fuel_depleted' } }, null), '契約破棄（燃料切れ）');
+  assert.equal(getVoyageMemoStatus(memo, null), '記録済み（終了状態未記録）');
+  const before = JSON.stringify({ memo, contract, voyage });
+  const html = renderToStaticMarkup(createElement(FleetPanel, { ships: [initialShip], voyage, contract, operationTime: 0, onSelectShip: () => {} }));
+  assert.ok(html.includes('4ロット'));
+  assert.ok(html.includes('2.00t'));
+  assert.ok(html.includes('4.00m³'));
+  assert.ok(html.includes('10.00t'));
+  assert.ok(html.includes('12.00m³'));
+  const legacyContract = { ...contract };
+  delete legacyContract.cargoLotSnapshot;
+  const legacyHtml = renderToStaticMarkup(createElement(FleetPanel, { ships: [initialShip], voyage, contract: legacyContract, operationTime: 0, onSelectShip: () => {} }));
+  assert.ok(legacyHtml.includes('旧重量単位'));
+  assert.ok(legacyHtml.includes('旧容積単位'));
+  const design = renderToStaticMarkup(createElement(ShipDesignPanel, { shipId: initialShip.id }));
+  assert.ok(design.includes('新規受注は貨物10t・12m³'));
+  assert.equal(JSON.stringify({ memo, contract, voyage }), before);
+  console.log(JSON.stringify({ result: 'passed', checks: ['fleet renders lots and physical units', 'legacy cargo remains labeled', 'memo missing units not reconstructed', 'active contract reference and stored snapshot distinguished', 'cancellation status not settlement pending', 'design copy matches active capacity', 'presentation leaves inputs unchanged'] }, null, 2));
+} finally {
+  if (server) await server.close();
+}

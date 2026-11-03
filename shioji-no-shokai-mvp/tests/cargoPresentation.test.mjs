@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createServer } from 'vite';
+
+let server;
+try {
+  server = await createServer({ root: fileURLToPath(new URL('../', import.meta.url)), server: { middlewareMode: true }, appType: 'custom' });
+  const { getCargoPresentation, formatCargoMeasure, getLotCapacityForDisplay } = await server.ssrLoadModule('/src/domain/cargoPresentation.ts');
+  const { createCargoLotSnapshot } = await server.ssrLoadModule('/src/domain/cargoLotUnits.ts');
+  const { getCargoLotById } = await server.ssrLoadModule('/src/data/cargoLots.ts');
+  const { initialShip } = await server.ssrLoadModule('/src/data/ships.ts');
+  const { tutorialWheatContract } = await server.ssrLoadModule('/src/data/contracts.ts');
+  const { CapacityGauge } = await server.ssrLoadModule('/src/components/contract/CapacityGauge.tsx');
+  const { ContractCard } = await server.ssrLoadModule('/src/components/contract/ContractCard.tsx');
+  const template = { ...tutorialWheatContract, quantity: 4 };
+  const display = getCargoPresentation(template);
+  assert.equal(display.label, '袋詰め小麦 4ロット');
+  assert.equal(display.weightLabel, '2.00t');
+  assert.equal(display.volumeLabel, '4.00m³');
+  assert.equal(display.requiredCargoWeight, 2);
+  assert.equal(display.requiredCargoVolume, 4);
+  const snapshot = createCargoLotSnapshot(getCargoLotById(template.cargoId), 4);
+  const accepted = { ...template, acceptedAt: 123, cargoLotSnapshot: snapshot };
+  snapshot.weightTonsPerLot = 0.75;
+  snapshot.totalWeightTons = 3;
+  assert.equal(getCargoPresentation(accepted).weightLabel, '3.00t');
+  const legacy = { ...template, acceptedAt: 123 };
+  assert.ok(getCargoPresentation(legacy).label.includes('旧単位'));
+  assert.equal(getCargoPresentation(legacy).weightLabel, '4（旧重量単位）');
+  assert.equal(getCargoPresentation(legacy).volumeLabel, '4（旧容積単位）');
+  assert.equal(getCargoPresentation({ ...accepted, cargoLotSnapshot: null }), null);
+  assert.equal(getCargoPresentation({ ...template, quantity: 0 }), null);
+  assert.equal(getCargoPresentation({ ...template, cargoId: 'missing' }), null);
+  assert.deepEqual(getLotCapacityForDisplay(initialShip), { maxCargoWeightTons: 10, maxCargoVolumeM3: 12 });
+  assert.equal(getLotCapacityForDisplay({ ...initialShip, id: 'unconfigured' }), null);
+  assert.equal(formatCargoMeasure(0, 't'), '0.00t');
+  assert.equal(formatCargoMeasure(0.001, 't'), '0.01t未満');
+  assert.equal(formatCargoMeasure(NaN, 'm³'), '—');
+  const gauge = renderToStaticMarkup(createElement(CapacityGauge, { requiredLabel: '必要貨物重量', maximumLabel: '最大貨物重量', required: 8, maximum: 10, unit: 't' }));
+  assert.ok(gauge.includes('8.00t'));
+  assert.ok(gauge.includes('10.00t'));
+  assert.equal((gauge.match(/capacity-block filled/g) ?? []).length, 16);
+  const card = renderToStaticMarkup(createElement(ContractCard, { contract: template, onSelect: () => {} }));
+  assert.ok(card.includes('4ロット'));
+  assert.ok(card.includes('2.00t'));
+  assert.ok(card.includes('4.00m³'));
+  console.log(JSON.stringify({ result: 'passed', checks: ['new and frozen cargo quantities use correct units', 'legacy units remain explicit', 'invalid data does not fall back', 'capacity matches acceptance', 'rendered card and gauge contain physical units'] }, null, 2));
+} finally {
+  if (server) await server.close();
+}

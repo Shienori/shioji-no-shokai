@@ -5,6 +5,7 @@ import { getRouteById } from "../data/routes";
 import { getPortHexId } from "../data/hexMap";
 import { createOfferedContract } from "./contractSchedule";
 import { normalizeContractWindForecast } from "./contractWindForecast";
+import { initializeLegacyCoalFuel } from "./coalFuel";
 
 const REMOVED_FISH_CONTRACT_IDS = new Set([
   "contract_selene_001",
@@ -106,7 +107,7 @@ export function loadGame(): GameState | null {
   try {
     const parsed = JSON.parse(raw) as SaveData;
     if (parsed.version !== SAVE_VERSION) return null;
-    const gameState = normalizeContractWindForecast(migrateVoyageSeaConditionData(migrateCargoData(parsed.gameState)));
+    const gameState = initializeLegacyCoalFuel(normalizeContractWindForecast(migrateVoyageSeaConditionData(migrateCargoData(parsed.gameState))));
     return { ...gameState, voyageMemos: gameState.voyageMemos ?? [] };
   } catch {
     return null;

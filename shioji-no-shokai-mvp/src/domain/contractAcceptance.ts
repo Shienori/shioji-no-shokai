@@ -1,7 +1,10 @@
 import type { ContractTemplate, GameState, Ship } from "./types";
 import { getRouteById } from "../data/routes";
-import { getCargoById } from "../data/cargos";
 import { tutorialWheatContract } from "../data/contracts";
+import { isValidShipFuel } from "./coalFuel";
+import { getCargoLotById } from "../data/cargoLots";
+import { createCargoLotSnapshot } from "./cargoLotUnits";
+import { cargoFitsLotShip } from "./lotContract";
 
 export interface AcceptanceCheck { canAccept: boolean; reason: string | null; }
 
@@ -22,9 +25,15 @@ export function evaluateContractAcceptance(
   if (ship.status !== "docked") {
     return { canAccept: false, reason: "船がフリーではありません" };
   }
-  const cargo = getCargoById(contract.cargoId);
-  if (ship.maxCargoVolume < cargo.unitVolume * contract.quantity || ship.maxCargoWeight < cargo.weightPerUnit * contract.quantity) {
-    return { canAccept: false, reason: "スペースまたは積載量が不足しています" };
+  if (ship.kind === "powered") {
+    if (!isValidShipFuel(ship.fuel)) return { canAccept: false, reason: "燃料データが未設定または不正です" };
+    if (ship.fuel.remainingTons === 0) return { canAccept: false, reason: "石炭がありません。補給が必要です" };
+  }
+  try {
+    const snapshot = createCargoLotSnapshot(getCargoLotById(contract.cargoId), contract.quantity);
+    if (!cargoFitsLotShip(snapshot, ship)) return { canAccept: false, reason: "必要な貨物重量（t）または貨物容積（m³）が上限を超えています" };
+  } catch {
+    return { canAccept: false, reason: "新ロット方式の貨物データ・数量または船の積載上限を確認できません" };
   }
   if (contract.id === tutorialWheatContract.id) {
     if (gameState.tutorialCompleted || gameState.acceptedContractIds.includes(contract.id)) {

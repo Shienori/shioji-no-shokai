@@ -1,0 +1,179 @@
+name: Coal fuel integration verification
+on:
+  push:
+    branches: [feature/coal-fuel-system]
+    paths-ignore: ['verification/**']
+permissions:
+  contents: read
+concurrency:
+  group: coal-fuel-tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  coal-fuel-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      install: ${{ steps.install.outcome }}
+      tests: ${{ steps.tests.outcome }}
+      build: ${{ steps.build.outcome }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: shioji-no-shokai-mvp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit and environment
+        run: |
+          set -euo pipefail
+          mkdir -p ../verification
+          git rev-parse HEAD | tee ../verification/commit.txt
+          node --version | tee ../verification/node-version.txt
+          npm --version | tee ../verification/npm-version.txt
+          for suite in tests/*.test.mjs; do basename "$suite" .test.mjs; done > ../verification/suites.txt
+          printf 'Tested commit: `%s`\n' "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          printf '| Check | Exit code |\n| --- | --- |\n' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install dependencies
+        id: install
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund 2>&1 | tee ../verification/install.log
+          cp package-lock.json ../verification/package-lock.json
+      - name: Run every regression suite
+        id: tests
+        run: |
+          set -uo pipefail
+          failed=0
+          suites=(tests/*.test.mjs)
+          if [[ ! -f "${suites[0]}" ]]; then
+            echo 'No test suites found' | tee ../verification/results.txt
+            exit 1
+          fi
+          printf 'Test suite count: %s\n' "${#suites[@]}" | tee ../verification/suite-count.txt
+          for suite in "${suites[@]}"; do
+            name=$(basename "$suite" .test.mjs)
+            if timeout 180s node "$suite" 2>&1 | tee "../verification/$name.log"; then
+              result=0
+            else
+              result=$?
+              failed=1
+            fi
+            printf '| %s | %s |\n' "$name" "$result" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s exit_code=%s\n' "$name" "$result" >> ../verification/results.txt
+          done
+          exit "$failed"
+      - name: Type check and production build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          set -uo pipefail
+          if npm run build 2>&1 | tee ../verification/build.log; then result=0; else result=$?; fi
+          printf '| Type check and build | %s |\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          printf 'build exit_code=%s\n' "$result" >> ../verification/results.txt
+          exit "$result"
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coal-fuel-verification-${{ github.sha }}-${{ github.run_attempt }}
+          path: verification/
+          retention-days: 7
+  publish-verification-report:
+    needs: coal-fuel-verification
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download this run's verification logs
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: coal-fuel-verification-${{ github.sha }}-${{ github.run_attempt }}
+          path: verification/
+      - name: Save structured report only
+        uses: actions/github-script@v7
+        env:
+          VERIFICATION_RESULT: ${{ needs.coal-fuel-verification.result }}
+          INSTALL_RESULT: ${{ needs.coal-fuel-verification.outputs.install }}
+          TEST_RESULT: ${{ needs.coal-fuel-verification.outputs.tests }}
+          BUILD_RESULT: ${{ needs.coal-fuel-verification.outputs.build }}
+          DOWNLOAD_RESULT: ${{ steps.download.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const branch = 'feature/coal-fuel-system';
+            const path = 'verification/coal-fuel-latest.json';
+            if (context.ref !== `refs/heads/${branch}`) throw new Error('Unexpected report target');
+            const read = name => {
+              try { return fs.readFileSync(`verification/${name}`, 'utf8'); }
+              catch { return ''; }
+            };
+            const exitCodes = new Map();
+            for (const line of read('results.txt').split(/\r?\n/)) {
+              const match = line.match(/^(.+?) exit_code=(\d+)$/);
+              if (match) exitCodes.set(match[1], Number(match[2]));
+            }
+            const names = read('suites.txt').split(/\r?\n/).filter(Boolean);
+            const suites = names.map(name => ({
+              name,
+              exitCode: exitCodes.has(name) ? exitCodes.get(name) : null,
+              conclusion: !exitCodes.has(name) ? 'not_run' : exitCodes.get(name) === 0 ? 'passed' : 'failed',
+            }));
+            const failed = suites.filter(suite => suite.conclusion === 'failed');
+            const excerpts = {};
+            for (const suite of failed) excerpts[suite.name] = read(`${suite.name}.log`).split(/\r?\n/).slice(-60).join('\n').slice(-12000);
+            if (process.env.INSTALL_RESULT !== 'success') excerpts.install = read('install.log').slice(-12000);
+            if (process.env.BUILD_RESULT !== 'success') excerpts.build = read('build.log').slice(-12000);
+            const recordedCommit = read('commit.txt').trim();
+            const allPassed = process.env.VERIFICATION_RESULT === 'success' &&
+              process.env.INSTALL_RESULT === 'success' && process.env.TEST_RESULT === 'success' &&
+              process.env.BUILD_RESULT === 'success' && process.env.DOWNLOAD_RESULT === 'success' &&
+              recordedCommit === context.sha && suites.length > 0 && suites.every(suite => suite.conclusion === 'passed') &&
+              exitCodes.get('build') === 0;
+            const report = {
+              testedCommit: context.sha,
+              recordedCommit: recordedCommit || null,
+              runId: context.runId,
+              runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+              runUrl: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              recordedAt: new Date().toISOString(),
+              verificationConclusion: process.env.VERIFICATION_RESULT,
+              installConclusion: process.env.INSTALL_RESULT || 'unknown',
+              testStepConclusion: process.env.TEST_RESULT || 'unknown',
+              buildConclusion: process.env.BUILD_RESULT || 'unknown',
+              artifactDownloadConclusion: process.env.DOWNLOAD_RESULT,
+              allPassed,
+              suiteCount: suites.length,
+              passed: suites.filter(suite => suite.conclusion === 'passed').length,
+              failed: failed.length,
+              notRun: suites.filter(suite => suite.conclusion === 'not_run').length,
+              suites,
+              buildExitCode: exitCodes.has('build') ? exitCodes.get('build') : null,
+              failureExcerpts: excerpts,
+            };
+            let fileSha;
+            try {
+              const current = await github.rest.repos.getContent({ ...context.repo, path, ref: branch });
+              if (Array.isArray(current.data) || !current.data.sha) throw new Error('Report path is not a file');
+              fileSha = current.data.sha;
+            } catch (error) { if (error.status !== 404) throw error; }
+            const head = await github.rest.git.getRef({ ...context.repo, ref: `heads/${branch}` });
+            if (head.data.object.sha !== context.sha) {
+              core.warning('Branch advanced; do not replace report with an older run');
+              return;
+            }
+            await github.rest.repos.createOrUpdateFileContents({
+              ...context.repo, path, branch,
+              message: `ci: record verification for ${context.sha.slice(0, 8)}`,
+              content: Buffer.from(JSON.stringify(report, null, 2) + '\n').toString('base64'),
+              ...(fileSha ? { sha: fileSha } : {}),
+            });
+            core.info(`Saved report: ${report.passed} passed, ${report.failed} failed, ${report.notRun} not run; build ${report.buildConclusion}`);
