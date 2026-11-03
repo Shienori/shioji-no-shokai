@@ -1,0 +1,145 @@
+{
+  "testedCommit": "5cc98f8f99635dbb9a1df39a70ab33541292180c",
+  "recordedCommit": "5cc98f8f99635dbb9a1df39a70ab33541292180c",
+  "runId": 41559184190,
+  "runAttempt": "1",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41559184190",
+  "recordedAt": "2026-11-03T01:21:57.738Z",
+  "verificationConclusion": "failure",
+  "installConclusion": "success",
+  "testStepConclusion": "failure",
+  "buildConclusion": "success",
+  "artifactDownloadConclusion": "success",
+  "allPassed": false,
+  "suiteCount": 24,
+  "passed": 22,
+  "failed": 2,
+  "notRun": 0,
+  "suites": [
+    {
+      "name": "cargoLotUnits",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "cargoPresentation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "coalVoyageStore",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "coastalWindTimeline",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractAcceptanceStore",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractDifficultySchedule",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractIdentity",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "contractWindForecastSnapshot",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "fleetCargoPresentation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "lotContractAcceptance",
+      "exitCode": 1,
+      "conclusion": "failed"
+    },
+    {
+      "name": "miraTrade",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "normalOfferReplenishment",
+      "exitCode": 1,
+      "conclusion": "failed"
+    },
+    {
+      "name": "portRefuel",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "portRefuelTargets",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "requesterDisplay",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "shipDesigns",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "shipPerformance",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageSpeedSelection",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastAccuracy",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastGeneration",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastIntegration",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windForecastTimeline",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "windNavigation",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "worldMapIntegration",
+      "exitCode": 0,
+      "conclusion": "passed"
+    }
+  ],
+  "buildExitCode": 0,
+  "failureExcerpts": {
+    "lotContractAcceptance": "/home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/src/state/gameStore.ts:148\n  if (!ship || ship.activeContractId !== contract.id || voyage.contractId !== contract.id) throw new Error(\"Invalid coal voyage references\");\n                                                                                                 ^\n\nError: Invalid coal voyage references\n    at progressVoyageIfActive (/home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/src/state/gameStore.ts:148:98)\n    at Object.tick (/home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/src/state/gameStore.ts:264:14)\n    at file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/lotContractAcceptance.test.mjs:74:20\n\nNode.js v24.22.1\n",
+    "normalOfferReplenishment": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: fixture must be accepted\n    at acceptAndCheck (file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/normalOfferReplenishment.test.mjs:49:12)\n    at file:///home/runner/work/shioji-no-shokai/shioji-no-shokai/shioji-no-shokai-mvp/tests/normalOfferReplenishment.test.mjs:65:5 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.22.1\n"
+  }
+}
