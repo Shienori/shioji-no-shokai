@@ -122,8 +122,8 @@ export function predictVoyagePlan(input: VoyagePlanPredictionInput): VoyagePlanP
     totalRequiredFuelTons += requiredFuelTons;
     const plannedArrivalRealTime = departureRealTime + totalDistanceNm / speed * HOUR_MS / GAME_TIME_MULTIPLIER;
     if (!validTime(plannedArrivalRealTime) || !Number.isFinite(totalRequiredFuelTons)) throw new RangeError("Plan overflow");
-    const startingFuelTons = remaining;
-    const fuelAssessment = remaining === null ? "unreachable" : assessPlanFuel(remaining, requiredFuelTons);
+    const startingFuelTons: number | null = remaining;
+    const fuelAssessment: SectionPrediction["fuelAssessment"] = remaining === null ? "unreachable" : assessPlanFuel(remaining, requiredFuelTons);
     if (fuelAssessment === "insufficient") hasFuelShortage = true;
     const arrivalFuelTons: number | null = remaining === null || fuelAssessment === "insufficient" ? null : Math.max(0, remaining - requiredFuelTons);
     const target = route.sections[index].refuelTargetPercent;
