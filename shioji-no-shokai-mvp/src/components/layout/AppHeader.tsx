@@ -1,7 +1,7 @@
 import { useGameStore } from "../../state/gameStore";
 import { formatGameTime } from "../../domain/time";
 
-const APP_VERSION = "v3.0.0";
+const APP_VERSION = "v0.3.0";
 const BUILD_NAME = import.meta.env.VITE_BUILD_NAME ?? "local";
 
 export function AppHeader() {
