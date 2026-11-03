@@ -1,18 +1,18 @@
 {
-  "testedCommit": "dc82e216b557645276cf98c48111b2e62d0951ac",
-  "recordedCommit": "dc82e216b557645276cf98c48111b2e62d0951ac",
-  "runId": 41595955467,
+  "testedCommit": "9c635823b7ca54270a3859e36eba7a94d9730a06",
+  "recordedCommit": "9c635823b7ca54270a3859e36eba7a94d9730a06",
+  "runId": 41596418657,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41595955467",
-  "recordedAt": "2026-11-03T07:23:48.990Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41596418657",
+  "recordedAt": "2026-11-03T07:28:08.899Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 33,
-  "passed": 33,
+  "suiteCount": 34,
+  "passed": 34,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -123,6 +123,11 @@
     },
     {
       "name": "voyageMemoCargoPersistence",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageMemoSelectionBaseline",
       "exitCode": 0,
       "conclusion": "passed"
     },
