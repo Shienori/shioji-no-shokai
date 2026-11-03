@@ -1,18 +1,18 @@
 {
-  "testedCommit": "f02055bb2e8075700b282cab1f5f17377902f5de",
-  "recordedCommit": "f02055bb2e8075700b282cab1f5f17377902f5de",
-  "runId": 41576832444,
+  "testedCommit": "a3105f66f2efdde27d656dac969cbfbe242bc4af",
+  "recordedCommit": "a3105f66f2efdde27d656dac969cbfbe242bc4af",
+  "runId": 41579432134,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41576832444",
-  "recordedAt": "2026-11-03T04:14:15.577Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41579432134",
+  "recordedAt": "2026-11-03T04:40:40.654Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 29,
-  "passed": 29,
+  "suiteCount": 30,
+  "passed": 30,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -78,6 +78,11 @@
     },
     {
       "name": "normalOfferReplenishment",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "numericWindDisplay",
       "exitCode": 0,
       "conclusion": "passed"
     },
