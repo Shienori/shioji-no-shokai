@@ -6,6 +6,7 @@ import { getPortHexId } from "../data/hexMap";
 import { createOfferedContract } from "./contractSchedule";
 import { normalizeContractWindForecast } from "./contractWindForecast";
 import { initializeLegacyCoalFuel } from "./coalFuel";
+import { assertValidPlannedSave } from "./plannedSaveValidation";
 
 const REMOVED_FISH_CONTRACT_IDS = new Set([
   "contract_selene_001",
@@ -97,19 +98,32 @@ function migrateVoyageSeaConditionData(state: GameState): GameState {
 }
 
 export function saveGame(state: GameState): void {
+  assertValidPlannedSave(state);
   const saveData: SaveData = { version: SAVE_VERSION, savedAtRealTime: Date.now(), gameState: state };
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 }
 
 export function loadGame(): GameState | null {
+  // Read only the current key. Old v7 data is neither read nor removed.
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return null;
+  let parsed: SaveData;
+  try { parsed = JSON.parse(raw) as SaveData; } catch {
+    throw new Error("保存データを解析できません。既存データを保護するため読込を停止しました。");
+  }
+  if (!parsed || parsed.version !== SAVE_VERSION || !parsed.gameState || !Number.isFinite(parsed.savedAtRealTime)) {
+    throw new Error("保存形式を確認できません。既存データを保護するため読込を停止しました。");
+  }
+  if (parsed.gameState.activeVoyage?.plannedNavigation !== undefined) {
+    // Do not migrate, regenerate fuel/forecast, reset progress or silently start over.
+    assertValidPlannedSave(parsed.gameState);
+    return parsed.gameState;
+  }
   try {
-    const parsed = JSON.parse(raw) as SaveData;
-    if (parsed.version !== SAVE_VERSION) return null;
+    // Retain the existing non-planned path while UI acceptance is still being connected.
     const gameState = initializeLegacyCoalFuel(normalizeContractWindForecast(migrateVoyageSeaConditionData(migrateCargoData(parsed.gameState))));
     return { ...gameState, voyageMemos: gameState.voyageMemos ?? [] };
   } catch {
-    return null;
+    throw new Error("保存内容を確認できません。既存データを保護するため読込を停止しました。");
   }
 }
