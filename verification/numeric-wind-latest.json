@@ -1,18 +1,18 @@
 {
-  "testedCommit": "80bc3f104f119c4048913aa2f90d8a14384afeb9",
-  "recordedCommit": "80bc3f104f119c4048913aa2f90d8a14384afeb9",
-  "runId": 41587739680,
+  "testedCommit": "1cd9305e4b42a3c03427c4fcf86190d5e693397c",
+  "recordedCommit": "1cd9305e4b42a3c03427c4fcf86190d5e693397c",
+  "runId": 41588457884,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41587739680",
-  "recordedAt": "2026-11-03T06:06:57.457Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41588457884",
+  "recordedAt": "2026-11-03T06:13:24.913Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 30,
-  "passed": 30,
+  "suiteCount": 31,
+  "passed": 31,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -68,6 +68,11 @@
     },
     {
       "name": "lotContractAcceptance",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "mapPresentationRefactor",
       "exitCode": 0,
       "conclusion": "passed"
     },
