@@ -4,8 +4,7 @@ import type { PredictionIssue, PredictedPositionStatus } from "../../domain/wind
 import { getWindForecastMapPrediction } from "../../domain/windForecastMap";
 import type { ContractWindPreview } from "../../domain/contractWindPreview";
 import { getContractPreviewMapPrediction, formatContractPreviewEta } from "../../domain/contractWindPreview";
-import { getSavedWindForecastAt } from "../../domain/contractWindForecast";
-import { hexMap } from "../../data/hexMap";
+import { getNumericWindRows, NumericWindMarkers, NumericWindTable } from "./NumericWindDisplay";
 import { worldMap } from "../../data/worldMap";
 import { HexMap } from "./HexMap";
 
@@ -28,11 +27,7 @@ export function ForecastMap({ ships, voyage, contract, currentRealTime, preview 
   if (result.kind === "unavailable") return <p role="status">{result.message}</p>;
   const { prediction, snapshot } = result;
   const position = prediction.position ? center(prediction.position.axial) : null;
-  const windMarkers = prediction.forecastIssuedAt === null || !snapshot ? [] : hexMap.flatMap(hex => {
-    if (hex.kind !== "sea") return [];
-    const slot = getSavedWindForecastAt(snapshot, hex.id, Math.floor(prediction.requestedRealTime));
-    return slot ? [{ hex, wind: slot.forecastWind, point: center(hex) }] : [];
-  });
+  const windRows = prediction.forecastIssuedAt === null ? [] : getNumericWindRows(snapshot, result.routeHexIds, prediction.requestedRealTime);
   return <section aria-label="保存予報による航海予測">
     <p>{preview ? "受注前の閲覧用予報を使用します。確認ETA・石炭試算と同じ予報版・積込後の出港時刻・船の設定です。" : "受注時に保存した航路の風予報を使用します。"}予測の表示操作で実際の船・燃料・セーブは変わりません。</p>
     <label>{preview ? "閲覧基準からの航海時間" : "現在からの航海時間"}：{hours.toFixed(2)}時間
@@ -49,10 +44,7 @@ export function ForecastMap({ ships, voyage, contract, currentRealTime, preview 
       <div style={{ width: 600 * zoom, position: "relative" }}>
         <HexMap ariaLabel="航路と実際の船の現在位置" ships={ships.map(ship => ({ name: `${ship.name}（現在）`, hexId: ship.currentHexId }))} routeHexIds={result.routeHexIds} />
         <svg viewBox={viewBox} role="img" aria-label={`${result.shipName}の予定船位と保存風予報`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-          {windMarkers.map(({ hex, wind, point }) => <g key={hex.id} transform={`translate(${point.x} ${point.y})`}>
-            <title>{hex.id}：風速{wind.speedMps.toFixed(1)}m/s、{wind.fromDeg === null ? "風向なし" : `風向${wind.fromDeg}度（吹いてくる方向）`}</title>
-            {wind.fromDeg === null || wind.speedMps === 0 ? <circle r={4} fill="none" stroke="#2563eb" strokeWidth={2} /> : <path d="M 0 8 L 0 -8 M -4 -3 L 0 -8 L 4 -3" transform={`rotate(${(wind.fromDeg + 180) % 360})`} fill="none" stroke="#2563eb" strokeWidth={2} />}
-          </g>)}
+          <NumericWindMarkers rows={windRows} />
           {position && <g transform={`translate(${position.x} ${position.y})`}>
             <title>{result.shipName}：{STATUS[prediction.positionStatus]}</title>
             <circle r={10} fill="#fff" stroke="#7c3aed" strokeWidth={3} strokeDasharray="4 2" />
@@ -61,7 +53,8 @@ export function ForecastMap({ ships, voyage, contract, currentRealTime, preview 
         </svg>
       </div>
     </div>
-    <p>紫の破線丸＝予定船位／船名（現在）＝実際の現在位置。青矢印は風が吹いていく方向、丸は無風です。拡大後は海図内をスクロールして移動できます。</p>
+    <p>紫の破線丸＝予定船位／船名（現在）＝実際の現在位置。風向・風速は予報値です。拡大後は海図内をスクロールして移動できます。</p>
+    <NumericWindTable rows={windRows} />
     <div role="status" aria-live="polite">
       <p>{STATUS[prediction.positionStatus]}</p>
       {prediction.forecastIssue && <p>{ISSUE[prediction.forecastIssue]}</p>}
