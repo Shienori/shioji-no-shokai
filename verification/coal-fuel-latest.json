@@ -1,18 +1,18 @@
 {
-  "testedCommit": "208d270745f3b540d45b2c737fc811c886f5ea09",
-  "recordedCommit": "208d270745f3b540d45b2c737fc811c886f5ea09",
-  "runId": 41560360651,
+  "testedCommit": "71692f33e07c95d3f9d9636fe6023d350e1bc625",
+  "recordedCommit": "71692f33e07c95d3f9d9636fe6023d350e1bc625",
+  "runId": 41566190572,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41560360651",
-  "recordedAt": "2026-11-03T01:32:45.114Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41566190572",
+  "recordedAt": "2026-11-03T02:27:53.609Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 24,
-  "passed": 24,
+  "suiteCount": 25,
+  "passed": 25,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -98,6 +98,11 @@
     },
     {
       "name": "shipPerformance",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "voyageMemoCargoPersistence",
       "exitCode": 0,
       "conclusion": "passed"
     },
