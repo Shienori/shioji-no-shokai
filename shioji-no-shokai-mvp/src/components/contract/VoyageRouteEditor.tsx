@@ -4,11 +4,11 @@ import { hexMap } from "../../data/hexMap";
 import { worldMap } from "../../data/worldMap";
 import { getPortById } from "../../data/ports";
 import { buildVoyagePlanRoute } from "../../domain/voyagePlanRoute";
-import type { VoyagePlanRouteDraft } from "../../domain/voyagePlanTypes";
+import type { ConfirmedVoyageRoute, VoyagePlanRouteDraft } from "../../domain/voyagePlanTypes";
 import { getMapCenter, getMapViewBox, MAP_HEX_SIZE } from "../map/mapGeometry";
 import { MAP_COLORS } from "../map/HexMap";
 
-interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean) => void; }
+interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean, route: ConfirmedVoyageRoute) => void; }
 const initialDraft = (): VoyagePlanRouteDraft => ({ stops: [], legs: [{ waypointHexIds: [] }] });
 const cells = new Map(hexMap.map(hex => [hex.id, hex]));
 const points = (q: number, r: number) => {
@@ -32,7 +32,7 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
   const [zoom, setZoom] = useState(1);
   const drag = useRef<{ pointerId: number; section: number; waypoint: number; x: number; y: number; moved: boolean; draft: VoyagePlanRouteDraft | null } | null>(null);
   const suppressClick = useRef(false);
-  useEffect(() => { onEditedChange(edited); }, [edited, onEditedChange]);
+  useEffect(() => { if (result.ok) onEditedChange(edited, result.route); }, [edited, result, onEditedChange]);
   const activeSection = Math.min(sectionIndex, draft.legs.length - 1);
   const preview = candidate ? buildVoyagePlanRoute(endpoints, candidate) : null;
   function commit(next: VoyagePlanRouteDraft) {
