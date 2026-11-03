@@ -1,0 +1,43 @@
+name: Voyage planning verification
+on:
+  push:
+    branches: [feature/voyage-planning]
+permissions:
+  contents: read
+concurrency:
+  group: voyage-planning-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: shioji-no-shokai-mvp
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record tested commit
+        run: git rev-parse HEAD
+      - name: Install existing dependencies
+        run: npm install --no-audit --no-fund
+      - name: Voyage plan integration test
+        run: node tests/voyagePlanRoute.test.mjs
+      - name: Existing regression suites
+        if: ${{ !cancelled() && success() }}
+        run: |
+          set -euo pipefail
+          for suite in tests/*.test.mjs; do
+            if [[ "$suite" != "tests/voyagePlanRoute.test.mjs" ]]; then
+              echo "Running $suite"
+              timeout 180s node "$suite"
+            fi
+          done
+      - name: Type check and build
+        if: ${{ !cancelled() && success() }}
+        run: npm run build
