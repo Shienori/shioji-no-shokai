@@ -1,18 +1,18 @@
 {
-  "testedCommit": "c29950e96f5a6c9907e6d28170fc676979434e4a",
-  "recordedCommit": "c29950e96f5a6c9907e6d28170fc676979434e4a",
-  "runId": 41593243665,
+  "testedCommit": "245cb8e1fa479596f9c5094ce023d60669073037",
+  "recordedCommit": "245cb8e1fa479596f9c5094ce023d60669073037",
+  "runId": 41594241822,
   "runAttempt": "1",
-  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41593243665",
-  "recordedAt": "2026-11-03T06:59:16.552Z",
+  "runUrl": "https://github.com/Shienori/shioji-no-shokai/actions/runs/41594241822",
+  "recordedAt": "2026-11-03T07:08:27.863Z",
   "verificationConclusion": "success",
   "installConclusion": "success",
   "testStepConclusion": "success",
   "buildConclusion": "success",
   "artifactDownloadConclusion": "success",
   "allPassed": true,
-  "suiteCount": 31,
-  "passed": 31,
+  "suiteCount": 32,
+  "passed": 32,
   "failed": 0,
   "notRun": 0,
   "suites": [
@@ -113,6 +113,11 @@
     },
     {
       "name": "shipPerformance",
+      "exitCode": 0,
+      "conclusion": "passed"
+    },
+    {
+      "name": "shipSpeedValidationBaseline",
       "exitCode": 0,
       "conclusion": "passed"
     },
