@@ -25,7 +25,7 @@ export const shionamiDesignV1 = {
   cargoCapacity: {
     maxWeightTons: 10,
     maxVolumeM3: 12,
-    applicationStatus: "pending-lot-unit-migration",
+    applicationStatus: "active-for-new-contracts",
   },
   fuel: {
     fuelType: "coal",

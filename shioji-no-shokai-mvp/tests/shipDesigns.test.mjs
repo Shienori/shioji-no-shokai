@@ -24,7 +24,7 @@ try {
   assert.equal(design.nominalFullLoadDisplacementTons, 35);
   assert.equal(design.cargoCapacity.maxWeightTons, 10);
   assert.equal(design.cargoCapacity.maxVolumeM3, 12);
-  assert.equal(design.cargoCapacity.applicationStatus, 'pending-lot-unit-migration');
+  assert.equal(design.cargoCapacity.applicationStatus, 'active-for-new-contracts');
   assert.equal(design.weightBudgetTons.cargo, design.cargoCapacity.maxWeightTons);
   assert.equal(design.weightBudgetTons.coal, design.fuel.capacityTons);
   assert.equal(initialShip.cruisingSpeedKnots, design.speed.cruisingKnots);
@@ -35,7 +35,7 @@ try {
   assert.equal(fuel.referenceConsumptionTonsPerVoyageHour, design.fuel.referenceConsumptionTonsPerVoyageHour);
   const roundTrip = JSON.parse(JSON.stringify(design));
   assert.deepEqual(roundTrip, design);
-  console.log(JSON.stringify({ result: 'passed', checks: ['approved dimensions and weight budget', 'cargo activation explicitly deferred', 'current speed and coal configuration agree', 'lookup and serialization'] }, null, 2));
+  console.log(JSON.stringify({ result: 'passed', checks: ['approved dimensions and weight budget', 'cargo capacity active for new contracts', 'current speed and coal configuration agree', 'lookup and serialization'] }, null, 2));
 } finally {
   if (server) await server.close();
 }
