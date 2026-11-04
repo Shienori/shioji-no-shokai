@@ -35,7 +35,7 @@ export function PlannedShipVoyageStatus({ ship, voyage, contract }: Props) {
     <div className="progress-block"><div className="progress-heading"><span>航路距離の進捗</span><span>{Math.round(model.progress * 100)}%</span></div>
       <div className="progress"><div style={{ width: `${model.progress * 100}%` }} /></div>
     </div>
-    <p>{formatCargoMeasure(model.traveledDistanceNm, "海里")} / {formatCargoMeasure(model.totalDistanceNm, "海里")}。積込・荷卸し時間を含まない航路上の進捗です。</p>
+    <p>{model.traveledDistanceNm.toLocaleString("ja-JP", { maximumFractionDigits: 3 })}海里 / {model.totalDistanceNm.toLocaleString("ja-JP", { maximumFractionDigits: 3 })}海里。積込・荷卸し時間を含まない航路上の進捗です。</p>
     <div className="kv"><span>受注依頼</span><span>{cargo?.label ?? "貨物情報確認不可"}</span></div>
     <div className="kv"><span>貨物重量・容積</span><span>{cargo?.weightLabel} ／ {cargo?.volumeLabel}</span></div>
     <div className="kv"><span>設定速力</span><span>{model.selectedSpeedKnots}ノット</span></div>
