@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useGameStore } from "../state/gameStore";
 import { debugSkipThirtyMinutes } from "../state/debugTimeSkip";
+import { NextVoyageBoundaryButton } from "../components/debug/NextVoyageBoundaryButton";
 import { AppHeader } from "../components/layout/AppHeader";
 import { TabBar } from "../components/layout/TabBar";
 import { ContractBoard } from "../components/contract/ContractBoard";
@@ -84,6 +85,7 @@ export function MainPage() {
           : <FleetPanel ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} />}
       </div></main>
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
+      <NextVoyageBoundaryButton voyage={voyage} planningOpen={planningOpen} />
       <button className="btn btn-secondary" type="button" disabled={voyage?.plannedNavigation !== undefined} title={voyage?.plannedNavigation !== undefined ? "確定計画の航海中は固定ETA・進行状態を保護するため旧スキップを無効にしています" : undefined} onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
       <button className="btn btn-secondary" type="button" onClick={() => useGameStore.getState().resetGame()}>デバッグ: 初期化</button>
     </div>
