@@ -41,8 +41,11 @@ try {
  assert.deepEqual(JSON.parse(JSON.stringify(world)),world);
  assert.throws(()=>createWorldPlanForecast(NaN));assert.throws(()=>createWorldPlanForecast(now+.5));
  const css=await readFile(new URL('../src/styles/voyagePlanFlow.css',import.meta.url),'utf8');
- for(const color of ['#6B4935','#FFF4DF','#F6EEDF','#E8BD74'])assert.ok(css.includes(color));
+ for(const color of ['#6B4935','#FFF4DF','#E8BD74'])assert.ok(css.includes(color),`Missing theme color: ${color}`);
+ assert.match(css,/\.voyage-flow\s*\{[^}]*background:\s*var\(--bg\)/);
+ assert.match(css,/\.voyage-flow-body\s*\{[^}]*background:\s*var\(--bg\)/);
+ assert.match(css,/\.voyage-flow-footer\s*\{[^}]*background:\s*var\(--bg\)/);
  assert.ok(css.includes('.voyage-flow-panel[hidden]'));
  assert.ok(css.includes('.route-weather-editor'));
- console.log('Full-sea forecast coverage, shared edition, independent copies, integrated chart theme and editor style assertions passed');
-} finally {if(server)await server.close();Date.now=originalNow;if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage;}
+ console.log('Full-sea forecast coverage, shared edition, independent copies and indigo planning theme assertions passed');
+} finally {if(server)await server.close();}

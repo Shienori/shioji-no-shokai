@@ -61,17 +61,24 @@ try {
     assert.ok(html.includes(requester.description));
     assert.ok(!html.includes("<span>荷主</span>"));
     const plannedConfirmation = renderConfirmation(contract);
-    assert.ok(plannedConfirmation.includes("最終受注確認"));
-    assert.ok(plannedConfirmation.includes(`<span>依頼主</span><span>${requester.name}</span>`), `Missing confirmation requester for ${contract.id}`);
-    assert.ok(!plannedConfirmation.includes("<span>荷主</span>"));
+    for (const label of ["最終受注確認", "使用船", "提示報酬", "計画到着（荷卸し前）", "到着期限", "燃料", "計画の詳細"]) {
+      assert.ok(plannedConfirmation.includes(label), `Missing compact confirmation field ${label} for ${contract.id}`);
+    }
+    assert.equal(plannedConfirmation.includes("<span>依頼主</span>"), false);
+    assert.equal(plannedConfirmation.includes("<span>荷主</span>"), false);
+    assert.equal(plannedConfirmation.includes(requester.description), false);
+    for (const label of ["確定HEXの通過順", "提示ID・テンプレートID", "通過地点："]) {
+      assert.equal(plannedConfirmation.includes(label), false, `Unexpected confirmation detail ${label}`);
+    }
   }
   const unknownContract = { ...tutorialWheatContract, shipperId: "unknown" };
   const unknown = render(unknownContract);
   assert.ok(unknown.includes("不明な依頼主"));
   assert.ok(!unknown.includes("セレネ農業組合"));
   const unknownConfirmation = renderConfirmation(unknownContract);
-  assert.ok(unknownConfirmation.includes("<span>依頼主</span><span>不明な依頼主</span>"));
-  assert.ok(!unknownConfirmation.includes("セレネ農業組合"));
+  assert.equal(unknownConfirmation.includes("<span>依頼主</span>"), false);
+  assert.equal(unknownConfirmation.includes("セレネ農業組合"), false);
+  for (const label of ["最終受注確認", "使用船", "到着期限"]) assert.ok(unknownConfirmation.includes(label), label);
   assert.equal(submitted, 0, "Rendering must not accept a contract");
   const reputations = [{ shipperId: "shipper_selene_farmers", value: 1 }, { shipperId: miraSaltGuild.id, value: 1.25 }];
   assert.strictEqual(ensureMiraReputation(reputations), reputations);
@@ -82,8 +89,8 @@ try {
   assert.ok(confirmation.includes("<span>依頼主</span><span>{requesterName}</span>"));
   assert.ok(!confirmation.includes("<span>荷主</span>"));
   console.log(JSON.stringify({ requesterCount: shippers.length, renderedContracts: allContracts.length,
-    confirmationSourceCheck: "passed", plannedConfirmationRendering: "passed", unknownConfirmationRequester: "passed",
-    browserInteraction: "not tested" }));
+    confirmationSourceCheck: "passed", compactConfirmationRendering: "passed", unknownRequesterDetail: "passed",
+    noAcceptanceOnRender: "passed", browserInteraction: "not tested" }));
 } finally {
   if (server) await server.close();
 }

@@ -19,12 +19,18 @@ try {
  assert.equal((html.match(/role="dialog"/g)??[]).length,1);assert.ok(html.includes('aria-modal="true"'));assert.ok(html.includes('data-active-step="1"'));
  assert.match(html,/<section[^>]*data-flow-step="1"(?![^>]*hidden)[^>]*>/);
  for(const n of [2,3,4])assert.match(html,new RegExp(`<section[^>]*data-flow-step="${n}"[^>]*hidden`));
- for(const label of ['依頼詳細','ルート編集／気象予測','ETA・燃料確認','最終確認','編集内容を破棄','最終確認へ'])assert.ok(html.includes(label)||label==='編集内容を破棄',label);
+ for(const label of ['依頼詳細','ルート編集','ETA・燃料確認','最終確認','最終確認へ'])assert.ok(html.includes(label),label);
+ for(const label of ['ルート編集／気象予測','ルート編集／気象予報','出港から計画到着までの気象予報時刻','予報を更新','航路の通過時予報の凡例'])assert.equal(html.includes(label),false,label);
+ assert.equal(html.includes('aria-label="編集内容の破棄確認"'),false);
  assert.equal(accepted,0);assert.equal(closed,0);assert.equal(JSON.stringify({contract:props.contract,ships:props.ships}),before);
  const source=await readFile(new URL('../src/components/contract/PlannedContractDetailScreen.tsx',import.meta.url),'utf8');
+ assert.ok(source.includes('<VoyageRouteEditor '));
+ assert.equal(source.includes('<RouteWeatherEditor '),false);
+ assert.equal(source.includes('<PlanWeatherChart '),false);
+ assert.equal(source.includes('createWorldPlanForecast'),false);
  assert.equal(source.includes('<VoyagePlanConfirmation '),false);assert.ok(source.includes('step !== 4 || !confirmation || locked.current'));
  assert.ok(source.includes('setDiscardOpen(true)'));assert.ok(source.includes('getVoyagePlanPreviousStep(step)'));
  const main=await readFile(new URL('../src/pages/MainPage.tsx',import.meta.url),'utf8');assert.ok(main.includes('element.setAttribute("inert", "")'));
  const css=await readFile(new URL('../src/styles/voyagePlanFlow.css',import.meta.url),'utf8');assert.ok(css.includes('position: fixed'));assert.ok(css.includes('.voyage-flow-panel[hidden]'));
- console.log('Four-step dialog transitions, initial visibility, single-window rendering and no acceptance on render assertions passed; browser navigation and focus not verified');
+ console.log('Four-step route-only dialog, initial visibility and no acceptance on render assertions passed; browser navigation and focus not verified');
 } finally {if(server)await server.close();}
