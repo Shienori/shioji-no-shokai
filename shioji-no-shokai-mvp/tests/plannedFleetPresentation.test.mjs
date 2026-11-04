@@ -32,7 +32,8 @@ try {
  const idle={...structuredClone(initialShip),id:'idle-other',name:'停泊テスト船',activeContractId:null,status:'docked'};
  let selected=0;
  const render=(state,changes={})=>renderToStaticMarkup(createElement(FleetPanel,{ships:[state.ships[0],idle],voyage:state.activeVoyage,
- contract:state.acceptedContract,operationTime:state.operationTime,onSelectShip:()=>{selected++;},...changes}));
+ contract:state.acceptedContract,operationTime:state.operationTime,
+ displayClock:{realTimeMs:start+state.operationTime/GAME_TIME_MULTIPLIER,operationTimeMs:state.operationTime},onSelectShip:()=>{selected++;},...changes}));
  const before=JSON.stringify(initial);
  const loading=render(initial);assert.ok(loading.includes('航路距離の進捗'));assert.ok(loading.includes('data-distance-progress="0"'));
  const sailing=at(voyage.departedRealTime+1000),model=getPlannedShipPresentation(sailing.ships[0],sailing.activeVoyage,contract);

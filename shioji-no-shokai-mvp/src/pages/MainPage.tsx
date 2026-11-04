@@ -20,6 +20,7 @@ import { settleContract } from "../domain/settlement";
 
 export function MainPage() {
   const gameState = useGameStore((state) => state.gameState);
+  const displayClock = { realTimeMs: gameState.currentGameTime, operationTimeMs: gameState.operationTime };
   const activeTab = useGameStore((state) => state.activeTab);
   // This transient selection is an offer ID, except for the fixed tutorial.
   const selectedContractId = useGameStore((state) => state.selectedContractId);
@@ -73,7 +74,7 @@ export function MainPage() {
     <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
   </div>;
   if (selectedShip && !planningOpen) return <div className="phone">
-    <ShipDetailScreen ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
+    <ShipDetailScreen displayClock={displayClock} ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
   </div>;
   return <div className="phone">
     <div ref={background} aria-hidden={planningOpen ? true : undefined}>
@@ -82,7 +83,7 @@ export function MainPage() {
       <main className="page"><div className="page-body">
         {activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} onSelectContract={selectContract} />
           : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
-          : <FleetPanel ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} />}
+          : <FleetPanel displayClock={displayClock} ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} />}
       </div></main>
       <SettlementModal result={settlementResult} onConfirm={() => useGameStore.getState().settleContract()} />
       <NextVoyageBoundaryButton voyage={voyage} planningOpen={planningOpen} />

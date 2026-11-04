@@ -5,10 +5,13 @@ import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { getHexById } from "../../data/hexMap";
 import { getPortById } from "../../data/ports";
 
-interface Props { ship: Ship; voyage: Voyage; contract: AcceptedContract | null; onSelectShip: (shipId: string) => void; }
+import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
+import { VoyageTimeFacts } from "./VoyageTimeFacts";
+
+interface Props { clock: VoyageDisplayClock; ship: Ship; voyage: Voyage; contract: AcceptedContract | null; onSelectShip: (shipId: string) => void; }
 const statuses = { loading: "積込中", sailing: "航海中", unloading: "揚荷中", completed: "精算待ち" };
 const date = (time: number) => formatDateTime(ceilTo1Minute(time));
-export function PlannedFleetShipCard({ ship, voyage, contract, onSelectShip }: Props) {
+export function PlannedFleetShipCard({ ship, voyage, contract, clock, onSelectShip }: Props) {
   let model: ReturnType<typeof getPlannedShipPresentation>;
   try {
     if (!contract) throw new Error("Missing matching contract");
@@ -35,6 +38,7 @@ export function PlannedFleetShipCard({ ship, voyage, contract, onSelectShip }: P
       <div><span className="contract-fact-label">新規受注の重量上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoWeightTons, "t") : "未設定"}</span></div>
       <div><span className="contract-fact-label">新規受注の容積上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoVolumeM3, "m³") : "未設定"}</span></div>
     </div>
+    <VoyageTimeFacts voyage={voyage} contract={contract} clock={clock} />
     <div className="progress-block"><div className="progress-heading"><span>航路距離の進捗</span><span>{Math.round(model.progress * 100)}%</span></div>
       <div className="progress"><div style={{ width: `${model.progress * 100}%` }} /></div>
     </div>

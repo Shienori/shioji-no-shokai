@@ -8,7 +8,10 @@ import { calculateVoyageProgress } from "../../domain/voyage";
 import { getSeaConditionAt } from "../../domain/seaCondition";
 import { PlannedFleetShipCard } from "./PlannedFleetShipCard";
 
+import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
+
 interface FleetPanelProps {
+  displayClock: VoyageDisplayClock;
   ships: Ship[];
   voyage: Voyage | null;
   contract: AcceptedContract | null;
@@ -34,7 +37,7 @@ const STATUS_LABELS = {
   unloading: "揚荷中",
 } as const;
 
-export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShip }: FleetPanelProps) {
+export function FleetPanel({ ships, voyage, contract, operationTime, displayClock, onSelectShip }: FleetPanelProps) {
   const legacyVoyage = voyage?.plannedNavigation !== undefined ? null : voyage;
   const legacyContract = voyage?.plannedNavigation !== undefined ? null : contract;
   const route = legacyContract ? getRouteById(legacyContract.routeId) : null;
@@ -63,7 +66,7 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
           const shipVoyage = voyage?.shipId === ship.id ? voyage : null;
           const shipContract = shipVoyage && contract?.id === shipVoyage.contractId ? contract : null;
           if (shipVoyage?.plannedNavigation !== undefined) {
-            return <PlannedFleetShipCard key={ship.id} ship={ship} voyage={shipVoyage} contract={shipContract} onSelectShip={onSelectShip} />;
+            return <PlannedFleetShipCard clock={displayClock} key={ship.id} ship={ship} voyage={shipVoyage} contract={shipContract} onSelectShip={onSelectShip} />;
           }
           const capacity = getLotCapacityForDisplay(ship);
           const progress = shipVoyage && shipContract

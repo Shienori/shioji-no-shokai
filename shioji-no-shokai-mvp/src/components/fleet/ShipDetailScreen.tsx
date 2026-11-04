@@ -16,7 +16,10 @@ import { PortRefuelPanel } from "./PortRefuelPanel";
 import { ShipDesignPanel } from "./ShipDesignPanel";
 import { PlannedShipVoyageStatus } from "./PlannedShipVoyageStatus";
 
+import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
+
 interface ShipDetailScreenProps {
+  displayClock: VoyageDisplayClock;
   ship: Ship;
   voyage: Voyage | null;
   contract: AcceptedContract | null;
@@ -53,7 +56,7 @@ function portName(portId: string): string {
   catch { return "確認不可"; }
 }
 
-export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeContract, operationTime, voyageMemos, onBack }: ShipDetailScreenProps) {
+export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeContract, operationTime, displayClock, voyageMemos, onBack }: ShipDetailScreenProps) {
   const [showVoyageMemo, setShowVoyageMemo] = useState(false);
   const [selectedVoyageNumber, setSelectedVoyageNumber] = useState<number | null>(null);
   const voyage = activeVoyage?.shipId === ship.id ? activeVoyage : null;
@@ -103,7 +106,7 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
 
       <div className="ship-photo" aria-hidden="true">{ship.kind === "powered" ? "🚢" : "⛵"}</div>
 
-      {hasPlannedVoyage && voyage ? <PlannedShipVoyageStatus ship={ship} voyage={voyage} contract={contract} /> : <section className="contract-card fleet-card">
+      {hasPlannedVoyage && voyage ? <PlannedShipVoyageStatus clock={displayClock} ship={ship} voyage={voyage} contract={contract} /> : <section className="contract-card fleet-card">
         <h3>現在状況</h3>
         <div className="contract-card-route"><span>現在位置</span><span className="contract-route-arrow">→</span><span>{currentLocation}</span></div>
         <div className="contract-card-route"><span>海況</span><span className="contract-route-arrow">→</span><span>{currentCondition ? CONDITION_LABELS[currentCondition] : "-"}</span></div>
@@ -219,8 +222,7 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
                         onClick={() => setSelectedVoyageNumber(memo.voyageNumber)}
                       >
                         <span className="voyage-memo-row-label">{memo.label}</span>
-                        <span className="voyage-memo-row-route">{memo.routeLabel}</span>
-                        <span className="voyage-memo-row-status">{getVoyageMemoStatus(memo, voyage)}</span>
+                        <span className="contract-card-detail">{getVoyageMemoStatus(memo, voyage)}</span>
                       </button>
                     ))}
                   </div>
