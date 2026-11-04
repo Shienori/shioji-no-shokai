@@ -12,14 +12,13 @@ import { getRouteById } from "../../data/routes";
 import { getPortById } from "../../data/ports";
 import { findShipperById } from "../../data/shippers";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
-import { RouteWeatherEditor } from "./RouteWeatherEditor";
+import { VoyageRouteEditor } from "./VoyageRouteEditor";
 import { CapacityGauge } from "./CapacityGauge";
 import { VoyagePlanReviewDetails } from "./VoyagePlanConfirmation";
-import { createWorldPlanForecast } from "../../domain/worldPlanForecast";
 import "../../styles/voyagePlanFlow.css";
 
 type PlanStep = 1 | 2 | 3 | 4;
-const steps = ["依頼詳細", "ルート編集／気象予測", "ETA・燃料確認", "最終確認"] as const;
+const steps = ["依頼詳細", "ルート編集", "ETA・燃料確認", "最終確認"] as const;
 export function getVoyagePlanNextStep(step: PlanStep, canProceed: boolean): PlanStep {
   return canProceed && step < 4 ? (step + 1) as PlanStep : step;
 }
@@ -40,7 +39,6 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
   const [route, setRoute] = useState<ConfirmedVoyageRoute | null>(null);
   const [routeEdited, setRouteEdited] = useState(false);
   const [baseTime, setBaseTime] = useState(() => Date.now());
-  const [worldForecast, setWorldForecast] = useState(() => createWorldPlanForecast(baseTime));
   const [confirmation, setConfirmation] = useState<ConfirmedPlanReview | null>(null);
   const [message, setMessage] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -146,11 +144,7 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
           {!canUseShip && <p role="status">{acceptReason ?? "受注可能な船を選択してください。"}</p>}
         </section>
         <section className="voyage-flow-panel" data-flow-step="2" hidden={discardOpen || step !== 2}>
-          <p>{selectedSpeed === null ? `速力は${ship?.cruisingSpeedKnots ?? "—"}ノット（巡航速力）を仮使用しています。次の段階で設定できます。` : `選択済みの設定速力${selectedSpeed}ノットで計画船位・気象評価を表示しています。`}</p>
-          <RouteWeatherEditor departurePortId={endpoints.fromPortId} destinationPortId={endpoints.toPortId}
-            worldForecast={worldForecast} selectedShip={ship} contract={contract} baseRealTime={baseTime}
-            offeredDeadlineAt={offeredDeadlineAt} selectedSpeedKnots={speed} onEditedChange={handleRoute}
-            onRequestForecastRefresh={() => setWorldForecast(createWorldPlanForecast(Date.now()))} />
+          <VoyageRouteEditor departurePortId={endpoints.fromPortId} destinationPortId={endpoints.toPortId} onEditedChange={handleRoute} acceptanceEnabled />
         </section>
         <section className="voyage-flow-panel" data-flow-step="3" hidden={discardOpen || step !== 3}>
           <div className="card"><h3>ETA・燃料計算の確認</h3>
@@ -169,7 +163,7 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
               </div>)}
               {plan.hasFuelShortage && <p role="alert">燃料不足があります。ETAは条件付きの計画時刻です。警告を確認したうえで最終確認へ進めます。</p>}
             </> : <p role="alert">航路・船・速力・燃料を確認してください。</p>}
-            <p>速力を変更してルート編集へ戻ると、その速力で計画船位と気象評価を更新します。戻る操作では編集内容を保持します。</p>
+            <p>戻る操作では航路・補油率・選択した速力を保持します。航路や速力を変更すると、ETA・燃料試算を更新します。</p>
           </div>
         </section>
         <section className="voyage-flow-panel" data-flow-step="4" hidden={discardOpen || step !== 4}>
