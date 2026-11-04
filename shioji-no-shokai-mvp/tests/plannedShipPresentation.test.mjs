@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import {fileURLToPath} from 'node:url';
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+const descriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}}});
+let server;
+try {
+ server=await createServer({root:fileURLToPath(new URL('../',import.meta.url)),server:{middlewareMode:true},appType:'custom'});
+ const load=name=>server.ssrLoadModule('/src/'+name+'.ts');
+ const {getPlannedShipPresentation:present}=await load('domain/plannedShipPresentation');
+ const {createConfirmedPlanVoyage}=await load('domain/confirmedPlanVoyage');
+ const {progressConfirmedPlanLifecycle}=await load('domain/confirmedPlanLifecycle');
+ const {buildVoyagePlanRoute}=await load('domain/voyagePlanRoute');
+ const {createAcceptedContract}=await load('domain/contractSchedule');
+ const {tutorialWheatContract:template}=await load('data/contracts');
+ const {getRouteById}=await load('data/routes');const {getCargoById}=await load('data/cargos');
+ const {initialShip}=await load('data/ships');const {ports}=await load('data/ports');
+ const {GAME_TIME_MULTIPLIER}=await load('data/gameConstants');
+ const {PlannedShipVoyageStatus}=await server.ssrLoadModule('/src/components/fleet/PlannedShipVoyageStatus.tsx');
+ const {ShipDetailScreen}=await server.ssrLoadModule('/src/components/fleet/ShipDetailScreen.tsx');
+ const start=Date.UTC(2026,10,3),endpoints=getRouteById(template.routeId);
+ const contract=createAcceptedContract(template,endpoints,getCargoById(template.cargoId),start,start+86400000);
+ const stop=ports.find(port=>port.id!==endpoints.fromPortId&&port.id!==endpoints.toPortId);
+ const built=buildVoyagePlanRoute({departurePortId:endpoints.fromPortId,destinationPortId:endpoints.toPortId},
+ {stops:[{portId:stop.id,refuelTargetPercent:100}],legs:[{waypointHexIds:[]},{waypointHexIds:[]}]});assert.equal(built.ok,true);
+ const docked=structuredClone(initialShip);docked.fuel.capacityTons=100;docked.fuel.remainingTons=100;
+ const voyage=createConfirmedPlanVoyage({contract,ship:docked,route:built.route,selectedSpeedKnots:docked.cruisingSpeedKnots,operationTime:0});
+ const ship={...docked,status:'loading',activeContractId:contract.id};
+ const initial={operationTime:0,ships:[ship],activeVoyage:voyage,acceptedContract:contract,
+ voyageMemos:[{contractId:contract.id,shipId:ship.id,acceptedAt:start,settlement:null,plannedEtaRealTime:voyage.forecastEtaRealTime}]};
+ const calm=(_id,time)=>({wind:{speedMps:0,fromDeg:null},startsAt:time,endsAt:time+86400000});
+ const at=time=>progressConfirmedPlanLifecycle({...initial,operationTime:(time-start)*GAME_TIME_MULTIPLIER},time,calm);
+ const original=JSON.stringify(initial),loading=present(ship,voyage,contract);assert.equal(loading.progress,0);
+ assert.deepEqual(loading.routeHexIds,built.route.sections.flatMap((section,index)=>index?section.hexIds.slice(1):section.hexIds));
+ const sailing=at(voyage.departedRealTime+1000),model=present(sailing.ships[0],sailing.activeVoyage,contract);
+ assert.ok(model.progress>0&&model.progress<1);assert.equal(model.plannedEtaRealTime,voyage.forecastEtaRealTime);
+ const full=at(voyage.departedRealTime+86400000),arrived=present(full.ships[0],full.activeVoyage,contract);
+ assert.equal(arrived.progress,1);assert.equal(arrived.nextPortId,null);assert.equal(arrived.portCalls.length,1);
+ assert.equal(arrived.actualArrivalRealTime,full.activeVoyage.plannedNavigation.checkpoint.processedRealTime);
+ const afterStop=at(arrived.portCalls[0].arrivedAtRealTime),stopModel=present(afterStop.ships[0],afterStop.activeVoyage,contract);
+ assert.equal(stopModel.currentSectionIndex,1);assert.equal(stopModel.portCalls.length,1);
+ assert.equal(JSON.stringify(initial),original);
+ assert.deepEqual(present(JSON.parse(JSON.stringify(afterStop.ships[0])),JSON.parse(JSON.stringify(afterStop.activeVoyage)),contract),stopModel);
+ const html=renderToStaticMarkup(createElement(PlannedShipVoyageStatus,{ship:full.ships[0],voyage:full.activeVoyage,contract}));
+ for(const label of ['計画ETA（受注時固定）','実到着（荷卸し前）','補油処理済み','航路距離の進捗','受注時に確定した全区間の航路と実船位'])assert.ok(html.includes(label),label);
+ const integrated=renderToStaticMarkup(createElement(ShipDetailScreen,{ship:sailing.ships[0],voyage:sailing.activeVoyage,contract,operationTime:sailing.operationTime,voyageMemos:[],onBack:()=>{}}));
+ assert.ok(integrated.includes('現在状況（確定計画）'));assert.ok(integrated.includes(`data-plan-eta="${voyage.forecastEtaRealTime}"`));
+ const broken={...voyage,plannedNavigation:null};
+ assert.throws(()=>present(ship,broken,contract));
+ const error=renderToStaticMarkup(createElement(PlannedShipVoyageStatus,{ship,voyage:broken,contract}));assert.ok(error.includes('従来の最短航路へ置き換えて表示しません'));
+ console.log('Confirmed route ship-detail presentation and rendering assertions passed; browser appearance not verified');
+} finally {if(server)await server.close();if(descriptor)Object.defineProperty(globalThis,'localStorage',descriptor);else delete globalThis.localStorage;}
