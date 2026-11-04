@@ -12,7 +12,7 @@ try {
  const {createVoyagePlanForecast}=await load('domain/voyagePlanForecast');
  const {buildPlanTimeline,getPlanPosition,evaluatePlanWeather,PLAN_DELAY_NOTICE,PLAN_FORECAST_MISSING_NOTICE,PLAN_NO_DELAY_NOTICE}=await load('domain/planWeather');
  const {calculateWindSpeedFactor}=await load('domain/shipPerformance');
- const {getPortHexId}=await load('data/hexMap');
+ const {getPortHexId,hexMap}=await load('data/hexMap');
  const {PlanWeatherChart}=await server.ssrLoadModule('/src/components/map/PlanWeatherChart.tsx');
  const start=Date.UTC(2026,10,3),departure=start+60000;
  const built=buildVoyagePlanRoute({departurePortId:'port_selene',destinationPortId:'port_rigel'},
@@ -52,11 +52,38 @@ try {
  assert.equal(partialAssessment.hasDelay,true);assert.equal(partialAssessment.hasMissing,true);
  assert.equal(evaluatePlanWeather(timeline,null).hasMissing,true);
  const wrong=structuredClone(forecast);wrong.sections[0].routeId='wrong-route';assert.equal(evaluatePlanWeather(timeline,wrong).hasMissing,true);
- const repeat=buildVoyagePlanRoute({departurePortId:'port_selene',destinationPortId:'port_aldera'},
- {stops:[{portId:'port_rigel',refuelTargetPercent:100}],legs:[{waypointHexIds:[]},{waypointHexIds:[]}]});assert.equal(repeat.ok,true);
- const repeated=buildPlanTimeline(repeat.route,start,departure,6);
+ // Explicit shared waypoint: never assume that two independently shortest paths overlap.
+ let repeatedFixture=null;
+ for(const hex of hexMap.filter(item=>item.kind==='sea')) {
+  const candidate=buildVoyagePlanRoute({departurePortId:'port_selene',destinationPortId:'port_aldera'},
+   {stops:[{portId:'port_rigel',refuelTargetPercent:100}],legs:[{waypointHexIds:[hex.id]},{waypointHexIds:[hex.id]}]});
+  if(!candidate.ok)continue;
+  const candidateTimeline=buildPlanTimeline(candidate.route,start,departure,6);
+  const outward=candidateTimeline.passages.find(passage=>passage.sectionIndex===0&&passage.hexId===hex.id);
+  const returning=candidateTimeline.passages.find(passage=>passage.sectionIndex===1&&passage.hexId===hex.id);
+  if(!outward||!returning)continue;
+  const angle=(returning.headingDeg-outward.headingDeg+360)%360;
+  if(Math.abs(angle-180)>1e-9)continue;
+  repeatedFixture={route:candidate.route,timeline:candidateTimeline,outward,returning,hexId:hex.id};break;
+ }
+ assert.ok(repeatedFixture,'The actual map must provide a valid explicit shared-waypoint route with opposite passage headings');
+ const repeated=repeatedFixture.timeline;
  const ids=repeated.passages.map(p=>p.hexId);assert.ok(new Set(ids).size<ids.length);
- const returning=repeated.passages.find(p=>p.sectionIndex===1);assert.equal(getPlanPosition(repeated,returning.startsAt+1).sectionIndex,1);
+ assert.deepEqual(repeatedFixture.route.sections.map(section=>section.waypointHexIds),[[repeatedFixture.hexId],[repeatedFixture.hexId]]);
+ for(const section of repeatedFixture.route.sections)assert.equal(new Set(section.hexIds).size,section.hexIds.length,'No repeats inside a port-to-port section');
+ const outwardTime=(repeatedFixture.outward.startsAt+repeatedFixture.outward.endsAt)/2;
+ const returnTime=(repeatedFixture.returning.startsAt+repeatedFixture.returning.endsAt)/2;
+ const outwardPosition=getPlanPosition(repeated,outwardTime),returnPosition=getPlanPosition(repeated,returnTime);
+ assert.equal(outwardPosition.hexId,repeatedFixture.hexId);assert.equal(returnPosition.hexId,repeatedFixture.hexId);
+ assert.equal(outwardPosition.sectionIndex,0);assert.equal(returnPosition.sectionIndex,1);
+ const repeatForecast=createVoyagePlanForecast(repeatedFixture.route,start);
+ for(const section of repeatForecast.sections)for(const [hexId,rows] of Object.entries(section.forecastsByHex))for(const row of rows)
+  row.forecastWind=hexId===repeatedFixture.hexId?{speedMps:10,fromDeg:repeatedFixture.outward.headingDeg}:{speedMps:0,fromDeg:null};
+ const repeatAssessment=evaluatePlanWeather(repeated,repeatForecast);
+ assert.equal(repeatAssessment.hasMissing,false);
+ assert.equal(repeatAssessment.passages.find(p=>p.sectionIndex===0&&p.hexId===repeatedFixture.hexId).hasDelay,true);
+ assert.equal(repeatAssessment.passages.find(p=>p.sectionIndex===1&&p.hexId===repeatedFixture.hexId).hasDelay,false);
+ assert.ok(calculateWindSpeedFactor(repeatedFixture.returning.headingDeg,{speedMps:10,fromDeg:repeatedFixture.outward.headingDeg})>1);
  const props={route,baseRealTime:start,departureRealTime:departure,plannedEtaRealTime:timeline.plannedEtaRealTime,selectedSpeedKnots:6,forecastCapturedAt:start,forecastOverride:forecast};
  const render=changes=>renderToStaticMarkup(createElement(PlanWeatherChart,{...props,...changes}));
  const calmHtml=render({});assert.ok(calmHtml.includes(PLAN_NO_DELAY_NOTICE));assert.ok(calmHtml.includes('data-planned-hex='));
@@ -67,5 +94,5 @@ try {
  const source=await readFile(new URL('../src/domain/planWeather.ts',import.meta.url),'utf8');
  assert.equal(source.includes('getWindAt'),false);assert.equal(source.includes('Date.now'),false);
  assert.throws(()=>buildPlanTimeline(route,start,departure,0));
- console.log('Plan position, forecast slot overlap, 5 percent boundary, missing coverage and chart rendering assertions passed; browser gestures not verified');
+ console.log('Plan position, forecast slot overlap, 5 percent boundary, missing coverage, explicit opposite-heading HEX revisits and chart rendering assertions passed; browser gestures not verified');
 } finally {if(server)await server.close();}
