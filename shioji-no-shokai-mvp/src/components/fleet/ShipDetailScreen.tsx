@@ -14,6 +14,7 @@ import { getSeaConditionAt } from "../../domain/seaCondition";
 import { HexMap } from "../map/HexMap";
 import { PortRefuelPanel } from "./PortRefuelPanel";
 import { ShipDesignPanel } from "./ShipDesignPanel";
+import { PlannedShipVoyageStatus } from "./PlannedShipVoyageStatus";
 
 interface ShipDetailScreenProps {
   ship: Ship;
@@ -57,13 +58,14 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
   const [selectedVoyageNumber, setSelectedVoyageNumber] = useState<number | null>(null);
   const voyage = activeVoyage?.shipId === ship.id ? activeVoyage : null;
   const contract = voyage && activeContract?.id === voyage.contractId ? activeContract : null;
+  const hasPlannedVoyage = voyage?.plannedNavigation !== undefined;
   const route = contract ? getRouteById(contract.routeId) : null;
   const cargo = contract ? getCargoPresentation(contract) : null;
   const capacity = getLotCapacityForDisplay(ship);
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const routeHexIds = route ? getRouteHexIds(route.fromPortId, route.toPortId) ?? [] : [];
-  const progress = voyage && contract
+  const routeHexIds = !hasPlannedVoyage && route ? getRouteHexIds(route.fromPortId, route.toPortId) ?? [] : [];
+  const progress = !hasPlannedVoyage && voyage && contract
     ? calculateVoyageProgress(voyage, contract, operationTime)
     : 0;
   const shipMemos = voyageMemos
@@ -74,17 +76,17 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
     : shipMemos.find((memo) => memo.voyageNumber === selectedVoyageNumber) ?? null;
   const memoCargo = selectedMemo ? getMemoCargoPresentation(selectedMemo, contract, voyage) : null;
 
-  const currentHexData = getHexById(ship.currentHexId);
-  const currentLocation = currentHexData.kind === "port"
+  const currentHexData = hasPlannedVoyage ? null : getHexById(ship.currentHexId);
+  const currentLocation = currentHexData?.kind === "port"
     ? getPortById(currentHexData.portId!).name
-    : `海域 ${getSeaLabel(currentHexData.id)}`;
-  const currentCondition = voyage?.phase === "sailing" && currentHexData.kind === "sea"
+    : currentHexData ? `海域 ${getSeaLabel(currentHexData.id)}` : "確認不可";
+  const currentCondition = voyage?.phase === "sailing" && currentHexData?.kind === "sea"
     ? getSeaConditionAt(ship.currentHexId, Date.now())
     : null;
 
   const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / GAME_TIME_MULTIPLIER;
-  const etaLabel = voyage?.phase === "sailing"
+  const etaLabel = !hasPlannedVoyage && voyage?.phase === "sailing"
     ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs))
     : "-";
   const deadlineLabel = contract ? formatDateTime(contract.deadlineAt) : "-";
@@ -101,7 +103,7 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
 
       <div className="ship-photo" aria-hidden="true">{ship.kind === "powered" ? "🚢" : "⛵"}</div>
 
-      <section className="contract-card fleet-card">
+      {hasPlannedVoyage && voyage ? <PlannedShipVoyageStatus ship={ship} voyage={voyage} contract={contract} /> : <section className="contract-card fleet-card">
         <h3>現在状況</h3>
         <div className="contract-card-route"><span>現在位置</span><span className="contract-route-arrow">→</span><span>{currentLocation}</span></div>
         <div className="contract-card-route"><span>海況</span><span className="contract-route-arrow">→</span><span>{currentCondition ? CONDITION_LABELS[currentCondition] : "-"}</span></div>
@@ -125,7 +127,7 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
             currentHexId={ship.currentHexId}
           />
         </div>
-      </section>
+      </section>}
 
       <PortRefuelPanel key={ship.id} shipId={ship.id} />
       <ShipDesignPanel shipId={ship.id} />

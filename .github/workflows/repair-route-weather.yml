@@ -1,0 +1,62 @@
+name: Repair route weather and verify
+on:
+  push:
+    branches: [feature/voyage-planning]
+    paths: [.github/workflows/repair-route-weather.yml]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/voyage-planning
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Repair identifiers and refuel syntax
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('shioji-no-shokai-mvp/src/components/contract/RouteWeatherEditor.tsx')
+          s = p.read_text()
+          replacements = {
+            'hexMap, getPortHexId': 'hexMap',
+            'import { getWorldPlanForecastAt }': 'import { getWorldPlanForecastAt, buildVoyagePlanForecastFromWorld }',
+            'evaluatePlanWeather, buildPlanTimeline, PLAN_DELAY_NOTICE': 'evaluatePlanWeather, buildPlanTimeline, getPlanPosition, PLAN_DELAY_NOTICE',
+            'import { calculateEffectiveSpeedKnots } from "../../domain/shipPerformance";': 'import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";\nimport { SEA_CONDITION_SLOT_MS } from "../../domain/seaCondition";',
+            'import { getHeavyLoadSpeedFactor } from "../../domain/voyage";\n': '',
+            'import { calculateContractSchedule } from "../../domain/contractSchedule";\n': '',
+            'const terrain = new Map(worldMap.terrain.map(hex => [`${hex.q},${hex.r}`, hex]));\n': '',
+            '  const [compactWind, setCompactWind] = useState(true);\n': '',
+            '  const shortest = useMemo(() => buildVoyagePlanRoute(endpoints, initialDraft()), [departurePortId, destinationPortId]);\n': '',
+            'baseRealTime, offeredDeadlineAt, selectedSpeedKnots': 'baseRealTime, selectedSpeedKnots',
+            '      const loadFactor = getHeavyLoadSpeedFactor(contract, selectedShip);\n': '',
+            'const weatherResult =': 'const evaluation =',
+            'const selectedInfo =': 'const selectedDescription =',
+            'const heading=headings.get(cell.id);': '',
+            'const angle=onRoute&&selectedHeading!==undefined&&selectedCell?.id===cell.id?selectedHeading:': 'const angle=',
+            'refuelTargetPercent:Number(event.target.value)}:stop})': 'refuelTargetPercent:Number(event.target.value)}:stop)})',
+          }
+          for old, new in replacements.items():
+            s = s.replace(old, new)
+          p.write_text(s)
+          p = Path('shioji-no-shokai-mvp/tests/worldPlanForecast.test.mjs')
+          s = p.read_text()
+          s = s.replace("Date.now=originalNow;if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage;", '')
+          p.write_text(s)
+      - run: npm ci
+        working-directory: shioji-no-shokai-mvp
+      - run: node tests/worldPlanForecast.test.mjs
+        working-directory: shioji-no-shokai-mvp
+      - run: npm run build
+        working-directory: shioji-no-shokai-mvp
+      - name: Commit only verified repairs
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add shioji-no-shokai-mvp/src/components/contract/RouteWeatherEditor.tsx shioji-no-shokai-mvp/tests/worldPlanForecast.test.mjs
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: repair route weather syntax and identifiers'
+          git push origin HEAD:feature/voyage-planning

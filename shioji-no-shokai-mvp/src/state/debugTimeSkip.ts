@@ -4,6 +4,11 @@ const SKIP_REAL_MS = 30 * 60 * 1000;
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
 export function debugSkipThirtyMinutes(): void {
+  // This legacy helper rewrites departure/ETA clocks, not planned checkpoints.
+  // Reject before any tick or state publication, including malformed present plans.
+  if (useGameStore.getState().gameState.activeVoyage?.plannedNavigation !== undefined) {
+    throw new Error("確定計画の航海中は旧方式の30分スキップを使用できません。計画ETAと保存状態を保護するため停止しました。");
+  }
   useGameStore.getState().tick();
   const current = useGameStore.getState().gameState;
   const now = Date.now();

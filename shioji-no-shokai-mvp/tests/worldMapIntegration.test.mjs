@@ -108,12 +108,21 @@ try {
     }
   }
   checks.push('existing sea-condition and forecast functions cover every sea HEX');
-  assert.equal(SAVE_VERSION, 7);
-  assert.equal(SAVE_KEY, 'shioji-no-shokai:save:v7');
-  const oldKey = 'shioji-no-shokai:save:v6';
-  const oldValue = JSON.stringify({ version: 6, savedAtRealTime: now, gameState: { playerId: 'legacy-only' } });
-  storage.set(oldKey, oldValue);
-  assert.equal(loadGame(), null);
+  assert.equal(SAVE_VERSION, 8);
+  assert.equal(SAVE_KEY, 'shioji-no-shokai:save:v8');
+  const legacySaves = [6, 7].map(version => ({
+    key: `shioji-no-shokai:save:v${version}`,
+    value: JSON.stringify({ version, savedAtRealTime: now, gameState: { playerId: `legacy-v${version}-only` } }),
+  }));
+  for (const legacy of legacySaves) {
+    storage.set(legacy.key, legacy.value);
+    assert.equal(loadGame(), null, `v${JSON.parse(legacy.value).version} must not be read as v8`);
+  }
+  const assertLegacyUntouched = () => {
+    for (const legacy of legacySaves) assert.equal(storage.get(legacy.key), legacy.value);
+  };
+  assertLegacyUntouched();
+  assert.equal(storage.has(SAVE_KEY), false);
   const { useGameStore: store } = await server.ssrLoadModule('/src/state/gameStore.ts');
   const seed = structuredClone(store.getState().gameState);
   assert.equal(seed.playerId, 'player_001');
@@ -121,8 +130,9 @@ try {
   assert.equal(seed.portOffers.port_mira.length, 3);
   for (const ship of seed.ships) assert.equal(ship.currentHexId, getPortHexId(ship.currentPortId));
   saveGame(seed);
+  assert.equal(JSON.parse(storage.get(SAVE_KEY)).version, 8);
   assert.deepEqual(JSON.parse(JSON.stringify(loadGame())), JSON.parse(JSON.stringify(seed)));
-  assert.equal(storage.get(oldKey), oldValue);
+  assertLegacyUntouched();
   const { tutorialWheatContract } = await server.ssrLoadModule('/src/data/contracts.ts');
   store.getState().acceptContract(tutorialWheatContract.id, seed.ships[0].id);
   const accepted = store.getState().gameState;
@@ -130,10 +140,11 @@ try {
   assert.ok(accepted.activeVoyage);
   assert.equal(accepted.activeVoyage.contractId, accepted.acceptedContract.id);
   assert.deepEqual(JSON.parse(JSON.stringify(loadGame())), JSON.parse(JSON.stringify(accepted)));
+  assert.equal(JSON.parse(storage.get(SAVE_KEY)).version, 8);
   const tutorialRoute = getRouteById(tutorialWheatContract.routeId);
   assert.equal(accepted.ships[0].currentHexId, getPortHexId(tutorialRoute.fromPortId));
-  assert.equal(storage.get(oldKey), oldValue);
-  checks.push('four initial offer arrays; fresh and accepted state round-trip in v7; v6 data untouched');
+  assertLegacyUntouched();
+  checks.push('four initial offer arrays; fresh and accepted state round-trip in v8; v6 and v7 data neither read nor changed');
   console.log(JSON.stringify({ passed: checks.length, checks }, null, 2));
 } finally {
   if (server) await server.close();

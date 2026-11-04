@@ -6,6 +6,7 @@ import { getHexById } from "../../data/hexMap";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getSeaConditionAt } from "../../domain/seaCondition";
+import { PlannedFleetShipCard } from "./PlannedFleetShipCard";
 
 interface FleetPanelProps {
   ships: Ship[];
@@ -34,16 +35,18 @@ const STATUS_LABELS = {
 } as const;
 
 export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShip }: FleetPanelProps) {
-  const route = contract ? getRouteById(contract.routeId) : null;
-  const cargo = contract ? getCargoPresentation(contract) : null;
+  const legacyVoyage = voyage?.plannedNavigation !== undefined ? null : voyage;
+  const legacyContract = voyage?.plannedNavigation !== undefined ? null : contract;
+  const route = legacyContract ? getRouteById(legacyContract.routeId) : null;
+  const cargo = legacyContract ? getCargoPresentation(legacyContract) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
-  const remainingOperationMs = voyage ? Math.max(0, voyage.estimatedArrivalAt - operationTime) : 0;
+  const remainingOperationMs = legacyVoyage ? Math.max(0, legacyVoyage.estimatedArrivalAt - operationTime) : 0;
   const remainingMs = remainingOperationMs / 6;
-  const estimatedArrivalLabel = voyage?.phase === "sailing"
+  const estimatedArrivalLabel = legacyVoyage?.phase === "sailing"
     ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs))
     : "-";
-  const deadlineLabel = contract ? formatDateTime(contract.deadlineAt) : "-";
+  const deadlineLabel = legacyContract ? formatDateTime(legacyContract.deadlineAt) : "-";
 
   return (
     <section className="contract-board fleet-board">
@@ -59,6 +62,9 @@ export function FleetPanel({ ships, voyage, contract, operationTime, onSelectShi
         {ships.map((ship) => {
           const shipVoyage = voyage?.shipId === ship.id ? voyage : null;
           const shipContract = shipVoyage && contract?.id === shipVoyage.contractId ? contract : null;
+          if (shipVoyage?.plannedNavigation !== undefined) {
+            return <PlannedFleetShipCard key={ship.id} ship={ship} voyage={shipVoyage} contract={shipContract} onSelectShip={onSelectShip} />;
+          }
           const capacity = getLotCapacityForDisplay(ship);
           const progress = shipVoyage && shipContract
             ? calculateVoyageProgress(shipVoyage, shipContract, operationTime)

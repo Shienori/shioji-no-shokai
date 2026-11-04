@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import {fileURLToPath} from 'node:url';
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+let server;
+try {
+ server=await createServer({root:fileURLToPath(new URL('../',import.meta.url)),server:{middlewareMode:true},appType:'custom'});
+ const load=name=>server.ssrLoadModule('/src/'+name+'.ts');
+ const {VoyagePlanConfirmation,VoyagePlanReviewDetails}=await server.ssrLoadModule('/src/components/contract/VoyagePlanConfirmation.tsx');
+ const {PlannedContractDetailScreen}=await server.ssrLoadModule('/src/components/contract/PlannedContractDetailScreen.tsx');
+ const {createConfirmedPlanReview}=await load('domain/confirmedPlanReview');
+ const {buildVoyagePlanRoute}=await load('domain/voyagePlanRoute');
+ const {tutorialWheatContract:contract}=await load('data/contracts');
+ const {getRouteById}=await load('data/routes');const {ports}=await load('data/ports');const {initialShip}=await load('data/ships');
+ const endpoints=getRouteById(contract.routeId),ship=structuredClone(initialShip),now=Date.UTC(2026,10,3);
+ const stop=ports.find(port=>port.id!==endpoints.fromPortId&&port.id!==endpoints.toPortId);
+ const built=buildVoyagePlanRoute({departurePortId:endpoints.fromPortId,destinationPortId:endpoints.toPortId},
+ {stops:[{portId:stop.id,refuelTargetPercent:80}],legs:[{waypointHexIds:[]},{waypointHexIds:[]}]});assert.equal(built.ok,true);
+ const review=createConfirmedPlanReview(contract.id,contract,ship,built.route,ship.cruisingSpeedKnots,now,now+86400000);
+ let submitted=0;
+ const html=renderToStaticMarkup(createElement(VoyagePlanConfirmation,{initialReview:review,onConfirm:()=>{submitted++;},onCancel:()=>{}}));
+ for(const label of ['最終受注確認','戻って修正','計画到着（荷卸し前）','到着期限','使用船','提示報酬','途中寄港','計画の詳細','80%']) assert.ok(html.includes(label),label);
+ for(const label of ['確定HEXの通過順','提示ID・テンプレートID','通過地点：','計画基準時刻']) assert.equal(html.includes(label),false,label);
+ assert.ok(html.includes('role="dialog"'));assert.ok(html.includes(`data-plan-eta="${review.prediction.plannedEtaRealTime}"`));assert.equal(submitted,0);
+ const details=html.match(/<details\b[^>]*>[\s\S]*?<\/details>/);
+ assert.ok(details);assert.equal(/<details\b[^>]*\bopen(?:\s|=|>)/.test(details[0]),false);
+ const summaryOnly=html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g,'');
+ assert.equal(summaryOnly.includes('計画必要燃料'),false);assert.ok(summaryOnly.includes('燃料'));
+ const before=review.ship.fuel.remainingTons;ship.fuel.remainingTons=0;assert.equal(review.ship.fuel.remainingTons,before);
+ const weak=structuredClone(initialShip);weak.fuel.remainingTons=.000001;
+ const warning=createConfirmedPlanReview(contract.id,contract,weak,built.route,weak.cruisingSpeedKnots,now,now+86400000);
+ const shortage=renderToStaticMarkup(createElement(VoyagePlanConfirmation,{initialReview:warning,onConfirm:()=>{},onCancel:()=>{}}));
+ assert.ok(shortage.includes('燃料不足の警告を確認して受注を確定'));assert.ok(shortage.includes('前区間不足'));
+ assert.ok(shortage.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g,'').includes('目的地までの燃料が足りません'));
+ const direct=buildVoyagePlanRoute({departurePortId:endpoints.fromPortId,destinationPortId:endpoints.toPortId},{stops:[],legs:[{waypointHexIds:[]}]});assert.equal(direct.ok,true);
+ const directReview=createConfirmedPlanReview(contract.id,contract,initialShip,direct.route,initialShip.cruisingSpeedKnots,now,now+86400000);
+ const directHtml=renderToStaticMarkup(createElement(VoyagePlanReviewDetails,{review:directReview}));assert.equal(directHtml.includes('途中寄港'),false);
+ const detail=renderToStaticMarkup(createElement(PlannedContractDetailScreen,{offerId:contract.id,contract,ships:[initialShip],eligibleShips:[initialShip],acceptReason:null,offeredDeadlineAt:now+86400000,onAccept:()=>{},onClose:()=>{}}));
+ assert.ok(detail.includes('最終確認へ'));assert.ok(detail.includes('編集した航路は最終確認へ引き継ぎます'));
+ assert.equal(detail.includes('編集結果の受注・保存はまだ未接続'),false);
+ console.log('Compact confirmation essential fields, collapsed details, warnings and connected route editor rendering assertions passed; browser interaction not verified');
+} finally {if(server)await server.close();}

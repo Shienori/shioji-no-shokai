@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AcceptedContract, ContractTemplate, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, VoyageMemo, VoyagePhase } from "../domain/types";
+import type { AcceptedContract, ContractTemplate, ContractId, GameState, OfferedContract, PortId, Ship, ShipId, ShipStatus, Voyage, VoyageMemo, VoyagePhase } from "../domain/types";
 import { initialShip } from "../data/ships";
 import { ensureMiraReputation } from "../data/shippers";
 import { getContractDifficulty, getContractPoolByPort, getContractTemplateById, tutorialWheatContract } from "../data/contracts";
@@ -8,6 +8,10 @@ import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { createVoyage, progressVoyage, getHeavyLoadSpeedFactor, calculateArrivalLateHours } from "../domain/voyage";
 import { advanceCoalVoyage, createCoalVoyageNavigation } from "../domain/coalVoyage";
+import { progressConfirmedPlanLifecycle } from "../domain/confirmedPlanLifecycle";
+import { createConfirmedPlanVoyage } from "../domain/confirmedPlanVoyage";
+import { createConfirmedPlanReview } from "../domain/confirmedPlanReview";
+import type { ConfirmedPlanReview, PlanAcceptanceResult } from "../domain/confirmedPlanReview";
 import { isValidShipFuel } from "../domain/coalFuel";
 import { isSelectedSpeedWithinLimits } from "../domain/voyageSpeedValidation";
 import { readCargoLotSnapshot } from "../domain/lotContract";
@@ -16,7 +20,7 @@ import { advanceOperationTime } from "../domain/time";
 import { calculateContractSchedule, createAcceptedContract, createOfferedContract } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
-import { GAME_TIME_MULTIPLIER, SAVE_KEY, STARTING_MONEY } from "../data/gameConstants";
+import { GAME_TIME_MULTIPLIER, SAVE_KEY, SAVE_VERSION, STARTING_MONEY } from "../data/gameConstants";
 import { getHexById, getPortHexId } from "../data/hexMap";
 import { getRouteHexIds } from "../domain/routePath";
 
@@ -35,7 +39,7 @@ interface GameStore {
   setActiveTab: (tab: "contracts" | "fleet" | "chart") => void;
   selectPort: (portId: PortId) => void;
   // Normal requests use offer IDs; only the fixed tutorial uses its template ID.
-  acceptContract: (offerId: string, shipId: string, selectedSpeedKnots?: number) => void;
+  acceptContract: (offerId: string, shipId: string, selectedSpeedKnots?: number, reviewedPlan?: ConfirmedPlanReview) => PlanAcceptanceResult | void;
   settleContract: () => void;
   resetGame: () => void;
 }
@@ -131,6 +135,8 @@ function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: Voyage
 }
 function syncActiveShipPosition(state: GameState): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
+  // Planned navigation already supplies the position on its confirmed route.
+  if (state.activeVoyage.plannedNavigation !== undefined) return state;
   const currentHexId = getShipCurrentHexId(state.acceptedContract, state.activeVoyage);
   if (!currentHexId) return state;
   let changed = false;
@@ -175,6 +181,10 @@ function preserveActiveMemoCargo(state: GameState): GameState {
   };
 }
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
+  // Presence selects the new path; malformed or orphaned plans must fail, not fall back.
+  if (state.activeVoyage?.plannedNavigation !== undefined) {
+    return progressConfirmedPlanLifecycle(preserveActiveMemoCargo(state), currentRealTime);
+  }
   if (!state.activeVoyage || !state.acceptedContract) return state;
   state = preserveActiveMemoCargo(state);
   const contract = state.acceptedContract!;
@@ -256,7 +266,7 @@ function refreshContractsIfDue(state: GameState, currentRealTime: number): GameS
   const portOffers = Object.fromEntries(ports.map((port) => {
     const currentOffers = state.portOffers[port.id] ?? [];
     const keepTemplateIds = acceptedTemplateId && currentOffers.some((offer) => offer.templateId === acceptedTemplateId) ? [acceptedTemplateId] : [];
-    return [port.id, pickPortOffers(port.id, keepTemplateIds)];
+    return [port.id, pickPortOffers(port.id, keepTemplateIds, keepTemplateIds.length ? 3 : 3)];
   }));
   return { ...state, portOffers, nextRefreshAt: getNextRefreshTime(currentRealTime) };
 }
@@ -280,7 +290,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       operationTime: current.activeVoyage ? advanceOperationTime(current.operationTime, current.lastRealTimeSyncedAt, currentRealTime) : current.operationTime,
       lastRealTimeSyncedAt: currentRealTime
     };
-    if (next.activeVoyage && next.acceptedContract) { next = progressVoyageIfActive(next, currentRealTime); next = syncActiveShipPosition(next); }
+    if (next.activeVoyage && (next.acceptedContract || next.activeVoyage.plannedNavigation !== undefined)) { next = progressVoyageIfActive(next, currentRealTime); next = syncActiveShipPosition(next); }
     next = refreshContractsIfDue(next, currentRealTime);
     saveGame(next);
     set({ gameState: next });
@@ -289,7 +299,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectShip: (shipId) => set({ selectedShipId: shipId }),
   setActiveTab: (tab) => set({ activeTab: tab }),
   selectPort: (portId) => set({ gameState: { ...get().gameState, selectedPortId: portId } }),
-  acceptContract: (offerId, shipId, selectedSpeedKnots) => {
+  acceptContract: (offerId, shipId, selectedSpeedKnots, reviewedPlan) => {
     const current = get().gameState;
     const currentRealTime = Date.now();
     if (current.acceptedContract || current.activeVoyage) return;
@@ -312,13 +322,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const route = getRouteById(template.routeId);
     // Only the fixed tutorial may calculate a deadline without a live offer.
     const deadlineAt = isTutorial ? calculateContractSchedule(template, route, currentRealTime).deadlineAt : offeredContract!.deadlineAt;
+    if (reviewedPlan !== undefined) {
+      if (!reviewedPlan || SAVE_VERSION !== 8 || ship.kind !== "powered" || reviewedPlan.offerId !== offerId ||
+          reviewedPlan.templateId !== template.id || reviewedPlan.shipId !== shipId || reviewedPlan.selectedSpeedKnots !== speed ||
+          !Number.isSafeInteger(reviewedPlan.baseRealTime) || reviewedPlan.baseRealTime > currentRealTime) return;
+      try {
+        const fresh = createConfirmedPlanReview(offerId, template, ship, reviewedPlan.route, speed, currentRealTime, deadlineAt);
+        if (fresh.signature !== reviewedPlan.signature || (!isTutorial && reviewedPlan.deadlineAt !== deadlineAt)) {
+          return { kind: "reviewRequired", review: fresh };
+        }
+      } catch { return; }
+    }
     const cargo = getCargoById(template.cargoId);
     const acceptedContract = createAcceptedContract(template, route, cargo, currentRealTime, deadlineAt);
     // Calculation copy only: retain the ship's original cruising specification.
     const voyageShip: Ship = { ...ship, cruisingSpeedKnots: speed };
-    const voyage = createVoyage(acceptedContract, voyageShip, current.operationTime, currentRealTime);
-    if (ship.kind === "powered") {
-      voyage.fuelNavigation = createCoalVoyageNavigation(ship, route, getHeavyLoadSpeedFactor(acceptedContract, ship), speed);
+    let voyage: Voyage;
+    if (reviewedPlan !== undefined) {
+      try {
+        voyage = createConfirmedPlanVoyage({ contract: acceptedContract, ship, route: reviewedPlan.route,
+          selectedSpeedKnots: speed, operationTime: current.operationTime });
+      } catch { return; }
+    } else {
+      voyage = createVoyage(acceptedContract, voyageShip, current.operationTime, currentRealTime);
+      if (ship.kind === "powered") {
+        voyage.fuelNavigation = createCoalVoyageNavigation(ship, route, getHeavyLoadSpeedFactor(acceptedContract, ship), speed);
+      }
     }
     const updatedShip = { ...ship, status: "loading" as const, currentHexId: getPortHexId(route.fromPortId), activeContractId: acceptedContract.id };
     const portOffers = { ...current.portOffers };
@@ -346,6 +375,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
     saveGame(next);
     set({ gameState: next, selectedContractId: null });
+    return { kind: "accepted" };
   },
   settleContract: () => {
     let current = get().gameState;

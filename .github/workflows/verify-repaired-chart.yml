@@ -1,0 +1,65 @@
+name: Verify repaired chart
+on:
+  push:
+    branches: [feature/voyage-planning]
+    paths: [.github/workflows/verify-repaired-chart.yml]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/voyage-planning
+          path: report
+      - uses: actions/checkout@v4
+        with:
+          ref: 1841fee64038f8c9219a1160ecc9cfcc98f03aad
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build and run every test independently
+        shell: bash
+        run: |
+          mkdir -p report/verification/repaired-chart-1841fee
+          out="$GITHUB_WORKSPACE/report/verification/repaired-chart-1841fee"
+          cd source/shioji-no-shokai-mvp
+          set +e
+          npm ci > "$out/install.log" 2>&1
+          install_status=$?
+          printf 'Source: 1841fee64038f8c9219a1160ecc9cfcc98f03aad\nInstall exit: %s\n' "$install_status" > "$out/results.txt"
+          failed=0
+          if [ "$install_status" -eq 0 ]; then
+            npm run build > "$out/build.log" 2>&1
+            status=$?
+            printf 'Build exit: %s\n' "$status" >> "$out/results.txt"
+            if [ "$status" -ne 0 ]; then failed=1; fi
+            for test in tests/*.test.mjs; do
+              name=$(basename "$test")
+              timeout 120s node "$test" > "$out/$name.log" 2>&1
+              status=$?
+              printf '%s exit: %s\n' "$name" "$status" >> "$out/results.txt"
+              if [ "$status" -ne 0 ]; then failed=1; fi
+            done
+          else
+            failed=1
+            echo 'Build and tests not run: installation failed.' >> "$out/results.txt"
+          fi
+          printf 'Overall failed: %s\n' "$failed" >> "$out/results.txt"
+          cat "$out/results.txt"
+          cat "$out/results.txt" >> "$GITHUB_STEP_SUMMARY"
+          echo "VERIFY_FAILED=$failed" >> "$GITHUB_ENV"
+      - name: Persist verification logs only
+        working-directory: report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add verification/repaired-chart-1841fee
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'docs: record build and test results for 1841fee'
+          git push origin HEAD:feature/voyage-planning
+      - name: Set final status
+        if: always()
+        run: test "$VERIFY_FAILED" = 0
