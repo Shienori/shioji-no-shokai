@@ -43,5 +43,6 @@ try {
  const css=await readFile(new URL('../src/styles/voyagePlanFlow.css',import.meta.url),'utf8');
  for(const color of ['#6B4935','#FFF4DF','#F6EEDF','#E8BD74'])assert.ok(css.includes(color));
  assert.ok(css.includes('.voyage-flow-panel[hidden]'));
- console.log('Full-sea forecast coverage, shared edition, route extraction, independent copies and brown theme assertions passed; integrated UI is the next step');
-} finally {if(server)await server.close();}
+ assert.ok(css.includes('.route-weather-editor'));
+ console.log('Full-sea forecast coverage, shared edition, independent copies, integrated chart theme and editor style assertions passed');
+} finally {if(server)await server.close();Date.now=originalNow;if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage;}
