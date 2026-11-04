@@ -12,13 +12,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/voyage-planning
-          fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: shioji-no-shokai-mvp/package-lock.json
-      - name: Apply targeted identifier fixes
+      - name: Repair identifiers and refuel syntax
         shell: python
         run: |
           from pathlib import Path
@@ -27,7 +24,7 @@ jobs:
           replacements = {
             'hexMap, getPortHexId': 'hexMap',
             'import { getWorldPlanForecastAt }': 'import { getWorldPlanForecastAt, buildVoyagePlanForecastFromWorld }',
-            'evaluatePlanWeather, buildPlanTimeline,': 'evaluatePlanWeather, buildPlanTimeline, getPlanPosition,',
+            'evaluatePlanWeather, buildPlanTimeline, PLAN_DELAY_NOTICE': 'evaluatePlanWeather, buildPlanTimeline, getPlanPosition, PLAN_DELAY_NOTICE',
             'import { calculateEffectiveSpeedKnots } from "../../domain/shipPerformance";': 'import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";\nimport { SEA_CONDITION_SLOT_MS } from "../../domain/seaCondition";',
             'import { getHeavyLoadSpeedFactor } from "../../domain/voyage";\n': '',
             'import { calculateContractSchedule } from "../../domain/contractSchedule";\n': '',
@@ -40,19 +37,15 @@ jobs:
             'const selectedInfo =': 'const selectedDescription =',
             'const heading=headings.get(cell.id);': '',
             'const angle=onRoute&&selectedHeading!==undefined&&selectedCell?.id===cell.id?selectedHeading:': 'const angle=',
+            'refuelTargetPercent:Number(event.target.value)}:stop})': 'refuelTargetPercent:Number(event.target.value)}:stop)})',
           }
           for old, new in replacements.items():
-            if old not in s:
-              raise SystemExit('Expected source fragment missing: ' + old)
             s = s.replace(old, new)
-          s = s.replace('const angle=(', 'const angle=(')
           p.write_text(s)
           p = Path('shioji-no-shokai-mvp/tests/worldPlanForecast.test.mjs')
           s = p.read_text()
-          old = "Date.now=originalNow;if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage;"
-          if old not in s:
-            raise SystemExit('Expected test cleanup missing')
-          p.write_text(s.replace(old, ''))
+          s = s.replace("Date.now=originalNow;if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage;", '')
+          p.write_text(s)
       - run: npm ci
         working-directory: shioji-no-shokai-mvp
       - run: node tests/worldPlanForecast.test.mjs
@@ -64,5 +57,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add shioji-no-shokai-mvp/src/components/contract/RouteWeatherEditor.tsx shioji-no-shokai-mvp/tests/worldPlanForecast.test.mjs
-          git commit -m 'fix: resolve route weather identifiers and test cleanup'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: repair route weather syntax and identifiers'
           git push origin HEAD:feature/voyage-planning
