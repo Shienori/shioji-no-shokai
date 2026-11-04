@@ -222,7 +222,8 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
                         onClick={() => setSelectedVoyageNumber(memo.voyageNumber)}
                       >
                         <span className="voyage-memo-row-label">{memo.label}</span>
-                        <span className="contract-card-detail">{getVoyageMemoStatus(memo, voyage)}</span>
+                        <span className="voyage-memo-row-route">{memo.routeLabel}</span>
+                        <span className="voyage-memo-row-status">{getVoyageMemoStatus(memo, voyage)}</span>
                       </button>
                     ))}
                   </div>
