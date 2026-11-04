@@ -7,7 +7,6 @@ import { worldMap } from "../../data/worldMap";
 import { getPortById } from "../../data/ports";
 import { getCargoById } from "../../data/cargos";
 import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
-import { SEA_CONDITION_SLOT_MS } from "../../domain/seaCondition";
 import { buildVoyagePlanRoute } from "../../domain/voyagePlanRoute";
 import type { WorldPlanForecast } from "../../domain/worldPlanForecast";
 import { getWorldPlanForecastAt, buildVoyagePlanForecastFromWorld } from "../../domain/worldPlanForecast";
@@ -40,7 +39,7 @@ export function RouteWeatherEditor({ departurePortId, destinationPortId, worldFo
   const draft = history[history.length - 1];
   const [sectionIndex, setSectionIndex] = useState(0);
   const activeIndex = Math.min(sectionIndex, draft.legs.length - 1);
-  const [time, setTime] = useState(worldForecast.capturedAt);
+  const [timeProgress, setTimeProgress] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [candidate, setCandidate] = useState<VoyagePlanRouteDraft | null>(null);
   const [message, setMessage] = useState("");
@@ -51,12 +50,10 @@ export function RouteWeatherEditor({ departurePortId, destinationPortId, worldFo
   const result = useMemo(() => buildVoyagePlanRoute({ departurePortId, destinationPortId }, draft), [departurePortId, destinationPortId, draft]);
   const edited = draft.stops.length > 0 || draft.legs.some(leg => leg.waypointHexIds.length > 0);
   useEffect(() => { if (result.ok) onEditedChange(edited, result.route); }, [result, edited, onEditedChange]);
-  useEffect(() => { setTime(worldForecast.capturedAt); }, [worldForecast.capturedAt]);
   if (!result.ok) return <p role="alert">{result.message}</p>;
   const route = result.route;
   const preview = candidate ? buildVoyagePlanRoute(endpoints, candidate) : null;
   const displayed = preview?.ok ? preview.route : route;
-  const target = Math.max(worldForecast.validFrom, Math.min(worldForecast.validTo - 1, time));
   const speed = selectedSpeedKnots ?? selectedShip?.cruisingSpeedKnots;
   const timeline = (() => {
     if (!selectedShip || speed === undefined) return null;
@@ -65,6 +62,11 @@ export function RouteWeatherEditor({ departurePortId, destinationPortId, worldFo
       return buildPlanTimeline(displayed, baseRealTime, departure, speed);
     } catch { return null; }
   })();
+  const progress = Math.min(1000, Math.max(0, timeProgress));
+  const target = timeline
+    ? progress === 1000 ? timeline.plannedEtaRealTime
+      : timeline.departureRealTime + (timeline.plannedEtaRealTime - timeline.departureRealTime) * progress / 1000
+    : worldForecast.capturedAt;
   const evaluation = (() => {
     if (!timeline) return null;
     try { return evaluatePlanWeather(timeline, buildVoyagePlanForecastFromWorld(displayed, worldForecast)); }
@@ -159,7 +161,10 @@ export function RouteWeatherEditor({ departurePortId, destinationPortId, worldFo
       {draft.legs.flatMap((leg, section) => leg.waypointHexIds.map((id, waypoint) => { const p = getMapCenter(cells.get(id)!); return <g key={`wp-${section}-${waypoint}`}><circle cx={p.x} cy={p.y} r={13} fill="#2563eb" stroke="white" strokeWidth={2} style={{ touchAction: "none", cursor: "grab" }} onClick={event => event.stopPropagation()} onPointerDown={event => { if (!event.isPrimary || event.button !== 0) return; event.preventDefault(); event.stopPropagation(); suppressClick.current = false; drag.current = { pointerId: event.pointerId, section, waypoint, x: event.clientX, y: event.clientY, moved: false, next: null }; event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId); }} /><text x={p.x} y={p.y + 4} textAnchor="middle" fill="white" fontSize={10} pointerEvents="none">{section + 1}-{waypoint + 1}</text></g>; }))}
       {position && (() => { const p = getMapCenter(position.axial); return <g pointerEvents="none"><circle cx={p.x} cy={p.y} r={15} fill="none" stroke="#7c3aed" strokeWidth={3} /><text x={p.x} y={p.y - 18} textAnchor="middle" fontSize={10} fill="#5b21b6">計画位置</text></g>; })()}
     </svg></div>
-    <label>海図時刻 {labelTime(target)} <input type="range" aria-label="海図全域の気象予報時刻" min={worldForecast.validFrom} max={worldForecast.validTo - 1} step={SEA_CONDITION_SLOT_MS} value={target} onChange={event => setTime(Number(event.target.value))} /></label>
+    {timeline ? <>
+      <p>出港予定 {labelTime(timeline.departureRealTime)} → 計画到着 {labelTime(timeline.plannedEtaRealTime)}（荷卸し前）</p>
+      <label>海図時刻 {labelTime(target)} <input type="range" aria-label="出港から計画到着までの気象予報時刻" aria-valuetext={labelTime(target)} min={0} max={1000} step={1} value={progress} onChange={event => setTimeProgress(Number(event.target.value))} /></label>
+    </> : <p role="status">船・速力・航路を確認すると、出港から計画到着までの時間バーを表示します。</p>}
     <p>矢印は風が吹いていく向き、長さは風の強さ。航路上の速力補正は緑＝増加、赤＝減少です。</p>
     {rows.some(row => !row.slot) && <p role="status">一部または全海域に予報がありません。風を推測しません。</p>}
     {selected?.info && <p>選択海域 {selectedId}：{selected.info.directionLabel} ／ {selected.info.speedLabel} ／ {selected.info.deltaLabel}</p>}
