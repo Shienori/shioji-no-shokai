@@ -13,6 +13,7 @@ import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { VoyageRouteEditor } from "./VoyageRouteEditor";
 import { CapacityGauge } from "./CapacityGauge";
 import { VoyagePlanConfirmation, VoyagePlanReviewDetails } from "./VoyagePlanConfirmation";
+import { PlanWeatherChart } from "../map/PlanWeatherChart";
 
 interface Props {
   offerId: string;
@@ -92,6 +93,8 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
           {preview ? <VoyagePlanReviewDetails review={preview} /> : <p>{ship ? "計画を計算できません。航路・速力・燃料を確認してください。" : "船を選択すると計画ETAと燃料試算を表示します。"}</p>}
           <p>航路・速力・補油率の変更では基準時刻を固定します。最終確認を開く際は現在時刻から再計算します。</p>
         </section>
+        {preview && <PlanWeatherChart route={preview.route} baseRealTime={preview.baseRealTime} departureRealTime={preview.prediction.departureRealTime}
+          plannedEtaRealTime={preview.prediction.plannedEtaRealTime} selectedSpeedKnots={preview.selectedSpeedKnots} forecastCapturedAt={preview.baseRealTime} ships={ship ? [ship] : []} />}
       </div>
       <footer className="detail-footer">
         {!canConfirm && acceptReason && <p className="accept-reason">{acceptReason}</p>}
