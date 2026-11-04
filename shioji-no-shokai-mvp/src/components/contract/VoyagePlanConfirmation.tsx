@@ -1,46 +1,51 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ConfirmedPlanReview, PlanAcceptanceResult } from "../../domain/confirmedPlanReview";
-import { PLAN_FUEL_MESSAGES } from "../../domain/voyagePlanPrediction";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { getCargoPresentation } from "../../domain/cargoPresentation";
-import { findShipperById } from "../../data/shippers";
 import { getPortById } from "../../data/ports";
 import { GAME_TIME_MULTIPLIER } from "../../data/gameConstants";
 
 const date = (value: number) => formatDateTime(ceilTo1Minute(value));
-const tons = (value: number | null) => value === null ? "算出不可" : `${value.toLocaleString("ja-JP", { maximumFractionDigits: 6 })}t`;
+const tons = (value: number | null) => value === null ? "算出不可" : `${value.toLocaleString("ja-JP", { maximumFractionDigits: 3 })}t`;
 const labels = { insufficient: "不足", lowReserve: "予備燃料僅少", sufficient: "充足", unreachable: "前区間不足のため算出不可" };
 export function VoyagePlanReviewDetails({ review }: { review: ConfirmedPlanReview }) {
   const { contract, ship, prediction: plan, route } = review;
   const cargo = getCargoPresentation(contract);
   const realMinutes = Math.ceil(plan.totalVoyageHours * 60 / GAME_TIME_MULTIPLIER);
+  const unknownFuel = plan.totalRequiredFuelTons === null || plan.finalFuelTons === null || plan.sections.some(section => section.fuelAssessment === "unreachable");
+  const lowReserve = plan.sections.some(section => section.fuelAssessment === "lowReserve");
+  const fuelLabel = plan.hasFuelShortage ? "不足" : unknownFuel ? "算出不可" : lowReserve ? "予備燃料僅少" : "充足";
+  const fuelColor = plan.hasFuelShortage || unknownFuel ? "var(--red)" : lowReserve ? "var(--gold)" : "var(--green)";
+  const stops = route.sections.slice(0, -1);
   return <div aria-label="確認対象の確定航海計画" data-plan-eta={plan.plannedEtaRealTime} data-plan-distance={plan.totalDistanceNm} data-plan-fuel={plan.totalRequiredFuelTons}>
-    <div className="kv"><span>依頼主</span><span>{findShipperById(contract.shipperId)?.name ?? "不明な依頼主"}</span></div>
-    <div className="kv"><span>貨物</span><span>{cargo?.label ?? "貨物情報を確認できません"}</span></div>
-    <div className="kv"><span>重量・容積</span><span>{cargo?.weightLabel} ／ {cargo?.volumeLabel}</span></div>
-    <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
+    <div style={{ marginBottom: 12 }}>
+      <h4>{getPortById(route.departurePortId).name} → {getPortById(route.destinationPortId).name}</h4>
+      <p>{cargo?.label ?? "貨物情報を確認できません"}</p>
+    </div>
+    <div className="kv"><span>使用船</span><span>{ship.name} ／ {review.selectedSpeedKnots}ノット</span></div>
+    <div className="kv"><span>提示報酬</span><span style={{ color: "var(--gold)", fontWeight: 700 }}>{contract.offeredReward}G</span></div>
+    <div className="kv"><span>計画到着（荷卸し前）</span><span>{date(plan.plannedEtaRealTime)}</span></div>
     <div className="kv"><span>到着期限</span><span>{date(review.deadlineAt)}</span></div>
-    <div className="kv"><span>船・設定速力</span><span>{ship.name} ／ {review.selectedSpeedKnots}ノット</span></div>
-    <div className="kv"><span>計画基準時刻</span><span>{date(review.baseRealTime)}</span></div>
-    <div className="kv"><span>積込後の出港予定</span><span>{date(plan.departureRealTime)}</span></div>
-    <div className="kv"><span>計画距離</span><span>{plan.totalDistanceNm}海里</span></div>
-    <div className="kv"><span>計画航海時間</span><span>{plan.totalVoyageHours.toLocaleString("ja-JP", { maximumFractionDigits: 3 })}航海時間</span></div>
-    <div className="kv"><span>航海所要（現実時間・積込別）</span><span>{Math.floor(realMinutes / 60)}時間{realMinutes % 60}分</span></div>
-    <div className="kv"><span>計画ETA（荷卸し前）</span><span>{date(plan.plannedEtaRealTime)}</span></div>
-    <p>{plan.notice}</p>
-    <p>現在燃料 {tons(ship.fuel?.remainingTons ?? null)} ／ 全行程の計画必要燃料 {tons(plan.totalRequiredFuelTons)} ／ 最終計画残燃料 {tons(plan.finalFuelTons)}</p>
-    {plan.hasFuelShortage && <p role="alert">目的地までの燃料が足りません。計画ETAは条件付きの時刻で、後続の港へ到達・補油できる保証ではありません。警告を確認したうえで受注できます。</p>}
-    {plan.sections.map((section, index) => <section key={index} style={{ borderTop: "1px solid #cbd5e1", marginTop: 8, paddingTop: 8 }}>
-      <h4>区間{index + 1}：{getPortById(route.sections[index].fromPortId).name} → {getPortById(route.sections[index].toPortId).name}</h4>
-      <p>{section.distanceNm}海里 ／ 到着予定 {date(section.plannedArrivalRealTime)}</p>
-      <p>通過地点：{route.sections[index].waypointHexIds.join(" → ") || "指定なし"}</p>
-      <p>開始 {tons(section.startingFuelTons)} ／ 必要 {tons(section.requiredFuelTons)} ／ 到着残量 {tons(section.arrivalFuelTons)}</p>
-      <p>{labels[section.fuelAssessment]}：{section.fuelAssessment === "unreachable" ? "前区間で不足しているため残量・補油を算出しません。" : PLAN_FUEL_MESSAGES[section.fuelAssessment]}</p>
-      {index < plan.sections.length - 1 && <p>途中補油：目標{route.sections[index].refuelTargetPercent}% ／ 追加 {tons(section.refuelAddedTons)} ／ 補油後 {tons(section.departureAfterRefuelTons)}。無料・待ち時間0、途中荷卸しなし。</p>}
-      <details><summary>確定HEXの通過順</summary><p style={{ overflowWrap: "anywhere" }}>{route.sections[index].hexIds.join(" → ")}</p></details>
-    </section>)}
-    <details><summary>提示ID・テンプレートID</summary><p style={{ overflowWrap: "anywhere" }}>{review.offerId} ／ {review.templateId}</p></details>
-    <p>計画値は到着を保証しません。実航行では実際の風と積載が速力に影響します。受注成立後の計画ETAは固定して記録します。</p>
+    <div className="kv"><span>燃料</span><span style={{ color: fuelColor, fontWeight: 700 }}>{fuelLabel}</span></div>
+    {stops.length > 0 && <div className="kv"><span>途中寄港</span><span>{stops.map(section => getPortById(section.toPortId).name).join(" → ")}</span></div>}
+    {plan.hasFuelShortage && <p role="alert" style={{ color: "var(--red)", marginTop: 8 }}>目的地までの燃料が足りません。途中港への到達・補油も保証されません。</p>}
+    {!plan.hasFuelShortage && unknownFuel && <p role="alert" style={{ color: "var(--red)", marginTop: 8 }}>必要燃料を算出できません。戻って計画を確認してください。</p>}
+    {!plan.hasFuelShortage && !unknownFuel && lowReserve && <p role="status" style={{ color: "var(--gold)", marginTop: 8 }}>予備燃料が少ない区間があります。</p>}
+    <details style={{ marginTop: 12 }}>
+      <summary style={{ cursor: "pointer" }}>計画の詳細</summary>
+      <div className="kv"><span>重量・容積</span><span>{cargo?.weightLabel} ／ {cargo?.volumeLabel}</span></div>
+      <div className="kv"><span>出港予定（積込後）</span><span>{date(plan.departureRealTime)}</span></div>
+      <div className="kv"><span>計画距離</span><span>{plan.totalDistanceNm}海里</span></div>
+      <div className="kv"><span>航海所要（現実時間・積込別）</span><span>{Math.floor(realMinutes / 60)}時間{realMinutes % 60}分</span></div>
+      <p>現在燃料 {tons(ship.fuel?.remainingTons ?? null)} ／ 計画必要燃料 {tons(plan.totalRequiredFuelTons)} ／ 最終計画残量 {tons(plan.finalFuelTons)}</p>
+      {plan.sections.map((section, index) => <section key={index} style={{ borderTop: "1px solid var(--line)", marginTop: 8, paddingTop: 8 }}>
+        <h4>区間{index + 1}：{getPortById(route.sections[index].fromPortId).name} → {getPortById(route.sections[index].toPortId).name}</h4>
+        <p>{section.distanceNm}海里 ／ 到着予定 {date(section.plannedArrivalRealTime)}</p>
+        <p>必要燃料 {tons(section.requiredFuelTons)} ／ 到着残量 {tons(section.arrivalFuelTons)} ／ {labels[section.fuelAssessment]}</p>
+        {index < plan.sections.length - 1 && <p>補油目標 {route.sections[index].refuelTargetPercent}% ／ 追加 {tons(section.refuelAddedTons)} ／ 補油後 {tons(section.departureAfterRefuelTons)}</p>}
+      </section>)}
+    </details>
+    <p style={{ fontSize: 12, color: "var(--sub)", marginTop: 10 }}>到着時刻・燃料は計画値です。</p>
   </div>;
 }
 interface Props {
@@ -91,10 +96,9 @@ export function VoyagePlanConfirmation({ initialReview, onConfirm, onCancel }: P
       <VoyagePlanReviewDetails review={review} />
       <p role="status" aria-live="polite">{message}</p>
       <div className="confirmation-actions">
-        <button type="button" className="btn btn-secondary" disabled={finished} onClick={onCancel}>編集へ戻る</button>
-        <button type="button" className="btn btn-primary" disabled={finished} onClick={confirm}>{review.prediction.hasFuelShortage ? "燃料不足の警告を確認して受注を確定" : "この計画で受注を確定"}</button>
+        <button type="button" className="btn btn-secondary" disabled={finished} onClick={onCancel}>戻って修正</button>
+        <button type="button" className="btn btn-primary" disabled={finished} onClick={confirm}>{review.prediction.hasFuelShortage ? "燃料不足の警告を確認して受注を確定" : "この計画で受注"}</button>
       </div>
-      <p>時刻は1分切り上げ表示です。確定操作時に最新条件で検査し、表示内容が変わった場合は再確認します。</p>
     </div>
   </div>;
 }
