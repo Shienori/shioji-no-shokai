@@ -1,7 +1,7 @@
 name: Voyage planning verification
 on:
   push:
-    branches: [feature/voyage-planning, feature/voyage-time-display]
+    branches: [feature/voyage-planning, feature/voyage-time-display, fix/voyage-time-display-verification]
 permissions:
   contents: read
 concurrency:
