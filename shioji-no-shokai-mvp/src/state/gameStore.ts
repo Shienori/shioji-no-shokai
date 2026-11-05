@@ -1,1 +1,1 @@
-FULL_RESTORED_GAME_STORE_SOURCE_WITH_DEPARTURE_FREE_REFUEL
+前メッセージの完全な gameStore.ts TypeScriptソース全文
