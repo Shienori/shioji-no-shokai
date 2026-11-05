@@ -13,6 +13,7 @@ import { createConfirmedPlanVoyage } from "../domain/confirmedPlanVoyage";
 import { createConfirmedPlanReview } from "../domain/confirmedPlanReview";
 import type { ConfirmedPlanReview, PlanAcceptanceResult } from "../domain/confirmedPlanReview";
 import { isValidShipFuel } from "../domain/coalFuel";
+import { applyDepartureFreeRefuel } from "../domain/freeRefuel";
 import { isSelectedSpeedWithinLimits } from "../domain/voyageSpeedValidation";
 import { readCargoLotSnapshot } from "../domain/lotContract";
 import { settleContract } from "../domain/settlement";
@@ -47,6 +48,7 @@ interface GameStore {
 function getNextRefreshTime(now: number): number {
   return Math.ceil((now + 1) / CONTRACT_REFRESH_INTERVAL_MS) * CONTRACT_REFRESH_INTERVAL_MS;
 }
+
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index -= 1) {
@@ -55,6 +57,7 @@ function shuffle<T>(items: T[]): T[] {
   }
   return result;
 }
+
 function pickPortOffers(
   portId: PortId,
   keepTemplateIds: ContractId[] = [],
@@ -116,11 +119,13 @@ function createInitialGameState(): GameState {
     nextRefreshAt: getNextRefreshTime(now)
   };
 }
+
 function getShipStatusForVoyage(phase: VoyagePhase): ShipStatus {
   if (phase === "loading") return "loading";
   if (phase === "sailing") return "sailing";
   return "unloading";
 }
+
 function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: VoyagePhase; currentSeaHexIndex: number }): string | null {
   const route = getRouteById(contract.routeId);
   const startHexId = getPortHexId(route.fromPortId);
@@ -133,6 +138,7 @@ function getShipCurrentHexId(contract: AcceptedContract, voyage: { phase: Voyage
   if (seaHexIds.length === 0) return goalHexId;
   return seaHexIds[Math.min(seaHexIds.length - 1, Math.max(0, voyage.currentSeaHexIndex))];
 }
+
 function syncActiveShipPosition(state: GameState): GameState {
   if (!state.activeVoyage || !state.acceptedContract) return state;
   // Planned navigation already supplies the position on its confirmed route.
@@ -147,6 +153,7 @@ function syncActiveShipPosition(state: GameState): GameState {
   });
   return changed ? { ...state, ships } : state;
 }
+
 function findLatestMemoIndex(
   memos: VoyageMemo[],
   matches: (memo: VoyageMemo) => boolean
@@ -180,6 +187,7 @@ function preserveActiveMemoCargo(state: GameState): GameState {
     } : memo),
   };
 }
+
 function progressVoyageIfActive(state: GameState, currentRealTime: number): GameState {
   // Presence selects the new path; malformed or orphaned plans must fail, not fall back.
   if (state.activeVoyage?.plannedNavigation !== undefined) {
@@ -260,6 +268,7 @@ function progressVoyageIfActive(state: GameState, currentRealTime: number): Game
     } : memo),
   };
 }
+
 function refreshContractsIfDue(state: GameState, currentRealTime: number): GameState {
   if (state.nextRefreshAt > currentRealTime) return state;
   const acceptedTemplateId = state.acceptedContract?.templateId ?? null;
@@ -270,6 +279,7 @@ function refreshContractsIfDue(state: GameState, currentRealTime: number): GameS
   }));
   return { ...state, portOffers, nextRefreshAt: getNextRefreshTime(currentRealTime) };
 }
+
 const loadedGameState = loadGame();
 const defaultGameState = createInitialGameState();
 const initialGameState = loadedGameState ? {
@@ -290,7 +300,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       operationTime: current.activeVoyage ? advanceOperationTime(current.operationTime, current.lastRealTimeSyncedAt, currentRealTime) : current.operationTime,
       lastRealTimeSyncedAt: currentRealTime
     };
-    if (next.activeVoyage && (next.acceptedContract || next.activeVoyage.plannedNavigation !== undefined)) { next = progressVoyageIfActive(next, currentRealTime); next = syncActiveShipPosition(next); }
+    if (next.activeVoyage && (next.acceptedContract || next.activeVoyage.plannedNavigation !== undefined)) {
+      next = progressVoyageIfActive(next, currentRealTime);
+      next = syncActiveShipPosition(next);
+    }
     next = refreshContractsIfDue(next, currentRealTime);
     saveGame(next);
     set({ gameState: next });
@@ -307,7 +320,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const offeredContract = isTutorial ? undefined : (current.portOffers[current.selectedPortId] ?? []).find((offer) => offer.id === offerId);
     if (!isTutorial && !offeredContract) return;
     let template: ContractTemplate;
-    try { template = isTutorial ? tutorialWheatContract : getContractTemplateById(offeredContract!.templateId); } catch { return; }
+    try {
+      template = isTutorial ? tutorialWheatContract : getContractTemplateById(offeredContract!.templateId);
+    } catch {
+      return;
+    }
     // The fixed tutorial cannot be accepted through a generated normal offer.
     if (!isTutorial && template.id === FIXED_CONTRACT_ID) return;
     const ship = current.ships.find((item) => item.id === shipId);
@@ -331,25 +348,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (fresh.signature !== reviewedPlan.signature || (!isTutorial && reviewedPlan.deadlineAt !== deadlineAt)) {
           return { kind: "reviewRequired", review: fresh };
         }
-      } catch { return; }
+      } catch {
+        return;
+      }
     }
     const cargo = getCargoById(template.cargoId);
     const acceptedContract = createAcceptedContract(template, route, cargo, currentRealTime, deadlineAt);
+    // Apply the confirmed departure-port free refuel only after acceptance validation succeeds.
+    const departureRefuel = reviewedPlan !== undefined ? applyDepartureFreeRefuel(ship, reviewedPlan.route) : { ship, refuel: null };
+    const plannedShip = departureRefuel.ship;
     // Calculation copy only: retain the ship's original cruising specification.
-    const voyageShip: Ship = { ...ship, cruisingSpeedKnots: speed };
+    const voyageShip: Ship = { ...plannedShip, cruisingSpeedKnots: speed };
     let voyage: Voyage;
     if (reviewedPlan !== undefined) {
       try {
-        voyage = createConfirmedPlanVoyage({ contract: acceptedContract, ship, route: reviewedPlan.route,
-          selectedSpeedKnots: speed, operationTime: current.operationTime });
-      } catch { return; }
+        voyage = createConfirmedPlanVoyage({
+          contract: acceptedContract,
+          ship: plannedShip,
+          route: reviewedPlan.route,
+          selectedSpeedKnots: speed,
+          operationTime: current.operationTime
+        });
+      } catch {
+        return;
+      }
     } else {
       voyage = createVoyage(acceptedContract, voyageShip, current.operationTime, currentRealTime);
       if (ship.kind === "powered") {
         voyage.fuelNavigation = createCoalVoyageNavigation(ship, route, getHeavyLoadSpeedFactor(acceptedContract, ship), speed);
       }
     }
-    const updatedShip = { ...ship, status: "loading" as const, currentHexId: getPortHexId(route.fromPortId), activeContractId: acceptedContract.id };
+    const updatedShip: Ship = {
+      ...plannedShip,
+      status: "loading" as const,
+      currentHexId: getPortHexId(route.fromPortId),
+      activeContractId: acceptedContract.id
+    };
     const portOffers = { ...current.portOffers };
     if (offeredContract) {
       portOffers[current.selectedPortId] = replenishAcceptedOffer(
@@ -360,17 +394,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     const voyageNumber = current.voyageMemos.length + 1;
     const voyageMemo: VoyageMemo = {
-      voyageNumber, label: `V.${String(voyageNumber).padStart(2, "0")}`, contractId: acceptedContract.id, shipId: ship.id, shipName: ship.name,
+      voyageNumber,
+      label: `V.${String(voyageNumber).padStart(2, "0")}`,
+      contractId: acceptedContract.id,
+      shipId: ship.id,
+      shipName: ship.name,
       routeLabel: `${getPortById(route.fromPortId).name} → ${getPortById(route.toPortId).name}`,
       cargoLabel: `${acceptedContract.cargoLotSnapshot.cargoName} ${acceptedContract.cargoLotSnapshot.quantityLots}ロット`,
       cargoLotSnapshot: { ...acceptedContract.cargoLotSnapshot },
-      acceptedAt: currentRealTime, acceptedOperationTime: current.operationTime, plannedEtaRealTime: voyage.forecastEtaRealTime,
-      actualArrivalRealTime: null, etaDiffMinutes: null, settlement: null
+      acceptedAt: currentRealTime,
+      acceptedOperationTime: current.operationTime,
+      plannedEtaRealTime: voyage.forecastEtaRealTime,
+      actualArrivalRealTime: null,
+      etaDiffMinutes: null,
+      settlement: null
     };
     const next: GameState = {
-      ...current, currentGameTime: currentRealTime, lastRealTimeSyncedAt: currentRealTime,
-      ships: current.ships.map((item) => item.id === shipId ? updatedShip : item), activeVoyage: voyage, acceptedContract, portOffers,
-      acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id], voyageMemos: [...current.voyageMemos, voyageMemo],
+      ...current,
+      currentGameTime: currentRealTime,
+      lastRealTimeSyncedAt: currentRealTime,
+      ships: current.ships.map((item) => item.id === shipId ? updatedShip : item),
+      activeVoyage: voyage,
+      acceptedContract,
+      portOffers,
+      acceptedContractIds: [...current.acceptedContractIds, acceptedContract.id],
+      voyageMemos: [...current.voyageMemos, voyageMemo],
       tutorialCompleted: isTutorial ? true : current.tutorialCompleted
     };
     saveGame(next);
@@ -386,10 +434,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const result = settleContract(contract, voyage);
     const route = getRouteById(contract.routeId);
     const updatedShips = current.ships.map((ship) => ship.activeContractId === contract.id ? {
-      ...ship, status: "docked" as const, currentPortId: route.toPortId, currentHexId: getPortHexId(route.toPortId), activeContractId: null
+      ...ship,
+      status: "docked" as const,
+      currentPortId: route.toPortId,
+      currentHexId: getPortHexId(route.toPortId),
+      activeContractId: null
     } : ship);
     const updatedReputations = ensureMiraReputation(current.reputations).map((reputation) => reputation.shipperId === contract.shipperId ? {
-      ...reputation, value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange))
+      ...reputation,
+      value: Math.max(-3, Math.min(3, reputation.value + result.reputationChange))
     } : reputation);
     const memoIndex = findLatestMemoIndex(current.voyageMemos, (memo) =>
       memo.contractId === contract.id && memo.settlement === null
@@ -397,12 +450,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const voyageMemos = current.voyageMemos.map((memo, index) => {
       if (index !== memoIndex || voyage.arrivedAt === null) return memo;
       const actualArrivalRealTime = contract.acceptedAt + (voyage.arrivedAt - memo.acceptedOperationTime) / GAME_TIME_MULTIPLIER;
-      return { ...memo, actualArrivalRealTime, etaDiffMinutes: Math.round((actualArrivalRealTime - memo.plannedEtaRealTime) / 60000), settlement: {
-        offeredReward: result.offeredReward, latePenalty: result.latePenalty, receivedReward: result.receivedReward,
-        expense: result.expense, guaranteeAmount: result.guaranteeAmount, finalPayout: result.finalPayout
-      } };
+      return {
+        ...memo,
+        actualArrivalRealTime,
+        etaDiffMinutes: Math.round((actualArrivalRealTime - memo.plannedEtaRealTime) / 60000),
+        settlement: {
+          offeredReward: result.offeredReward,
+          latePenalty: result.latePenalty,
+          receivedReward: result.receivedReward,
+          expense: result.expense,
+          guaranteeAmount: result.guaranteeAmount,
+          finalPayout: result.finalPayout
+        }
+      };
     });
-    const next: GameState = { ...current, money: current.money + result.finalPayout, ships: updatedShips, activeVoyage: null, acceptedContract: null, reputations: updatedReputations, voyageMemos };
+    const next: GameState = {
+      ...current,
+      money: current.money + result.finalPayout,
+      ships: updatedShips,
+      activeVoyage: null,
+      acceptedContract: null,
+      reputations: updatedReputations,
+      voyageMemos
+    };
     saveGame(next);
     set({ gameState: next });
   },
