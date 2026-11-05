@@ -8,8 +8,11 @@ import { getWindAt } from "../../domain/windTimeline";
 import { HexMap } from "../map/HexMap";
 
 const date = (time: number) => formatDateTime(ceilTo1Minute(time));
-interface Props { ship: Ship; voyage: Voyage; contract: AcceptedContract | null; }
-export function PlannedShipVoyageStatus({ ship, voyage, contract }: Props) {
+import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
+import { VoyageTimeFacts } from "./VoyageTimeFacts";
+
+interface Props { clock: VoyageDisplayClock; ship: Ship; voyage: Voyage; contract: AcceptedContract | null; }
+export function PlannedShipVoyageStatus({ ship, voyage, contract, clock }: Props) {
   let model: ReturnType<typeof getPlannedShipPresentation>;
   try {
     if (!contract) throw new Error("Missing contract");
@@ -29,6 +32,7 @@ export function PlannedShipVoyageStatus({ ship, voyage, contract }: Props) {
   }
   return <section className="contract-card fleet-card" aria-label="確定計画の船詳細" data-plan-eta={model.plannedEtaRealTime} data-distance-progress={model.progress}>
     <h3>現在状況（確定計画）</h3>
+    <VoyageTimeFacts voyage={voyage} contract={contract} clock={clock} />
     <div className="kv"><span>現在位置（実船位）</span><span>{location}</span></div>
     <div className="kv"><span>最終処理時点の実況風</span><span>{actualWind}</span></div>
     <div className="kv"><span>航行の最終処理時刻</span><span>{voyage.phase === "loading" ? "積込中・未出港" : date(model.processedRealTime)}</span></div>
