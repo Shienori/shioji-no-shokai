@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import { fileURLToPath } from 'node:url';
+let server;
+try {
+  server = await createServer({ root: fileURLToPath(new URL('../', import.meta.url)), server: { middlewareMode: true }, appType: 'custom' });
+  const { applyDepartureFreeRefuel } = await server.ssrLoadModule('/src/domain/freeRefuel.ts');
+  const { initialShip } = await server.ssrLoadModule('/src/data/ships.ts');
+  const ship = structuredClone(initialShip);
+  const route = { schemaVersion: 1, departurePortId: 'port_selene', destinationPortId: 'port_aldera', sections: [{ fromPortId: 'port_selene', toPortId: 'port_aldera', waypointHexIds: [], hexIds: [], refuelTargetPercent: 50 }] };
+  const before = JSON.stringify(ship);
+  const none = applyDepartureFreeRefuel(ship, { ...route, sections: [{ ...route.sections[0], refuelTargetPercent: 0 }] });
+  assert.equal(none.refuel, null); assert.equal(none.ship.fuel.remainingTons, ship.fuel.remainingTons);
+  const half = applyDepartureFreeRefuel(ship, route);
+  assert.equal(half.refuel.costGold, 0);
+  assert.equal(half.refuel.targetTenths, Math.round(ship.fuel.capacityTons * 5));
+  assert.equal(half.ship.fuel.remainingTons, half.refuel.afterTons);
+  assert.ok(half.refuel.addedTons >= 0);
+  assert.equal(JSON.stringify(ship), before);
+  const full = applyDepartureFreeRefuel(ship, { ...route, sections: [{ ...route.sections[0], refuelTargetPercent: 100 }] });
+  assert.equal(full.ship.fuel.remainingTons, ship.fuel.capacityTons);
+  assert.equal(full.refuel.costGold, 0);
+  const missing = applyDepartureFreeRefuel(ship, { ...route, sections: [{ ...route.sections[0], refuelTargetPercent: undefined }] });
+  assert.equal(missing.refuel, null);
+  assert.equal(applyDepartureFreeRefuel(ship, { ...route, sections: [] }).refuel, null);
+  assert.throws(() => applyDepartureFreeRefuel(ship, { ...route, sections: [{ ...route.sections[0], refuelTargetPercent: 100.1 }] }), RangeError);
+  const sail = { ...ship, kind: 'sail' };
+  assert.equal(applyDepartureFreeRefuel(sail, route).refuel, null);
+  console.log('Departure free-refuel acceptance helper tests passed; end-to-end acceptance click and saved-game reload not tested.');
+} finally { if (server) await server.close(); }

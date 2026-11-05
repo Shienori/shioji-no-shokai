@@ -1,4 +1,5 @@
 import type { Ship } from "./types";
+import type { ConfirmedVoyageRoute } from "./voyagePlanTypes";
 import { isValidShipFuel } from "./coalFuel";
 
 export interface FreeRefuelPlan {
@@ -29,6 +30,15 @@ export function applyFreeRefuel(ship: Ship, targetTenths: number): { ship: Ship;
   if (ship.kind !== "powered" || !isValidShipFuel(ship.fuel)) throw new Error("Valid powered ship fuel required");
   const refuel = calculateFreeRefuel(ship.fuel.remainingTons, ship.fuel.capacityTons, targetTenths);
   return { ship: { ...ship, fuel: { ...ship.fuel, remainingTons: refuel.afterTons } }, refuel };
+}
+
+export function applyDepartureFreeRefuel(ship: Ship, route: ConfirmedVoyageRoute): { ship: Ship; refuel: FreeRefuelPlan | null } {
+  if (ship.kind !== "powered" || !isValidShipFuel(ship.fuel)) return { ship, refuel: null };
+  const percent = route.sections[0]?.refuelTargetPercent ?? 0;
+  if (!Number.isFinite(percent) || percent <= 0) return { ship, refuel: null };
+  if (percent > 100) throw new RangeError("Departure refuel target exceeds 100%");
+  const targetTenths = Math.round(ship.fuel.capacityTons * percent / 10);
+  return applyFreeRefuel(ship, targetTenths);
 }
 
 export function formatFuelTons(value: number | null): string {
