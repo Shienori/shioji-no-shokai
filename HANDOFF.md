@@ -52,6 +52,16 @@
 - 風予報は7日先まで2時間刻み。的中率80%。
 - 航路・補油後目標残量の編集は任意。通常は自動案を使う。
 
+## #60実装前調査の結果（2026-11-11）
+
+- 既存の燃料有料化は、gameStore.ts・settlement.ts・reward.ts・save.ts・types.ts・portRefuel.ts・confirmedPlanVoyage.ts・plannedSaveValidation.ts の8ファイルにまたがる。
+- 現在の gameStore.ts は activeVoyage・acceptedContract を1つずつ持つ単一航海前提。複数船化の前に状態構造を見直す。
+- 現在の出発港補油は無料（portRefuel.ts）。燃料有料化の際は支払い処理と資金不足時の拒否を追加する。
+- 現在の精算は settlement.ts・reward.ts で行われ、経費30%に燃料は含まれない。燃料代は別項目として扱う。
+- セーブ版数は現在8。燃料有料化の際は9に上げ、前払金・実費・返金のフィールドと移行処理を追加する。
+- confirmedPlanVoyage.ts の refuelTargetPercent と連動し、途中補油の前払いを実装する。
+- plannedSaveValidation.ts に前払金・実費・返金の整合検証を追加する。
+
 ## 実装前チェック
 
 - 複数船・回航・定期輸送を実装する前に、状態構造を「船ごとの割当」へ変更する設計調査を行う。
