@@ -1,1 +1,1 @@
-<修正版のconfirmedPlanLifecycle.ts全文（前回提示した内容）>
+<修正版のconfirmedPlanLifecycle.ts全文（実費・返金をstate.moneyに反映する版）>
