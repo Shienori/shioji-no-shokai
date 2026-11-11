@@ -4,11 +4,14 @@ import { hexMap } from "../../data/hexMap";
 import { worldMap } from "../../data/worldMap";
 import { getPortById } from "../../data/ports";
 import { buildVoyagePlanRoute } from "../../domain/voyagePlanRoute";
+import { suggestAutoRefuelPlan } from "../../domain/autoRefuelPlan";
 import type { ConfirmedVoyageRoute, VoyagePlanRouteDraft } from "../../domain/voyagePlanTypes";
+import type { Ship } from "../../domain/types";
 import { getMapCenter, getMapViewBox, MAP_HEX_SIZE } from "../map/mapGeometry";
 import { MAP_COLORS } from "../map/HexMap";
 
-interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean, route: ConfirmedVoyageRoute) => void; acceptanceEnabled?: boolean; }
+interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean, route: ConfirmedVoyageRoute) => void; acceptanceEnabled?: boolean; autoRefuelParams?: { ship: Ship; speed: number; baseRealTime: number; loadingDurationOperationMs: number }; }
+type RefuelMethod = "departure" | "enRoute";
 const initialDraft = (): VoyagePlanRouteDraft => ({ stops: [], legs: [{ waypointHexIds: [] }] });
 const cells = new Map(hexMap.map(hex => [hex.id, hex]));
 const points = (q: number, r: number) => {
@@ -18,8 +21,9 @@ const points = (q: number, r: number) => {
     return `${center.x + MAP_HEX_SIZE * Math.cos(angle)},${center.y + MAP_HEX_SIZE * Math.sin(angle)}`;
   }).join(" ");
 };
-export function VoyageRouteEditor({ departurePortId, destinationPortId, onEditedChange, acceptanceEnabled = false }: Props) {
+export function VoyageRouteEditor({ departurePortId, destinationPortId, onEditedChange, acceptanceEnabled = false, autoRefuelParams }: Props) {
   const [history, setHistory] = useState<VoyagePlanRouteDraft[]>([initialDraft()]);
+  const [refuelMethod, setRefuelMethod] = useState<RefuelMethod>("enRoute");
   const draft = history[history.length - 1];
   const endpoints = useMemo(() => ({ departurePortId, destinationPortId }), [departurePortId, destinationPortId]);
   const result = useMemo(() => buildVoyagePlanRoute(endpoints, draft), [endpoints, draft]);
@@ -104,11 +108,38 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
       if (current.draft) commit(current.draft); else setMessage("海上HEXに通過地点を置いてください。直前の航路を維持しました。");
     }
   }
+  function runAutoRefuel() {
+    setRefuelMethod("enRoute");
+    const params = autoRefuelParams;
+    if (!params) { setMessage("自動補油案には船・速力・時刻の情報が必要です。"); return; }
+    const suggestion = suggestAutoRefuelPlan({
+      endpoints,
+      ship: params.ship,
+      selectedSpeedKnots: params.speed,
+      baseRealTime: params.baseRealTime,
+      loadingDurationOperationMs: params.loadingDurationOperationMs,
+    });
+    if (suggestion.ok && suggestion.draft) {
+      commit(suggestion.draft);
+      setMessage(suggestion.message);
+    } else {
+      setMessage(suggestion.message);
+    }
+  }
   if (!result.ok) return <p role="alert">{result.message}</p>;
   const displayed = preview?.ok ? preview.route : result.route;
   return <section className="card detail-card" aria-label="航路編集">
     <h3>{acceptanceEnabled ? "航海計画1：ルート編集" : "航海計画1：ルート編集（試用）"}</h3>
     <p>海をタップして通過地点を追加、青い丸をドラッグして移動。港をタップして途中寄港を指定します。</p>
+    <fieldset className="plan-speed-selector" style={{ marginBottom: 8 }}>
+      <legend>補油方法</legend>
+      <div className="voyage-flow-actions">
+        <button type="button" className="btn btn-secondary" aria-pressed={refuelMethod === "enRoute"} onClick={runAutoRefuel}>途中港で補油</button>
+        <button type="button" className="btn btn-secondary" aria-pressed={refuelMethod === "departure"} onClick={() => setRefuelMethod("departure")}>出発港で補油</button>
+      </div>
+      {refuelMethod === "enRoute" && <p>途中補油港は自動選定されます。補油の余りは自動返金します。</p>}
+      {refuelMethod === "departure" && <p>出発港で必要量を補油します。必要量の自動計算と受注への接続は準備中です。</p>}
+    </fieldset>
     {acceptanceEnabled ? <p>編集した航路は最終確認へ引き継ぎます。受注を確定するまでは保存・燃料消費を行いません。</p> : <p>編集結果の受注・保存はまだ未接続です。変更中は受注できません。「最短ルートへ戻す」で従来の受注に戻せます。</p>}
     <label>編集する区間 <select value={activeSection} onChange={event => setSectionIndex(Number(event.target.value))}>
       {result.route.sections.map((section, index) => <option key={index} value={index}>{index + 1}. {getPortById(section.fromPortId).name} → {getPortById(section.toPortId).name}</option>)}
@@ -155,7 +186,7 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
       <button type="button" onClick={() => {
         const legs = [...draft.legs]; legs.splice(index, 2, { waypointHexIds: [...legs[index].waypointHexIds, ...legs[index + 1].waypointHexIds] });
         commit({ stops: draft.stops.filter((_, n) => n !== index), legs }); setSelectedStop(null);
-      }}>寄港を削除</button><p>無料・待ち時間0。目標以上の燃料は減らしません。</p>
+      }}>寄港を削除</button><p>燃料単価 120G/t。目標以上の燃料は減らしません。</p>
     </div>)}
   </section>;
 }

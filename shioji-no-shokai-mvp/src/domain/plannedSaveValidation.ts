@@ -8,7 +8,7 @@ import { readCargoLotSnapshot } from "./lotContract";
 import { getHeavyLoadSpeedFactor } from "./voyage";
 import { getRouteById } from "../data/routes";
 import { getPortHexId } from "../data/hexMap";
-import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
+import { GAME_TIME_MULTIPLIER, FUEL_PRICE_GOLD_PER_TON } from "../data/gameConstants";
 
 function requireValue(condition: boolean, message: string): void {
   if (!condition) throw new Error(`Invalid planned save: ${message}`);
@@ -97,4 +97,22 @@ export function assertValidPlannedSave(state: GameState): void {
     previousFuel = record.departureFuelTons;
   }
   requireValue(ship.fuel!.remainingTons <= previousFuel + tolerance, "unrecorded refuel");
+  const prepayment = voyage.fuelPrepayment;
+  if (prepayment) {
+    requireValue(prepayment.status === "pending" || prepayment.status === "settled" || prepayment.status === "refunded", "fuel prepayment status");
+    requireValue(Number.isSafeInteger(prepayment.prepaidGold) && prepayment.prepaidGold >= 0, "prepaid gold");
+    requireValue(Number.isSafeInteger(prepayment.consumedGold) && prepayment.consumedGold >= 0, "consumed gold");
+    requireValue(Number.isSafeInteger(prepayment.refundedGold) && prepayment.refundedGold >= 0, "refunded gold");
+    if (prepayment.status === "pending") {
+      requireValue(prepayment.consumedGold === 0 && prepayment.refundedGold === 0, "pending prepayment must be unspent");
+    } else {
+      requireValue(prepayment.consumedGold + prepayment.refundedGold === prepayment.prepaidGold, "prepayment reconciliation");
+    }
+    const expectedPrepayment = plan.route.sections.slice(0, -1).reduce((total, section) => {
+      const target = section.refuelTargetPercent;
+      if (target === undefined) return total;
+      return total + Math.ceil(ship.fuel!.capacityTons * (target / 100) * FUEL_PRICE_GOLD_PER_TON);
+    }, 0);
+    requireValue(prepayment.prepaidGold === expectedPrepayment, "prepayment amount");
+  }
 }
