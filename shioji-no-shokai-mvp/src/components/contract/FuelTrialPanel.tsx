@@ -7,7 +7,7 @@ import { estimateSavedWindArrival } from "../../domain/windNavigation";
 import type { WindNavigationStatus } from "../../domain/windNavigation";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 
-interface Props { route: Route; ship: Ship; departureAt: number; loadSpeedFactor: number; }
+interface Props { route: Route; ship: Ship; departureAt: number; loadSpeedFactor: number; selectedSpeedKnots?: number; }
 const labels: Record<WindNavigationStatus, string> = {
   arrived: "予報上は現在の石炭で到着可能", timeReached: "予報期間内に到着せず、ETA未確定",
   fuelDepleted: "予報上は石炭不足、ETA未確定", windUnavailable: "予報が不足しているためETA未確定",
@@ -16,11 +16,12 @@ function tons(value: number): string {
   return value > 0 && value < 0.01 ? "0.01t未満" : `${value.toLocaleString("ja-JP", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}t`;
 }
 
-export function FuelTrialPanel({ route, ship, departureAt, loadSpeedFactor }: Props) {
+export function FuelTrialPanel({ route, ship, departureAt, loadSpeedFactor, selectedSpeedKnots }: Props) {
   const fuel = isValidShipFuel(ship.fuel) ? ship.fuel : null;
   const remainingTons = fuel?.remainingTons;
   const referenceRate = fuel?.referenceConsumptionTonsPerVoyageHour;
   const referenceSpeed = fuel?.referenceSpeedKnots;
+  const selectedSpeed = selectedSpeedKnots ?? ship.cruisingSpeedKnots;
   const source = useMemo(() => {
     try {
       return { ok: true as const, legs: getRouteWindLegs(route), snapshot: createContractWindForecast(route, departureAt) };
@@ -32,15 +33,15 @@ export function FuelTrialPanel({ route, ship, departureAt, loadSpeedFactor }: Pr
       return { ok: true as const, result: estimateSavedWindArrival({
         legs: source.legs,
         state: { processedRealTime: departureAt, legIndex: 0, distanceIntoLegNm: 0, fuelRemaining: remainingTons, totalFuelUsed: 0 },
-        selectedSpeedKnots: ship.cruisingSpeedKnots, loadSpeedFactor,
+        selectedSpeedKnots: selectedSpeed, loadSpeedFactor,
         referenceFuelPerVoyageHour: referenceRate, referenceSpeedKnots: referenceSpeed,
       }, source.snapshot) };
     } catch { return { ok: false as const }; }
-  }, [source, remainingTons, referenceRate, referenceSpeed, departureAt, ship.cruisingSpeedKnots, loadSpeedFactor]);
+  }, [source, remainingTons, referenceRate, referenceSpeed, departureAt, selectedSpeed, loadSpeedFactor]);
   return <div style={{ borderTop: "1px solid #cbd5e1", marginTop: 14, paddingTop: 14 }}>
     <h4 style={{ margin: "0 0 8px" }}>数値風予報・石炭自動予測</h4>
     <p style={{ fontSize: 12, lineHeight: 1.6 }}>船に記録された石炭残量と基準消費量から自動予測します。予測表示だけでは石炭や所持金を変更しません。仮の100単位による試算は使用しません。</p>
-    <div className="kv"><span>予測設定速力</span><span>{ship.cruisingSpeedKnots}ノット</span></div>
+    <div className="kv"><span>予測設定速力</span><span>{selectedSpeed}ノット</span></div>
     <div className="kv"><span>積載による速力倍率</span><span>{loadSpeedFactor}倍</span></div>
     {fuel ? <>
       <div className="kv"><span>現在の石炭残量</span><span>{tons(fuel.remainingTons)}</span></div>
