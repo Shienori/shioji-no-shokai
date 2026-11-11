@@ -5,6 +5,7 @@ import type { ConfirmedPlanReview, PlanAcceptanceResult } from "../../domain/con
 import { createConfirmedPlanReview } from "../../domain/confirmedPlanReview";
 import { calculateContractSchedule } from "../../domain/contractSchedule";
 import { getCargoPresentation, getLotCapacityForDisplay } from "../../domain/cargoPresentation";
+import { getCargoForContract } from "../../domain/lotContract";
 import { PLAN_FUEL_MESSAGES } from "../../domain/voyagePlanPrediction";
 import { calculateFuelPrepaymentSummary } from "../../domain/fuelPrepayment";
 import { isSelectedSpeedWithinLimits } from "../../domain/voyageSpeedValidation";
@@ -94,6 +95,12 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
   const speed = selectedSpeed ?? ship?.cruisingSpeedKnots;
   const endpoints = getRouteById(contract.routeId);
   const cargo = getCargoPresentation(contract);
+  const autoRefuelParams = ship && speed !== undefined ? {
+    ship,
+    speed,
+    baseRealTime: baseTime,
+    loadingDurationOperationMs: (getCargoForContract(contract)?.loadingTimeMsPerUnit ?? 0) * contract.quantity,
+  } : undefined;
   const preview = useMemo(() => {
     if (!ship || !route || speed === undefined) return null;
     try {
@@ -185,7 +192,7 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
           {!canUseShip && <p role="status">{acceptReason ?? "受注可能な船を選択してください。"}</p>}
         </section>
         <section className="voyage-flow-panel" data-flow-step="2" hidden={discardOpen || step !== 2}>
-          <VoyageRouteEditor departurePortId={endpoints.fromPortId} destinationPortId={endpoints.toPortId} onEditedChange={handleRoute} acceptanceEnabled />
+          <VoyageRouteEditor departurePortId={endpoints.fromPortId} destinationPortId={endpoints.toPortId} onEditedChange={handleRoute} acceptanceEnabled autoRefuelParams={autoRefuelParams} />
           {ship && speed !== undefined && <VoyagePlanCalculationPanel ship={ship} speed={speed} review={preview} money={money} onSpeedChange={value => { setSelectedSpeed(value); setConfirmation(null); setMessage(""); }} onRefresh={() => { setBaseTime(Date.now()); setConfirmation(null); setMessage(""); }} />}
         </section>
         <section className="voyage-flow-panel" data-flow-step="3" hidden={discardOpen || step !== 3}>
