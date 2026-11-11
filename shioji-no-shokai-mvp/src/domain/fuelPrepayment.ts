@@ -1,5 +1,6 @@
 import { FUEL_PRICE_GOLD_PER_TON } from "../data/gameConstants";
-import type { ConfirmedVoyageRoute, Ship } from "./types";
+import type { Ship } from "./types";
+import type { ConfirmedVoyageRoute, ConfirmedVoyageRouteSection } from "./voyagePlanTypes";
 import type { VoyagePlanPrediction } from "./voyagePlanPrediction";
 
 export interface FuelPrepaymentSection {
@@ -33,7 +34,7 @@ export function calculateFuelPrepaymentSummary(
     return { totalPrepaymentGold: 0, sections };
   }
 
-  route.sections.slice(0, -1).forEach((section, index) => {
+  route.sections.slice(0, -1).forEach((section: ConfirmedVoyageRouteSection, index: number) => {
     const targetPercent = section.refuelTargetPercent;
     if (targetPercent === undefined) {
       sections.push({
