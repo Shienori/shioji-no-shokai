@@ -1,17 +1,18 @@
-import type { ContractTemplate } from "../../domain/types";
+import type { ContractTemplate, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoPresentation } from "../../domain/cargoPresentation";
+import { getCargoPresentation, getCargoFitForShip } from "../../domain/cargoPresentation";
 import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense, calculateNetProfit } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
 
 interface ContractCardProps {
   contract: ContractTemplate;
+  ships: Ship[];
   onSelect: () => void;
 }
 
-export function ContractCard({ contract, onSelect }: ContractCardProps) {
+export function ContractCard({ contract, ships, onSelect }: ContractCardProps) {
   const route = getRouteById(contract.routeId);
   const display = getCargoPresentation(contract);
   if (!display) return <div className="contract-card" role="alert">貨物の数量・単位データを確認できません。</div>;
@@ -23,6 +24,13 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const deadlineLabel = formatDateTime(deadlineAt);
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
   const voyageDurationLabel = formatDuration(voyageDurationMs);
+  const anyShipCanCarry = ships.some(ship => {
+    const fit = getCargoFitForShip(contract, ship);
+    return fit?.canCarry ?? false;
+  });
+  const acceptanceLabel = anyShipCanCarry ? "受注可能" : "受注不可";
+  const acceptanceColor = anyShipCanCarry ? "#166534" : "#991b1b";
+  const acceptanceBackground = anyShipCanCarry ? "#dcfce7" : "#fee2e2";
 
   return (
     <button className="contract-card" type="button" onClick={onSelect}>
@@ -30,6 +38,7 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
         <h3>{display.cargo.name}の輸送</h3>
         <span className="contract-card-detail">詳細 ›</span>
       </div>
+      <span style={{ display: "inline-block", padding: "4px 12px", borderRadius: 999, fontSize: 14, fontWeight: 600, color: acceptanceColor, background: acceptanceBackground, marginBottom: 8 }}>{acceptanceLabel}</span>
       <p className="contract-card-route">
         {fromPort.name}
         <span className="contract-route-arrow">→</span>
@@ -37,11 +46,11 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
       </p>
       <div className="requirement-grid card-requirement-grid">
         <div className="requirement-item">
-          <span className="requirement-label">必要貨物容積</span>
+          <span className="requirement-label">必要スペース</span>
           <span className="requirement-value">{display.volumeLabel}</span>
         </div>
         <div className="requirement-item">
-          <span className="requirement-label">必要貨物重量</span>
+          <span className="requirement-label">貨物重量</span>
           <span className="requirement-value">{display.weightLabel}</span>
         </div>
       </div>
