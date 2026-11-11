@@ -1,1 +1,1 @@
-既存の PlannedContractDetailScreen.tsx に、船選択カードへ getCargoFitForShip を利用した可否バッジ＋理由を追加。
+既存の PlannedContractDetailScreen.tsx を、ステップ3前の正しいコードに復旧。
