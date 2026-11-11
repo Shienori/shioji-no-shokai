@@ -1,1 +1,1 @@
-<修正版のgameStore.ts全文（前回提示した内容）>
+<修正版のgameStore.ts全文>
