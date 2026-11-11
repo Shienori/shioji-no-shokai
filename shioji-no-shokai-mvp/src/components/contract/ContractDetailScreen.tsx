@@ -1,1 +1,1 @@
-既存の ContractDetailScreen.tsx に、受注確認モーダルの用語を「貨物重量・必要スペース」に統一。
+既存の ContractDetailScreen.tsx を、ステップ6前の正しいコードに復旧。
