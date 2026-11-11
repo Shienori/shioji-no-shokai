@@ -3,7 +3,7 @@ import type { ContractTemplate, Ship } from "../../domain/types";
 import type { ConfirmedVoyageRoute } from "../../domain/voyagePlanTypes";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoPresentation, getLotCapacityForDisplay } from "../../domain/cargoPresentation";
+import { getCargoPresentation, getLotCapacityForDisplay, getCargoFitForShip } from "../../domain/cargoPresentation";
 import { findShipperById } from "../../data/shippers";
 import { getHexById } from "../../data/hexMap";
 import { getRouteHexIds } from "../../domain/routePath";
@@ -102,6 +102,15 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
     if (etaMarginHours !== null && etaMarginHours >= 0.5) return { label: `注意${marginLabel}`, color: "#92400e", background: "#fef3c7" };
     return { label: `ぎりぎり${marginLabel}`, color: "#991b1b", background: "#fee2e2" };
   };
+  const getCargoFitReason = (ship: Ship) => {
+    const fit = getCargoFitForShip(contract, ship);
+    if (!fit) return { label: "判定不可", color: "#64748b", background: "#f1f5f9" };
+    if (fit.canCarry) return { label: "この船で運べます", color: "#166534", background: "#dcfce7" };
+    const reasons: string[] = [];
+    if (!fit.weightOk) reasons.push(`重量超過 ${fit.weightExcess.toFixed(2)}t`);
+    if (!fit.volumeOk) reasons.push(`容積不足 ${fit.volumeExcess.toFixed(2)}m³`);
+    return { label: `この船では運べません（${reasons.join("、")}）`, color: "#991b1b", background: "#fee2e2" };
+  };
   return <div className="contract-detail-screen">
     <header className="detail-header">
       <button className="back-btn" onClick={onClose}>← 戻る</button>
@@ -135,12 +144,13 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
           const suitability = getSuitability(ship);
           const capacity = getLotCapacityForDisplay(ship);
           const isHeavyLoad = isEligible && getHeavyLoadSpeedFactor(contract, ship) === 0.9;
+          const cargoFit = getCargoFitReason(ship);
           return <button key={ship.id} type="button" className={`ship-select-item${isEligible ? " eligible" : ""}${selectedShipId === ship.id ? " selected" : ""}`} disabled={!isEligible} onClick={() => {
             if (selectedShipId !== ship.id) { setSelectedShipId(ship.id); setSelectedSpeedKnots(ship.cruisingSpeedKnots); setDepartureAt(Date.now()); setShowConfirmation(false); }
           }}>
             <span className="ship-select-name">
               {ship.name}
-              <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, fontSize: 12, color: suitability.color, background: suitability.background }}>{suitability.label}</span>
+              <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, fontSize: 12, color: cargoFit.color, background: cargoFit.background }}>{cargoFit.label}</span>
               {isHeavyLoad && <span style={{ marginLeft: 6, fontSize: 12, color: "#92400e" }}>貨物重量90%以上：速度-10%</span>}
             </span>
             <CapacityGauge requiredLabel="必要貨物容積" maximumLabel="最大貨物容積" required={requiredCargoVolume} maximum={capacity?.maxCargoVolumeM3 ?? null} unit="m³" />
