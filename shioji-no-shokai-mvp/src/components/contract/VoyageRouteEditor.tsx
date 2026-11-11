@@ -9,6 +9,7 @@ import { getMapCenter, getMapViewBox, MAP_HEX_SIZE } from "../map/mapGeometry";
 import { MAP_COLORS } from "../map/HexMap";
 
 interface Props { departurePortId: string; destinationPortId: string; onEditedChange: (edited: boolean, route: ConfirmedVoyageRoute) => void; acceptanceEnabled?: boolean; }
+type RefuelMethod = "departure" | "enRoute";
 const initialDraft = (): VoyagePlanRouteDraft => ({ stops: [], legs: [{ waypointHexIds: [] }] });
 const cells = new Map(hexMap.map(hex => [hex.id, hex]));
 const points = (q: number, r: number) => {
@@ -20,6 +21,7 @@ const points = (q: number, r: number) => {
 };
 export function VoyageRouteEditor({ departurePortId, destinationPortId, onEditedChange, acceptanceEnabled = false }: Props) {
   const [history, setHistory] = useState<VoyagePlanRouteDraft[]>([initialDraft()]);
+  const [refuelMethod, setRefuelMethod] = useState<RefuelMethod>("enRoute");
   const draft = history[history.length - 1];
   const endpoints = useMemo(() => ({ departurePortId, destinationPortId }), [departurePortId, destinationPortId]);
   const result = useMemo(() => buildVoyagePlanRoute(endpoints, draft), [endpoints, draft]);
@@ -109,6 +111,15 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
   return <section className="card detail-card" aria-label="航路編集">
     <h3>{acceptanceEnabled ? "航海計画1：ルート編集" : "航海計画1：ルート編集（試用）"}</h3>
     <p>海をタップして通過地点を追加、青い丸をドラッグして移動。港をタップして途中寄港を指定します。</p>
+    <fieldset className="plan-speed-selector" style={{ marginBottom: 8 }}>
+      <legend>補油方法</legend>
+      <div className="voyage-flow-actions">
+        <button type="button" className="btn btn-secondary" aria-pressed={refuelMethod === "enRoute"} onClick={() => setRefuelMethod("enRoute")}>途中港で補油</button>
+        <button type="button" className="btn btn-secondary" aria-pressed={refuelMethod === "departure"} onClick={() => setRefuelMethod("departure")}>出発港で補油</button>
+      </div>
+      {refuelMethod === "enRoute" && <p>途中補油港は自動選定されます。補油の余りは自動返金します。</p>}
+      {refuelMethod === "departure" && <p>出発港で必要量を補油します。必要量の自動計算と受注への接続は準備中です。</p>}
+    </fieldset>
     {acceptanceEnabled ? <p>編集した航路は最終確認へ引き継ぎます。受注を確定するまでは保存・燃料消費を行いません。</p> : <p>編集結果の受注・保存はまだ未接続です。変更中は受注できません。「最短ルートへ戻す」で従来の受注に戻せます。</p>}
     <label>編集する区間 <select value={activeSection} onChange={event => setSectionIndex(Number(event.target.value))}>
       {result.route.sections.map((section, index) => <option key={index} value={index}>{index + 1}. {getPortById(section.fromPortId).name} → {getPortById(section.toPortId).name}</option>)}
@@ -127,7 +138,7 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
         onPointerMove={move} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)}
         onLostPointerCapture={() => { drag.current = null; setCandidate(null); }}>
         {worldMap.terrain.map(cell => <polygon key={`terrain-${cell.q},${cell.r}`} points={points(cell.q, cell.r)} fill={cell.kind === "land" ? MAP_COLORS.land : MAP_COLORS.sea} stroke="white" />)}
-        {hexMap.map(hex => <polygon key={hex.id} points={points(hex.q, cell.r)} fill={hex.kind === "port" ? MAP_COLORS.port : "transparent"} stroke="white"
+        {hexMap.map(hex => <polygon key={hex.id} points={points(hex.q, hex.r)} fill={hex.kind === "port" ? MAP_COLORS.port : "transparent"} stroke="white"
           role="button" tabIndex={0} aria-label={hex.kind === "port" ? getPortById(hex.portId!).name : `通過地点を追加 ${hex.id}`}
           onClick={() => selectHex(hex.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectHex(hex.id); } }} />)}
         {displayed.sections.map((section, index) => <polyline key={`route-${index}`} points={section.hexIds.map(id => { const p = getMapCenter(cells.get(id)!); return `${p.x},${p.y}`; }).join(" ")}
