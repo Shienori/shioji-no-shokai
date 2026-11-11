@@ -1,1 +1,1 @@
-<修正版のgameStore.ts全文>
+<確認済みのgameStore.ts復旧・修正版コード全文>
