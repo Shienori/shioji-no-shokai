@@ -127,7 +127,7 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
         onPointerMove={move} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)}
         onLostPointerCapture={() => { drag.current = null; setCandidate(null); }}>
         {worldMap.terrain.map(cell => <polygon key={`terrain-${cell.q},${cell.r}`} points={points(cell.q, cell.r)} fill={cell.kind === "land" ? MAP_COLORS.land : MAP_COLORS.sea} stroke="white" />)}
-        {hexMap.map(hex => <polygon key={hex.id} points={points(hex.q, hex.r)} fill={hex.kind === "port" ? MAP_COLORS.port : "transparent"} stroke="white"
+        {hexMap.map(hex => <polygon key={hex.id} points={points(hex.q, cell.r)} fill={hex.kind === "port" ? MAP_COLORS.port : "transparent"} stroke="white"
           role="button" tabIndex={0} aria-label={hex.kind === "port" ? getPortById(hex.portId!).name : `通過地点を追加 ${hex.id}`}
           onClick={() => selectHex(hex.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectHex(hex.id); } }} />)}
         {displayed.sections.map((section, index) => <polyline key={`route-${index}`} points={section.hexIds.map(id => { const p = getMapCenter(cells.get(id)!); return `${p.x},${p.y}`; }).join(" ")}
@@ -155,7 +155,7 @@ export function VoyageRouteEditor({ departurePortId, destinationPortId, onEdited
       <button type="button" onClick={() => {
         const legs = [...draft.legs]; legs.splice(index, 2, { waypointHexIds: [...legs[index].waypointHexIds, ...legs[index + 1].waypointHexIds] });
         commit({ stops: draft.stops.filter((_, n) => n !== index), legs }); setSelectedStop(null);
-      }}>寄港を削除</button><p>無料・待ち時間0。目標以上の燃料は減らしません。</p>
+      }}>寄港を削除</button><p>燃料単価 120G/t。目標以上の燃料は減らしません。</p>
     </div>)}
   </section>;
 }

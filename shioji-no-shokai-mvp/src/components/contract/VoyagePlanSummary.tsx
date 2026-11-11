@@ -54,7 +54,7 @@ export function VoyagePlanSummary({ contract, route, ship, selectedSpeedKnots, b
       <p>{labels[section.fuelAssessment]}：{section.fuelAssessment === "unreachable" ? "前区間で燃料不足のため、この区間の残量や補油は算出しません。" : PLAN_FUEL_MESSAGES[section.fuelAssessment]}</p>
       {index < plan.sections.length - 1 && <p>補油目標 {route.sections[index].refuelTargetPercent}% ／ 計画補油量 {tons(section.refuelAddedTons)} ／ 補油後 {tons(section.departureAfterRefuelTons)}</p>}
     </div>)}
-    <p>燃料判定は表示丸め前の値で行います。必要量の120%以上で充足、必要量以上120%未満で予備燃料僅少です。途中補油は無料・待ち時間0。計画値は実際の到着を保証しません。</p>
+    <p>燃料判定は表示丸め前の値で行います。必要量の120%以上で充足、必要量以上120%未満で予備燃料僅少です。途中補油は120G/tで有料です。計画値は実際の到着を保証しません。</p>
     <p>閲覧用の試算です。編集航路の受注・保存・実航行への有効化はまだ行いません。</p>
   </section>;
 }
