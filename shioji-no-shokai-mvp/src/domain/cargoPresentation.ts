@@ -34,3 +34,32 @@ export function getLotCapacityForDisplay(ship: Ship) {
   try { return getLotShipCapacity(ship); }
   catch { return null; }
 }
+
+/**
+ * Judge whether the given ship can carry the contract's cargo.
+ * Uses existing getLotShipCapacity; no new rules are invented here.
+ */
+export function getCargoFitForShip(contract: CargoRequest, ship: Ship) {
+  try {
+    const presentation = getCargoPresentation(contract);
+    if (!presentation) return null;
+    const capacity = getLotShipCapacity(ship);
+    if (!capacity) return null;
+    const weightOk = presentation.requiredCargoWeight <= capacity.maxCargoWeightTons;
+    const volumeOk = presentation.requiredCargoVolume <= capacity.maxCargoVolumeM3;
+    const canCarry = weightOk && volumeOk;
+    const weightExcess = weightOk ? 0 : presentation.requiredCargoWeight - capacity.maxCargoWeightTons;
+    const volumeExcess = volumeOk ? 0 : presentation.requiredCargoVolume - capacity.maxCargoVolumeM3;
+    return {
+      canCarry,
+      weightOk,
+      volumeOk,
+      weightExcess,
+      volumeExcess,
+      requiredCargoWeight: presentation.requiredCargoWeight,
+      requiredCargoVolume: presentation.requiredCargoVolume,
+      maxCargoWeightTons: capacity.maxCargoWeightTons,
+      maxCargoVolumeM3: capacity.maxCargoVolumeM3,
+    };
+  } catch { return null; }
+}
