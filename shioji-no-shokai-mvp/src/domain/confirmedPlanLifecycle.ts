@@ -1,1 +1,1 @@
-<両ファイルの正しいコード全文（プレースホルダーではなく実際のコード）>
+<実際のコード全文（confirmedPlanLifecycle.tsとgameStore.ts）>
