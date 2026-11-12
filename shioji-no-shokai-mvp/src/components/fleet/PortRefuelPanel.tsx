@@ -24,7 +24,7 @@ export function PortRefuelPanel({ shipId }: { shipId: string }) {
   }
   return <section className="contract-card fleet-card">
     <h3>石炭補給</h3>
-    <p className="contract-card-detail">当面は全港で無料・待ち時間なし。港で停泊中、依頼の精算後に補給できます。目標積載量を選び、補給ボタンで確定してください。</p>
+    <p className="contract-card-detail">当面は全港共通120G/t。港で停泊中、依頼の精算後に補給できます。目標積載量を選び、補給ボタンで確定してください。</p>
     {fuel && targetTons !== undefined && <>
       <div className="kv"><span>現在残量</span><span>{tons(fuel.remainingTons)}</span></div>
       <div className="kv"><span>最大搭載量</span><span>{tons(fuel.capacityTons)}</span></div>
@@ -45,10 +45,10 @@ export function PortRefuelPanel({ shipId }: { shipId: string }) {
       <p className="contract-card-detail">バーは1%刻みです。半載は最大搭載量の半分で、現在残量に半分を追加する操作ではありません。石炭の積み下ろしは行いません。</p>
       {fuel.remainingTons > fuel.capacityTons / 2 && <p className="contract-card-detail">現在残量が半載を超えているため、半載ボタンは利用できません。</p>}
     </>}
-    <div className="kv"><span>補給費用</span><span>0G（暫定）</span></div>
+    <div className="kv"><span>補給費用</span><span>{check.costGold.toLocaleString("ja-JP")}G</span></div>
     <button className="btn btn-secondary" type="button" disabled={!check.canRefuel} onClick={() => {
       setMessage(refuelShipAtPort(shipId, targetTons).message);
-    }}>この量まで補給（無料）</button>
+    }}>この量まで補給（{check.costGold.toLocaleString("ja-JP")}G）</button>
     {!check.canRefuel && <p className="contract-card-detail">{check.reason}</p>}
     <p role="status" aria-live="polite">{message}</p>
   </section>;
