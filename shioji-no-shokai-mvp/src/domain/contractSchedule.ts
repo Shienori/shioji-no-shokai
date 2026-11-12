@@ -23,6 +23,22 @@ export interface ContractSchedule {
   deadlineAt: number;
 }
 
+function toCargo(cargoLot: ReturnType<typeof getCargoLotById>): Cargo {
+  return {
+    id: cargoLot.id,
+    name: cargoLot.name,
+    commodity: cargoLot.commodity,
+    packaging: cargoLot.packagingLabel as Cargo["packaging"],
+    category: cargoLot.category,
+    unitPrice: cargoLot.unitPrice,
+    unitVolume: cargoLot.unitVolume,
+    weightPerUnit: cargoLot.weightPerUnit,
+    loadingTimeMsPerUnit: cargoLot.loadingTimeMsPerUnit,
+    unloadingTimeMsPerUnit: cargoLot.unloadingTimeMsPerUnit,
+    rewardMultiplier: cargoLot.rewardMultiplier,
+  };
+}
+
 export function calculateCPlanOfferedReward(
   template: ContractTemplate,
   cargo: Cargo,
@@ -47,7 +63,7 @@ export function createOfferedContract(
   const timeAllowanceRatio = Math.min(upperBound, minimum + Math.random() * (maximum - minimum));
   const baseVoyageHours = route.distance / BASE_SPEED_KNOTS;
   const deadlineHours = baseVoyageHours * timeAllowanceRatio + OFFER_BUFFER_HOURS;
-  const cargo = getCargoLotById(template.cargoId);
+  const cargo = toCargo(getCargoLotById(template.cargoId));
 
   return {
     id: createContractInstanceId("offer"),
@@ -57,7 +73,7 @@ export function createOfferedContract(
     timeAllowanceRatio,
     offeredReward: calculateCPlanOfferedReward(
       template,
-      { ...cargo, unitPrice: cargo.unitPrice },
+      cargo,
       route,
     ),
   };
@@ -112,7 +128,7 @@ export function createAcceptedContract(
     routeId: template.routeId,
     cargoId: template.cargoId,
     quantity: template.quantity,
-    reward: createContractReward(template, { ...cargo, unitPrice: cargoLotSnapshot.unitPrice }, route, offeredReward),
+    reward: createContractReward(template, cargo, route, offeredReward),
     acceptedAt,
     deadlineAt,
     windForecastSnapshot,
