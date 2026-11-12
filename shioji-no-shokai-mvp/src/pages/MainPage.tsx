@@ -32,7 +32,9 @@ export function MainPage() {
   const acceptContract = useGameStore((state) => state.acceptContract);
   const selectedPortId = gameState.selectedPortId;
   const offeredContracts = gameState.portOffers[selectedPortId] ?? [];
-  const contracts = offeredContracts.map((offer) => ({ offerId: offer.id, template: getContractTemplateById(offer.templateId) }));
+  const contracts = offeredContracts
+    .map((offer) => ({ offerId: offer.id, template: getContractTemplateById(offer.templateId) }))
+    .filter((item) => getRouteById(item.template.routeId).fromPortId === selectedPortId);
   const tutorialAccepted = gameState.acceptedContractIds.includes(tutorialWheatContract.id)
     || gameState.acceptedContract?.templateId === tutorialWheatContract.id
     || gameState.tutorialCompleted;

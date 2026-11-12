@@ -116,11 +116,12 @@ export function createAcceptedContract(
   cargo: Cargo,
   acceptedAt: number,
   deadlineAt: number,
-  offeredReward: number,
+  offeredReward?: number,
 ): LotAcceptedContract {
   if (cargo.id !== template.cargoId) throw new Error("Cargo identity mismatch");
   const cargoLotSnapshot = createCargoLotSnapshot(getCargoLotById(template.cargoId), template.quantity);
   const windForecastSnapshot = createContractWindForecast(route, acceptedAt);
+  const reward = offeredReward ?? calculateCPlanOfferedReward(template, cargo, route);
   return {
     id: createContractInstanceId("accepted"),
     templateId: template.id,
@@ -128,7 +129,7 @@ export function createAcceptedContract(
     routeId: template.routeId,
     cargoId: template.cargoId,
     quantity: template.quantity,
-    reward: createContractReward(template, cargo, route, offeredReward),
+    reward: createContractReward(template, cargo, route, reward),
     acceptedAt,
     deadlineAt,
     windForecastSnapshot,
