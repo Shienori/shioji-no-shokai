@@ -48,6 +48,9 @@ export function ContractCard({
   const rejectionReason = acceptableShip
     ? null
     : acceptanceChecks.find((item) => item.check.reason)?.check.reason ?? null;
+  const acceptanceLabel = canAccept ? "受注可能" : "受注不可";
+  const acceptanceColor = canAccept ? "#166534" : "#991b1b";
+  const acceptanceBackground = canAccept ? "#dcfce7" : "#fee2e2";
 
   return (
     <button className="contract-card" type="button" onClick={onSelect}>
@@ -56,20 +59,21 @@ export function ContractCard({
         <span className="contract-card-detail">詳細 ›</span>
       </div>
       {gameState && ships && (
-        <div
-          className={
-            canAccept
-              ? "contract-acceptance is-acceptable"
-              : "contract-acceptance is-unacceptable"
-          }
+        <span
+          style={{
+            display: "inline-block",
+            padding: "4px 12px",
+            borderRadius: 999,
+            fontSize: 14,
+            fontWeight: 600,
+            color: acceptanceColor,
+            background: acceptanceBackground,
+            marginBottom: 8,
+          }}
         >
-          <span className="contract-acceptance-label">
-            {canAccept ? "受注可能" : "受注不可"}
-          </span>
-          {!canAccept && rejectionReason && (
-            <span className="contract-acceptance-reason">{rejectionReason}</span>
-          )}
-        </div>
+          {acceptanceLabel}
+          {!canAccept && rejectionReason && `：${rejectionReason}`}
+        </span>
       )}
       <p className="contract-card-route">
         {fromPort.name}
