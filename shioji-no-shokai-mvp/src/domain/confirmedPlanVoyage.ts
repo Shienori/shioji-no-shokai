@@ -55,7 +55,12 @@ export function createConfirmedPlanVoyage(input: ConfirmedPlanVoyageInput): Voya
     forecastEtaRealTime: prediction.plannedEtaRealTime, estimatedArrivalAt, arrivalDeadlineAt,
     arrivedAt: null, arrivalLateHours: 0, isOnTime: true, unloadingStartedAt: null,
     unloadingCompletedAt: null, completedAtWorldTime: null, settled: false,
-    fuelPrepaymentGold: prepayment.totalPrepaymentGold,
+    fuelPrepayment: {
+      status: "pending",
+      prepaidGold: prepayment.totalPrepaymentGold,
+      consumedGold: 0,
+      refundedGold: 0,
+    },
   };
   voyage.plannedNavigation = createPlannedVoyageState({ voyage, ship, route: rebuilt.route,
     selectedSpeedKnots, loadSpeedFactor: getHeavyLoadSpeedFactor(contract, ship) });
