@@ -18,7 +18,7 @@ interface ContractBoardProps {
   progress: number;
   operationTime: number;
   gameState?: GameState;
-  ship?: Ship;
+  ships?: Ship[];
   // Normal requests use offer IDs; the fixed tutorial uses its template ID.
   onSelectContract: (selectionId: string) => void;
 }
@@ -42,7 +42,7 @@ export function ContractBoard({
   progress,
   operationTime,
   gameState,
-  ship,
+  ships,
   onSelectContract,
 }: ContractBoardProps) {
   const [showActiveContract, setShowActiveContract] = useState(false);
@@ -104,7 +104,7 @@ export function ContractBoard({
               contract={fixedContract}
               onSelect={() => onSelectContract(fixedContract.id)}
               gameState={gameState}
-              ship={ship}
+              ships={ships}
               now={currentTime}
             />
           </div>
@@ -115,7 +115,7 @@ export function ContractBoard({
             contract={template}
             onSelect={() => onSelectContract(offerId)}
             gameState={gameState}
-            ship={ship}
+            ships={ships}
             offerId={offerId}
             now={currentTime}
           />
