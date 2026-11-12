@@ -196,6 +196,7 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
                       <div className="kv"><span>遅延減額</span><span>-{selectedMemo.settlement.latePenalty}G</span></div>
                       <div className="kv"><span>減額後報酬</span><span>{selectedMemo.settlement.receivedReward}G</span></div>
                       <div className="kv"><span>経費</span><span>-{selectedMemo.settlement.expense}G</span></div>
+                      <div className="kv"><span>燃料費</span><span>-{selectedMemo.settlement.fuelCost}G</span></div>
                       <div className="kv"><span>最低利益保証</span><span>+{selectedMemo.settlement.guaranteeAmount}G</span></div>
                       <div className="kv voyage-memo-final"><span>最終受取額</span><span>{selectedMemo.settlement.finalPayout}G</span></div>
                     </div>
