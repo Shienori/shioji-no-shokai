@@ -81,7 +81,7 @@ export function MainPage() {
       <AppHeader />
       <TabBar activeTab={activeTab} onChange={setActiveTab} />
       <main className="page"><div className="page-body">
-        {activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} onSelectContract={selectContract} />
+        {activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} gameState={gameState} ship={selectedShip ?? gameState.ships[0]} onSelectContract={selectContract} />
           : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
           : <FleetPanel displayClock={displayClock} ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} />}
       </div></main>
