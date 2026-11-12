@@ -11,7 +11,7 @@ interface ContractCardProps {
   contract: ContractTemplate;
   onSelect: () => void;
   gameState?: GameState;
-  ship?: Ship;
+  ships?: Ship[];
   offerId?: string;
   now?: number;
 }
@@ -20,7 +20,7 @@ export function ContractCard({
   contract,
   onSelect,
   gameState,
-  ship,
+  ships,
   offerId,
   now = Date.now(),
 }: ContractCardProps) {
@@ -36,10 +36,18 @@ export function ContractCard({
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
   const voyageDurationLabel = formatDuration(voyageDurationMs);
 
-  const acceptance =
-    gameState && ship
-      ? evaluateContractAcceptance(contract, ship, gameState, now, offerId)
-      : null;
+  const acceptanceChecks =
+    gameState && ships
+      ? ships.map((ship) => ({
+          ship,
+          check: evaluateContractAcceptance(contract, ship, gameState, now, offerId),
+        }))
+      : [];
+  const acceptableShip = acceptanceChecks.find((item) => item.check.canAccept);
+  const canAccept = Boolean(acceptableShip);
+  const rejectionReason = acceptableShip
+    ? null
+    : acceptanceChecks.find((item) => item.check.reason)?.check.reason ?? null;
 
   return (
     <button className="contract-card" type="button" onClick={onSelect}>
@@ -47,6 +55,22 @@ export function ContractCard({
         <h3>{display.cargo.name}の輸送</h3>
         <span className="contract-card-detail">詳細 ›</span>
       </div>
+      {gameState && ships && (
+        <div
+          className={
+            canAccept
+              ? "contract-acceptance is-acceptable"
+              : "contract-acceptance is-unacceptable"
+          }
+        >
+          <span className="contract-acceptance-label">
+            {canAccept ? "受注可能" : "受注不可"}
+          </span>
+          {!canAccept && rejectionReason && (
+            <span className="contract-acceptance-reason">{rejectionReason}</span>
+          )}
+        </div>
+      )}
       <p className="contract-card-route">
         {fromPort.name}
         <span className="contract-route-arrow">→</span>
@@ -81,22 +105,6 @@ export function ContractCard({
           <span className="contract-fact-value reward-green">{netProfit}G</span>
         </div>
       </div>
-      {acceptance && (
-        <div
-          className={
-            acceptance.canAccept
-              ? "contract-acceptance is-acceptable"
-              : "contract-acceptance is-unacceptable"
-          }
-        >
-          <span className="contract-acceptance-label">
-            {acceptance.canAccept ? "受注可能" : "受注不可"}
-          </span>
-          {!acceptance.canAccept && acceptance.reason && (
-            <span className="contract-acceptance-reason">{acceptance.reason}</span>
-          )}
-        </div>
-      )}
     </button>
   );
 }
