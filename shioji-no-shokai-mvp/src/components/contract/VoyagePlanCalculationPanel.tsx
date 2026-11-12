@@ -46,6 +46,7 @@ export function FuelCalculationPanel({ ship, speed, review, money, onRefresh }: 
       {!plan.hasFuelShortage && plan.sections.every(section => section.fuelAssessment === "sufficient") && <p role="status">燃料：充足</p>}
       {plan.hasFuelShortage && <p role="alert">燃料不足。到着時刻は条件付きの計画値です。</p>}
       {fuelPrepayment && <div className="kv"><span>途中補油前払金（合計）</span><span>{fuelPrepayment.totalPrepaymentGold.toLocaleString("ja-JP")}G</span></div>}
+      {fuelPrepayment && <div className="kv"><span>予想返金額（合計）</span><span>{fuelPrepayment.sections.reduce((sum, section) => sum + section.estimatedRefundGold, 0).toLocaleString("ja-JP")}G</span></div>}
       {fuelPrepayment && money !== undefined && <div className="kv"><span>支払い後の残高</span><span>{(money - fuelPrepayment.totalPrepaymentGold).toLocaleString("ja-JP")}G</span></div>}
       <p>到着時刻・燃料は計画値です。途中補油は120G/tで有料です。</p>
       <details><summary>計算の詳細</summary>
