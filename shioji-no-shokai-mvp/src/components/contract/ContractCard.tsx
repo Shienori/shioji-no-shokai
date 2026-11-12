@@ -1,17 +1,29 @@
-import type { ContractTemplate } from "../../domain/types";
+import type { ContractTemplate, GameState, Ship } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
 import { getCargoPresentation } from "../../domain/cargoPresentation";
 import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense, calculateNetProfit } from "../../domain/reward";
 import { formatDateTime, formatDuration } from "../../domain/time";
+import { evaluateContractAcceptance } from "../../domain/contractAcceptance";
 
 interface ContractCardProps {
   contract: ContractTemplate;
   onSelect: () => void;
+  gameState?: GameState;
+  ship?: Ship;
+  offerId?: string;
+  now?: number;
 }
 
-export function ContractCard({ contract, onSelect }: ContractCardProps) {
+export function ContractCard({
+  contract,
+  onSelect,
+  gameState,
+  ship,
+  offerId,
+  now = Date.now(),
+}: ContractCardProps) {
   const route = getRouteById(contract.routeId);
   const display = getCargoPresentation(contract);
   if (!display) return <div className="contract-card" role="alert">貨物の数量・単位データを確認できません。</div>;
@@ -19,10 +31,15 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
   const toPort = getPortById(route.toPortId);
   const expense = calculateExpense(contract.offeredReward);
   const netProfit = calculateNetProfit(contract.offeredReward, expense);
-  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, Date.now());
+  const { voyageDurationMs, estimatedArrivalAt, deadlineAt } = getContractSchedule(contract, route, now);
   const deadlineLabel = formatDateTime(deadlineAt);
   const estimatedArrivalLabel = formatDateTime(estimatedArrivalAt);
   const voyageDurationLabel = formatDuration(voyageDurationMs);
+
+  const acceptance =
+    gameState && ship
+      ? evaluateContractAcceptance(contract, ship, gameState, now, offerId)
+      : null;
 
   return (
     <button className="contract-card" type="button" onClick={onSelect}>
@@ -64,6 +81,22 @@ export function ContractCard({ contract, onSelect }: ContractCardProps) {
           <span className="contract-fact-value reward-green">{netProfit}G</span>
         </div>
       </div>
+      {acceptance && (
+        <div
+          className={
+            acceptance.canAccept
+              ? "contract-acceptance is-acceptable"
+              : "contract-acceptance is-unacceptable"
+          }
+        >
+          <span className="contract-acceptance-label">
+            {acceptance.canAccept ? "受注可能" : "受注不可"}
+          </span>
+          {!acceptance.canAccept && acceptance.reason && (
+            <span className="contract-acceptance-reason">{acceptance.reason}</span>
+          )}
+        </div>
+      )}
     </button>
   );
 }
