@@ -16,7 +16,7 @@ import { VoyageRouteEditor } from "./VoyageRouteEditor";
 import { CapacityGauge } from "./CapacityGauge";
 import { VoyagePlanReviewDetails } from "./VoyagePlanConfirmation";
 import { SpeedSelectionPanel, FuelCalculationPanel } from "./VoyagePlanCalculationPanel";
-import { ShipDetailScreen } from "../fleet/ShipDetailScreen";
+import { PortRefuelPanel } from "../fleet/PortRefuelPanel";
 import "../../styles/voyagePlanFlow.css";
 
 type PlanStep = 1 | 2 | 3;
@@ -165,16 +165,11 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
         <div className="voyage-flow-actions" hidden={discardOpen || step !== 3}><button type="button" className="btn btn-secondary" disabled={finished} onClick={back}>航海計画へ戻る</button><button type="button" className="btn btn-primary" disabled={!confirmation || finished} onClick={confirm}>{confirmation?.prediction.hasFuelShortage ? "燃料不足の警告を確認して受注を確定" : "この計画で受注を確定"}</button></div>
       </footer>
       {refuelShip && <div className="voyage-flow-backdrop" style={{ zIndex: 1300 }}>
-        <ShipDetailScreen
-          displayClock={{ realTimeMs: Date.now(), operationTimeMs: Date.now() }}
-          ship={refuelShip}
-          voyage={null}
-          contract={null}
-          operationTime={Date.now()}
-          voyageMemos={[]}
-          onBack={() => setRefuelShipId(null)}
-          onBackToContract={() => setRefuelShipId(null)}
-        />
+        <div className="modal refuel-modal" role="dialog" aria-modal="true" aria-labelledby="refuel-modal-title">
+          <h3 id="refuel-modal-title">出発港で補油</h3>
+          <PortRefuelPanel key={refuelShip.id} shipId={refuelShip.id} />
+          <button type="button" className="btn btn-secondary" onClick={() => setRefuelShipId(null)}>閉じる</button>
+        </div>
       </div>}
     </div>
   </div>;
