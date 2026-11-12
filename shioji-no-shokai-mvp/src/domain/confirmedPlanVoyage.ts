@@ -6,6 +6,7 @@ import { getCargoForContract } from "./lotContract";
 import { getHeavyLoadSpeedFactor } from "./voyage";
 import { buildVoyagePlanRoute } from "./voyagePlanRoute";
 import { predictVoyagePlan } from "./voyagePlanPrediction";
+import { calculateFuelPrepaymentSummary } from "./fuelPrepayment";
 import { createPlannedVoyageState } from "./plannedVoyageState";
 
 export interface ConfirmedPlanVoyageInput {
@@ -41,6 +42,7 @@ export function createConfirmedPlanVoyage(input: ConfirmedPlanVoyageInput): Voya
   const loadingDurationOperationMs = cargo.loadingTimeMsPerUnit * contract.quantity;
   const prediction = predictVoyagePlan({ route: rebuilt.route, ship, selectedSpeedKnots,
     baseRealTime: contract.acceptedAt, loadingDurationOperationMs });
+  const prepayment = calculateFuelPrepaymentSummary(rebuilt.route, ship, prediction);
   const loadingCompletedAt = operationTime + loadingDurationOperationMs;
   const estimatedArrivalAt = operationTime + (prediction.plannedEtaRealTime - contract.acceptedAt) * GAME_TIME_MULTIPLIER;
   const arrivalDeadlineAt = operationTime + (contract.deadlineAt - contract.acceptedAt) * GAME_TIME_MULTIPLIER;
@@ -53,6 +55,7 @@ export function createConfirmedPlanVoyage(input: ConfirmedPlanVoyageInput): Voya
     forecastEtaRealTime: prediction.plannedEtaRealTime, estimatedArrivalAt, arrivalDeadlineAt,
     arrivedAt: null, arrivalLateHours: 0, isOnTime: true, unloadingStartedAt: null,
     unloadingCompletedAt: null, completedAtWorldTime: null, settled: false,
+    fuelPrepaymentGold: prepayment.totalPrepaymentGold,
   };
   voyage.plannedNavigation = createPlannedVoyageState({ voyage, ship, route: rebuilt.route,
     selectedSpeedKnots, loadSpeedFactor: getHeavyLoadSpeedFactor(contract, ship) });
