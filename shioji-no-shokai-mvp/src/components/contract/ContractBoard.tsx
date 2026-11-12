@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AcceptedContract, ContractTemplate, PortId, Voyage } from "../../domain/types";
+import type { AcceptedContract, ContractTemplate, GameState, PortId, Ship, Voyage } from "../../domain/types";
 import { ContractCard } from "./ContractCard";
 import { ports, getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
@@ -17,6 +17,8 @@ interface ContractBoardProps {
   voyage: Voyage | null;
   progress: number;
   operationTime: number;
+  gameState?: GameState;
+  ship?: Ship;
   // Normal requests use offer IDs; the fixed tutorial uses its template ID.
   onSelectContract: (selectionId: string) => void;
 }
@@ -28,7 +30,21 @@ function formatRefreshCountdown(remainingMs: number): string {
   return hours > 0 ? `${hours}時間${minutes}分` : `${minutes}分`;
 }
 
-export function ContractBoard({ selectedPortId, onSelectPort, fixedContract, contracts, nextRefreshAt, currentTime, acceptedContract, voyage, progress, operationTime, onSelectContract }: ContractBoardProps) {
+export function ContractBoard({
+  selectedPortId,
+  onSelectPort,
+  fixedContract,
+  contracts,
+  nextRefreshAt,
+  currentTime,
+  acceptedContract,
+  voyage,
+  progress,
+  operationTime,
+  gameState,
+  ship,
+  onSelectContract,
+}: ContractBoardProps) {
   const [showActiveContract, setShowActiveContract] = useState(false);
   const selectedPort = getPortById(selectedPortId);
   const route = acceptedContract ? getRouteById(acceptedContract.routeId) : null;
@@ -84,11 +100,25 @@ export function ContractBoard({ selectedPortId, onSelectPort, fixedContract, con
         {fixedContract && (
           <div className="contract-card fixed-contract-card">
             <div className="contract-card-heading"><h3>固定依頼</h3><span className="contract-card-detail">チュートリアル</span></div>
-            <ContractCard contract={fixedContract} onSelect={() => onSelectContract(fixedContract.id)} />
+            <ContractCard
+              contract={fixedContract}
+              onSelect={() => onSelectContract(fixedContract.id)}
+              gameState={gameState}
+              ship={ship}
+              now={currentTime}
+            />
           </div>
         )}
         {contracts.map(({ offerId, template }) => (
-          <ContractCard key={offerId} contract={template} onSelect={() => onSelectContract(offerId)} />
+          <ContractCard
+            key={offerId}
+            contract={template}
+            onSelect={() => onSelectContract(offerId)}
+            gameState={gameState}
+            ship={ship}
+            offerId={offerId}
+            now={currentTime}
+          />
         ))}
       </div>
     </section>
