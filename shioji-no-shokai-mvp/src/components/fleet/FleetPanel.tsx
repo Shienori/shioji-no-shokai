@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
@@ -8,7 +7,6 @@ import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
 import { getSeaConditionAt } from "../../domain/seaCondition";
 import { PlannedFleetShipCard } from "./PlannedFleetShipCard";
-import { useGameStore } from "../../state/gameStore";
 
 import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
 
@@ -39,59 +37,7 @@ const STATUS_LABELS = {
   unloading: "揚荷中",
 } as const;
 
-function ManualRefuelPanel({
-  ship,
-  onRefuel,
-}: {
-  ship: Ship;
-  onRefuel: (tons: number) => void;
-}) {
-  const [tons, setTons] = useState("1");
-  const fuel = ship.fuel;
-
-  if (!fuel) return null;
-
-  const requestedTons = Number(tons);
-  const remainingCapacityTons =
-    fuel.capacityTons - fuel.remainingTons;
-  const refuelTons = Math.min(
-    requestedTons,
-    remainingCapacityTons,
-  );
-  const cost = Math.ceil(refuelTons * 120);
-  const canRefuel = refuelTons > 0;
-
-  return (
-    <div className="manual-refuel-panel">
-      <h4>手動補油</h4>
-      <p>
-        現在 {fuel.remainingTons}t /
-        容量 {fuel.capacityTons}t
-      </p>
-      <label>
-        補油量（t）
-        <input
-          type="number"
-          min="0"
-          step="0.1"
-          value={tons}
-          onChange={(event) => setTons(event.target.value)}
-        />
-      </label>
-      <p>燃料代：{cost}G</p>
-      <button
-        type="button"
-        disabled={!canRefuel}
-        onClick={() => onRefuel(refuelTons)}
-      >
-        補油する
-      </button>
-    </div>
-  );
-}
-
 export function FleetPanel({ ships, voyage, contract, operationTime, displayClock, onSelectShip }: FleetPanelProps) {
-  const refuelShip = useGameStore((state) => state.refuelShip);
   const legacyVoyage = voyage?.plannedNavigation !== undefined ? null : voyage;
   const legacyContract = voyage?.plannedNavigation !== undefined ? null : contract;
   const route = legacyContract ? getRouteById(legacyContract.routeId) : null;
@@ -169,13 +115,6 @@ export function FleetPanel({ ships, voyage, contract, operationTime, displayCloc
                 <div><span className="contract-fact-label">新規受注の重量上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoWeightTons, "t") : "未設定"}</span></div>
                 <div><span className="contract-fact-label">新規受注の容積上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoVolumeM3, "m³") : "未設定"}</span></div>
               </div>
-
-              {ship.kind === "powered" && (
-                <ManualRefuelPanel
-                  ship={ship}
-                  onRefuel={(tons) => refuelShip(ship.id, tons)}
-                />
-              )}
 
               <div className="progress-block">
                 <div className="progress-heading">
