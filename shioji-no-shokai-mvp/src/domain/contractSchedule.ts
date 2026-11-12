@@ -31,11 +31,10 @@ function toCargo(cargoLot: ReturnType<typeof getCargoLotById>): Cargo {
     packaging: cargoLot.packagingLabel as Cargo["packaging"],
     category: cargoLot.category,
     unitPrice: cargoLot.unitPrice,
-    unitVolume: cargoLot.unitVolume,
-    weightPerUnit: cargoLot.weightPerUnit,
-    loadingTimeMsPerUnit: cargoLot.loadingTimeMsPerUnit,
-    unloadingTimeMsPerUnit: cargoLot.unloadingTimeMsPerUnit,
-    rewardMultiplier: cargoLot.rewardMultiplier,
+    unitVolume: cargoLot.volumeM3PerLot,
+    weightPerUnit: cargoLot.weightTonsPerLot,
+    loadingTimeMsPerUnit: cargoLot.loadingTimeMsPerLot,
+    unloadingTimeMsPerUnit: cargoLot.unloadingTimeMsPerLot,
   };
 }
 
