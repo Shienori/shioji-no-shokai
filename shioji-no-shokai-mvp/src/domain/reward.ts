@@ -11,6 +11,25 @@ export function calculateVoyageDistanceAllowance(distance: number): Gold {
   return 60;
 }
 
+export function calculateCargoQ(
+  totalWeightTons: number,
+  totalVolumeCubicMeters: number,
+  rewardMultiplier: number,
+): number {
+  const baseQ = Math.max(totalWeightTons, totalVolumeCubicMeters);
+  return baseQ * rewardMultiplier;
+}
+
+export function calculateCPlanReward(
+  cargoQ: number,
+  baseDistanceNm: number,
+): Gold {
+  const baseTimeHours = baseDistanceNm / 6;
+  return Math.round(
+    cargoQ * (20 + 35 * baseTimeHours + baseDistanceNm),
+  );
+}
+
 export function calculateExpense(receivedReward: Gold): Gold {
   return Math.ceil(receivedReward * EXPENSE_RATE);
 }
