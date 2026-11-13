@@ -49,6 +49,7 @@ export interface VoyageFuelNavigation {
   referenceConsumptionTonsPerVoyageHour: FuelTons;
   routeLegs: RouteWindLeg[];
   fuelConsumedTons: FuelTons;
+  fuelCostGold?: Gold;
 }
 
 export interface FuelDepletionReturn {
@@ -93,5 +94,5 @@ export interface Voyage { id: string; shipId: ShipId; contractId: ContractId; ph
 export interface VoyageMemoSettlement { offeredReward: Gold; latePenalty: Gold; receivedReward: Gold; expense: Gold; fuelCost: Gold; guaranteeAmount: Gold; finalPayout: Gold; }
 export interface VoyageMemo { voyageNumber: number; label: string; contractId: ContractId; shipId: ShipId; shipName: string; routeLabel: string; cargoLabel: string; acceptedAt: RealTimeMs; acceptedOperationTime: OperationTimeMs; plannedEtaRealTime: RealTimeMs; actualArrivalRealTime: RealTimeMs | null; etaDiffMinutes: number | null; settlement: VoyageMemoSettlement | null; fuelConsumedTons?: FuelTons; fuelDepletionReturn?: FuelDepletionReturn; cargoLotSnapshot?: CargoLotSnapshot; }
 export interface ReputationState { shipperId: ShipperId; value: number; }
-export interface GameState { playerId: string; currentGameTime: RealTimeMs; operationTime: OperationTimeMs; lastRealTimeSyncedAt: RealTimeMs; money: Gold; ships: Ship[]; activeVoyage: Voyage | null; acceptedContract: AcceptedContract | null; offeredContractIds: ContractId[]; acceptedContractIds: ContractId[]; voyageMemos: VoyageMemo[]; reputations: ReputationState[]; tutorialCompleted: boolean; selectedPortId: PortId; portOffers: Record<PortId, OfferedContract[]>; nextRefreshAt: RealTimeMs; }
+export interface GameState { playerId: string; currentGameTime: RealTimeMs; operationTime: OperationTimeMs; lastRealTimeSyncedAt: RealTimeMs; money: Gold; ships: Ship[]; activeVoyage: Voyage | null; acceptedContract: AcceptedContract | null; offeredContractIds: OfferedContract[]; acceptedContractIds: ContractId[]; voyageMemos: VoyageMemo[]; reputations: ReputationState[]; tutorialCompleted: boolean; selectedPortId: PortId; portOffers: Record<PortId, OfferedContract[]>; nextRefreshAt: RealTimeMs; }
 export interface SaveData { version: number; savedAtRealTime: number; gameState: GameState; }
