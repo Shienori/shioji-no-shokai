@@ -33,9 +33,10 @@ export function settleContract(contract: AcceptedContract, voyage: Voyage): Sett
   const fuelRefundGold = voyage.fuelPrepayment?.status === "pending"
     ? voyage.fuelPrepayment.prepaidGold - voyage.fuelPrepayment.consumedGold
     : 0;
-  const fuelCostGold = voyage.fuelNavigation
-    ? Math.ceil(voyage.fuelNavigation.fuelConsumedTons * FUEL_PRICE_GOLD_PER_TON)
-    : 0;
+  const fuelCostGold = voyage.fuelNavigation?.fuelCostGold ??
+    (voyage.fuelNavigation
+      ? Math.ceil(voyage.fuelNavigation.fuelConsumedTons * FUEL_PRICE_GOLD_PER_TON)
+      : 0);
 
   return {
     lateHours,
