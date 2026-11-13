@@ -49,6 +49,7 @@ export interface VoyageFuelNavigation {
   referenceConsumptionTonsPerVoyageHour: FuelTons;
   routeLegs: RouteWindLeg[];
   fuelConsumedTons: FuelTons;
+  fuelCostGold?: Gold;
 }
 
 export interface FuelDepletionReturn {

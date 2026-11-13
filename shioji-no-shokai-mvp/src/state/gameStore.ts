@@ -626,6 +626,8 @@ function progressVoyageIfActive(
         voyage.arrivalDeadlineAt,
       );
 
+      const fuelNavigation = voyage.fuelNavigation!;
+
       voyage = {
         ...voyage,
         phase: "unloading",
@@ -634,6 +636,13 @@ function progressVoyageIfActive(
         arrivalLateHours,
         isOnTime: arrivalLateHours <= 0,
         unloadingStartedAt: arrivedAt,
+        fuelNavigation: {
+          ...fuelNavigation,
+          fuelCostGold: Math.ceil(
+            fuelNavigation.fuelConsumedTons *
+              FUEL_PRICE_GOLD_PER_TON,
+          ),
+        },
       };
     }
   }
@@ -1170,8 +1179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         !memo.fuelDepletionReturn,
     );
 
-    const fuelCost =
-      voyage.fuelPrepayment?.consumedGold ?? 0;
+    const fuelCost = result.fuelCostGold;
 
     const voyageMemos = current.voyageMemos.map(
       (memo, index) => {
