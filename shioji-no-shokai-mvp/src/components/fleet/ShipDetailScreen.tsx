@@ -26,6 +26,7 @@ interface ShipDetailScreenProps {
   operationTime: number;
   voyageMemos: VoyageMemo[];
   onBack: () => void;
+  onBackToContract?: () => void;
 }
 
 const CONDITION_LABELS = {
@@ -56,7 +57,7 @@ function portName(portId: string): string {
   catch { return "確認不可"; }
 }
 
-export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeContract, operationTime, displayClock, voyageMemos, onBack }: ShipDetailScreenProps) {
+export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeContract, operationTime, displayClock, voyageMemos, onBack, onBackToContract }: ShipDetailScreenProps) {
   const [showVoyageMemo, setShowVoyageMemo] = useState(false);
   const [selectedVoyageNumber, setSelectedVoyageNumber] = useState<number | null>(null);
   const voyage = activeVoyage?.shipId === ship.id ? activeVoyage : null;
@@ -101,7 +102,10 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
           <h2>{ship.name}</h2>
           <p className="contract-board-subtitle">{STATUS_LABELS[ship.status]}</p>
         </div>
-        <button className="btn btn-secondary" type="button" onClick={onBack}>戻る</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {onBackToContract && <button className="btn btn-primary" type="button" onClick={onBackToContract}>依頼画面に戻る</button>}
+          <button className="btn btn-secondary" type="button" onClick={onBack}>戻る</button>
+        </div>
       </header>
 
       <div className="ship-photo" aria-hidden="true">{ship.kind === "powered" ? "🚢" : "⛵"}</div>

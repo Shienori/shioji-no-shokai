@@ -1,7 +1,7 @@
 import type { AcceptedContract, Cargo, ContractTemplate, ContractRewardBreakdown, OfferedContract, Route } from "./types";
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { ceilTo30Minutes } from "./time";
-import { calculateCargoValue, calculateVoyageDistanceAllowance } from "./reward";
+import { calculateCargoQ, calculateCPlanReward } from "./reward";
 import { createContractInstanceId } from "./contractIdentity";
 import { createContractWindForecast } from "./contractWindForecast";
 import { getCargoLotById } from "../data/cargoLots";
@@ -23,24 +23,58 @@ export interface ContractSchedule {
   deadlineAt: number;
 }
 
+function toCargo(cargoLot: ReturnType<typeof getCargoLotById>): Cargo {
+  return {
+    id: cargoLot.id,
+    name: cargoLot.name,
+    commodity: cargoLot.commodity,
+    packaging: cargoLot.packagingLabel as Cargo["packaging"],
+    category: cargoLot.category,
+    unitPrice: cargoLot.unitPrice,
+    unitVolume: cargoLot.volumeM3PerLot,
+    weightPerUnit: cargoLot.weightTonsPerLot,
+    loadingTimeMsPerUnit: cargoLot.loadingTimeMsPerLot,
+    unloadingTimeMsPerUnit: cargoLot.unloadingTimeMsPerLot,
+  };
+}
+
+export function calculateCPlanOfferedReward(
+  template: ContractTemplate,
+  cargo: Cargo,
+  route: Route,
+): number {
+  const cargoQ = calculateCargoQ(
+    template.quantity * cargo.weightPerUnit,
+    template.quantity * cargo.unitVolume,
+    cargo.rewardMultiplier ?? 1,
+  );
+
+  return calculateCPlanReward(cargoQ, route.distance);
+}
+
 export function createOfferedContract(
   template: ContractTemplate,
   route: Route,
   generatedAt: number,
 ): OfferedContract {
   const [minimum, maximum] = TIME_ALLOWANCE_RANGES[template.difficulty ?? "normal"];
-  // Keep hard/normal upper bounds exclusive even after floating-point rounding.
   const upperBound = template.difficulty === "easy" ? maximum : maximum - Number.EPSILON * maximum;
   const timeAllowanceRatio = Math.min(upperBound, minimum + Math.random() * (maximum - minimum));
   const baseVoyageHours = route.distance / BASE_SPEED_KNOTS;
   const deadlineHours = baseVoyageHours * timeAllowanceRatio + OFFER_BUFFER_HOURS;
+  const cargo = toCargo(getCargoLotById(template.cargoId));
 
   return {
     id: createContractInstanceId("offer"),
     templateId: template.id,
     generatedAt,
     deadlineAt: ceilTo30Minutes(generatedAt + deadlineHours * HOUR_MS / GAME_TIME_MULTIPLIER),
-    timeAllowanceRatio
+    timeAllowanceRatio,
+    offeredReward: calculateCPlanOfferedReward(
+      template,
+      cargo,
+      route,
+    ),
   };
 }
 
@@ -65,14 +99,13 @@ export function createContractReward(
   contract: ContractTemplate,
   cargo: Cargo,
   route: Route,
+  offeredReward: number,
 ): ContractRewardBreakdown {
-  const cargoValue = calculateCargoValue(cargo.unitPrice, contract.quantity);
-  const voyageDistanceAllowance = calculateVoyageDistanceAllowance(route.distance);
   return {
-    cargoValue,
-    voyageDistanceAllowance,
-    otherAdjustment: contract.offeredReward - cargoValue - voyageDistanceAllowance,
-    offeredReward: contract.offeredReward,
+    cargoValue: offeredReward,
+    voyageDistanceAllowance: 0,
+    otherAdjustment: 0,
+    offeredReward,
   };
 }
 
@@ -82,10 +115,12 @@ export function createAcceptedContract(
   cargo: Cargo,
   acceptedAt: number,
   deadlineAt: number,
+  offeredReward?: number,
 ): LotAcceptedContract {
   if (cargo.id !== template.cargoId) throw new Error("Cargo identity mismatch");
   const cargoLotSnapshot = createCargoLotSnapshot(getCargoLotById(template.cargoId), template.quantity);
   const windForecastSnapshot = createContractWindForecast(route, acceptedAt);
+  const reward = offeredReward ?? calculateCPlanOfferedReward(template, cargo, route);
   return {
     id: createContractInstanceId("accepted"),
     templateId: template.id,
@@ -93,7 +128,7 @@ export function createAcceptedContract(
     routeId: template.routeId,
     cargoId: template.cargoId,
     quantity: template.quantity,
-    reward: createContractReward(template, { ...cargo, unitPrice: cargoLotSnapshot.unitPrice }, route),
+    reward: createContractReward(template, cargo, route, reward),
     acceptedAt,
     deadlineAt,
     windForecastSnapshot,

@@ -1,6 +1,6 @@
 import type { AcceptedContract, Gold, Voyage } from "./types";
 import { applyMinimumProfitGuarantee, calculateExpense, calculateNetProfit } from "./reward";
-import { LATE_PENALTY_RATE_PER_HOUR } from "../data/gameConstants";
+import { LATE_PENALTY_RATE_PER_HOUR, FUEL_PRICE_GOLD_PER_TON } from "../data/gameConstants";
 
 export interface SettlementResult {
   lateHours: number;
@@ -13,6 +13,8 @@ export interface SettlementResult {
   guaranteeAmount: Gold;
   finalPayout: Gold;
   reputationChange: number;
+  fuelRefundGold: Gold;
+  fuelCostGold: Gold;
 }
 
 export function calculateLatePenalty(offeredReward: Gold, lateHours: number): Gold {
@@ -28,6 +30,12 @@ export function settleContract(contract: AcceptedContract, voyage: Voyage): Sett
   const expense = calculateExpense(receivedReward);
   const rawNetProfit = calculateNetProfit(receivedReward, expense);
   const guaranteed = applyMinimumProfitGuarantee(rawNetProfit, isOnTime);
+  const fuelRefundGold = voyage.fuelPrepayment?.status === "pending"
+    ? voyage.fuelPrepayment.prepaidGold - voyage.fuelPrepayment.consumedGold
+    : 0;
+  const fuelCostGold = voyage.fuelNavigation
+    ? Math.ceil(voyage.fuelNavigation.fuelConsumedTons * FUEL_PRICE_GOLD_PER_TON)
+    : 0;
 
   return {
     lateHours,
@@ -39,6 +47,8 @@ export function settleContract(contract: AcceptedContract, voyage: Voyage): Sett
     rawNetProfit,
     guaranteeAmount: guaranteed.guaranteeAmount,
     finalPayout: guaranteed.netProfit,
-    reputationChange: isOnTime ? 0.25 : -0.25
+    reputationChange: isOnTime ? 0.25 : -0.25,
+    fuelRefundGold,
+    fuelCostGold,
   };
 }

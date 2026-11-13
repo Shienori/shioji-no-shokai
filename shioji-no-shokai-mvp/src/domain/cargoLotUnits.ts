@@ -15,6 +15,7 @@ export interface CargoLotDefinition {
   readonly unitPrice: number;
   readonly loadingTimeMsPerLot: number;
   readonly unloadingTimeMsPerLot: number;
+  readonly rewardMultiplier: number;
   readonly initialLotQuantities: { readonly small: number; readonly standard: number; readonly large: number };
 }
 

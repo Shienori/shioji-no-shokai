@@ -52,6 +52,7 @@ import {
   createAcceptedContract,
   createOfferedContract,
 } from "../domain/contractSchedule";
+import { calculateManualRefuel } from "../domain/fuelRefuel";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { loadGame, saveGame } from "../domain/save";
 import {
@@ -78,6 +79,7 @@ interface GameStore {
   selectShip: (shipId: ShipId | null) => void;
   setActiveTab: (tab: "contracts" | "fleet" | "chart") => void;
   selectPort: (portId: PortId) => void;
+  refuelShip: (shipId: ShipId, requestedTons: number) => void;
   acceptContract: (
     offerId: string,
     shipId: string,
@@ -784,6 +786,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     }),
 
+  refuelShip: (shipId, requestedTons) => {
+    const current = get().gameState;
+    const ship = current.ships.find(
+      (item) => item.id === shipId,
+    );
+
+    if (!ship) return;
+
+    try {
+      const result = calculateManualRefuel(
+        ship,
+        requestedTons,
+      );
+
+      if (result.cost > current.money) return;
+
+      const next: GameState = {
+        ...current,
+        money: current.money - result.cost,
+        ships: current.ships.map((item) =>
+          item.id === shipId ? result.ship : item,
+        ),
+      };
+
+      saveGame(next);
+      set({ gameState: next });
+    } catch {
+      return;
+    }
+  },
+
   acceptContract: (
     offerId,
     shipId,
@@ -914,6 +947,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       cargo,
       currentRealTime,
       deadlineAt,
+      offeredContract?.offeredReward,
     );
 
     const cargoSnapshot =

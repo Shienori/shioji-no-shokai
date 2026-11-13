@@ -1,9 +1,9 @@
 export const GAME_TIME_MULTIPLIER = 6;
-export const EXPENSE_RATE = 0.3;
+export const EXPENSE_RATE = 0;
 export const LATE_PENALTY_RATE_PER_HOUR = 0.1;
 export const MINIMUM_NET_PROFIT = 5;
 export const MINIMUM_OFFERED_REWARD = 8;
 export const FUEL_PRICE_GOLD_PER_TON = 120;
 export const SAVE_VERSION = 9;
 export const SAVE_KEY = "shioji-no-shokai:save:v9";
-export const STARTING_MONEY = 100;
+export const STARTING_MONEY = 1000;
