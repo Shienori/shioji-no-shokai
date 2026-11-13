@@ -313,7 +313,7 @@ function findLatestMemoIndex(
   matches: (memo: VoyageMemo) => boolean,
 ): number {
   for (let index = memos.length - 1; index >= 0; index -= 1) {
-    if (matches(memo)) return index;
+    if (matches(memos[index])) return index;
   }
 
   return -1;
