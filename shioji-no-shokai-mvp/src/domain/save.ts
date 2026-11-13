@@ -50,8 +50,12 @@ function migrateCargoData(state: GameState): GameState {
 
   const portOffers = state.portOffers
     ? Object.fromEntries(Object.entries(state.portOffers).map(([portId, offers]) => {
-        const rawOffers = offers as unknown as unknown[];
-        if (rawOffers.length > 0 && typeof rawOffers[0] === "string") {
+        const rawOffers = offers as unknown[];
+　const isLegacyStringIdList =
+  rawOffers.length > 0 &&
+  typeof rawOffers[0] === "string";
+
+　if (isLegacyStringIdList) {
           return [portId, (rawOffers as string[])
             .filter(keepContractId)
             .map((templateId) => {
