@@ -7,6 +7,7 @@ import { getCargoPresentation, getLotCapacityForDisplay } from "../../domain/car
 import { findShipperById } from "../../data/shippers";
 import { getHexById } from "../../data/hexMap";
 import { getRouteHexIds } from "../../domain/routePath";
+import { HEX_DISTANCE_NM } from "../../domain/hexMap";
 import { calculateEstimatedArrivalAt } from "../../domain/seaCondition";
 import { getContractSchedule } from "../../domain/contractOffer";
 import { calculateExpense } from "../../domain/reward";
@@ -22,6 +23,7 @@ import { RouteSeaConditionTab } from "./RouteSeaConditionTab";
 import { FuelTrialPanel } from "./FuelTrialPanel";
 import { VoyageRouteEditor } from "./VoyageRouteEditor";
 import { VoyagePlanSummary } from "./VoyagePlanSummary";
+import "../../styles/contractOffer.css";
 
 interface ContractDetailScreenProps {
   contract: ContractTemplate | null;
@@ -54,7 +56,8 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const [departureAt, setDepartureAt] = useState(() => Date.now());
   const route = contract ? getRouteById(contract.routeId) : null;
   const selectedShip = ships.find((ship) => ship.id === selectedShipId) ?? null;
-  const seaHexIds = useMemo(() => route ? (getRouteHexIds(route.fromPortId, route.toPortId) ?? []).filter((id) => getHexById(id).kind === "sea") : [], [route]);
+  const shortestHexIds = useMemo(() => route ? getRouteHexIds(route.fromPortId, route.toPortId) : null, [route]);
+  const seaHexIds = useMemo(() => (shortestHexIds ?? []).filter((id) => getHexById(id).kind === "sea"), [shortestHexIds]);
   const speed = selectedShip ? selectedSpeedKnots ?? selectedShip.cruisingSpeedKnots : undefined;
   // Calculation copy only: the actual ship specification is never edited here.
   const previewShip = useMemo(() => selectedShip && speed !== undefined ? { ...selectedShip, cruisingSpeedKnots: speed } : null, [selectedShip, speed]);
@@ -78,14 +81,16 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
   const requesterName = shipper?.name ?? "不明な依頼主";
   const fromPort = getPortById(route.fromPortId);
   const toPort = getPortById(route.toPortId);
+  const distanceLabel = shortestHexIds && shortestHexIds.length > 0 ? `${((shortestHexIds.length - 1) * HEX_DISTANCE_NM).toLocaleString("ja-JP")} 海里` : "計算できません";
   const expense = calculateExpense(contract.offeredReward);
-  const netProfit = contract.offeredReward - expense;
   const deadlineLabel = formatDateTime(offeredDeadlineAt ?? getContractSchedule(contract, route, departureAt).deadlineAt);
   const { requiredCargoVolume, requiredCargoWeight } = display;
   const validSpeed = selectedShip !== null && speed !== undefined &&
     isSelectedSpeedWithinLimits(selectedShip, speed) &&
     (selectedShip.kind === "powered" || speed === selectedShip.cruisingSpeedKnots);
   const canAccept = !hasEditedRoute && eligibleShips.some((ship) => ship.id === selectedShipId) && validSpeed;
+  const overviewCanAccept = !hasEditedRoute && eligibleShips.length > 0 && (selectedShipId === null || canAccept);
+  const overviewReason = hasEditedRoute ? "編集航路での受注はまだできません" : acceptReason ?? (eligibleShips.length === 0 ? "受注条件を満たす船がありません" : "選択中の船または速力設定を確認してください");
   const getSuitability = (ship: Ship) => {
     if (hasEditedRoute) return { label: "編集航路は下の計画値を確認", color: "#64748b", background: "#f1f5f9" };
     if (!eligibleShips.some((item) => item.id === ship.id)) {
@@ -108,24 +113,24 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
       <h2>{cargo.name}の輸送依頼</h2>
     </header>
     <div className="detail-body">
-      <section className="detail-tab-panel"><div className="card detail-card">
-        <h3>依頼</h3>
+      <section className="detail-tab-panel"><div className="card detail-card contract-detail-overview">
+        <div className="contract-offer-main">
+          <span className="contract-offer-icon" aria-hidden="true"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 9 16 3 28 9v14l-12 6-12-6V9Z" /><path d="m4 9 12 6 12-6M16 15v14M10 6l12 6v6" /></svg></span>
+          <div className="contract-offer-content"><h3>{cargo.name}の輸送</h3><p className="contract-offer-meta">{fromPort.name} → {toPort.name}</p></div>
+        </div>
+        <span className={`contract-acceptance-badge ${overviewCanAccept ? "is-available" : "is-unavailable"}`}>
+          {overviewCanAccept ? "受注可能" : "受注不可"}{!overviewCanAccept && `：${overviewReason}`}
+        </span>
         <div className="kv"><span>依頼主</span><span>{requesterName}</span></div>
-        {shipper?.description && <p style={{ margin: "8px 0", fontSize: 12, lineHeight: 1.6, color: "var(--sub)" }}>{shipper.description}</p>}
-        <div className="kv"><span>貨物</span><span>{display.label}</span></div>
-        <div className="kv"><span>荷姿</span><span>{display.packagingLabel}</span></div>
-        <div className="kv"><span>航路</span><span>{fromPort.name} → {toPort.name}</span></div>
-        <div className="kv"><span>最短距離</span><span>{route.distance}海里</span></div>
-        <div className="requirement-grid">
-          <div className="requirement-item"><span className="requirement-label">必要貨物容積</span><span className="requirement-value">{display.volumeLabel}</span></div>
-          <div className="requirement-item"><span className="requirement-label">必要貨物重量</span><span className="requirement-value">{display.weightLabel}</span></div>
-        </div>
+        <div className="kv"><span>貨物・数量</span><span>{display.label}</span></div>
+        <div className="kv"><span>距離</span><span>{distanceLabel}</span></div>
         <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
-        <div className="reward-row">
-          <div className="reward-item"><div className="label">提示報酬</div><div className="value">{contract.offeredReward}G</div></div>
-          <div className="reward-item net"><div className="label">見込純利益</div><div className="value">{netProfit}G</div></div>
+        <div className="requirement-grid contract-detail-capacity">
+          <div className="requirement-item"><span className="requirement-label">必要重量</span><span className="requirement-value">{display.weightLabel}</span></div>
+          <div className="requirement-item"><span className="requirement-label">必要容積</span><span className="requirement-value">{display.volumeLabel}</span></div>
         </div>
-        <div className="kv"><span>経費</span><span>-{expense}G</span></div>
+        <div className="contract-detail-reward"><span className="label">報酬</span><span className="value">{contract.offeredReward.toLocaleString("ja-JP")} G</span></div>
+        <div className="kv"><span>経費</span><span>-{expense.toLocaleString("ja-JP")} G</span></div>
       </div></section>
       <VoyageRouteEditor departurePortId={route.fromPortId} destinationPortId={route.toPortId} onEditedChange={handleRouteChange} />
       <section className="detail-tab-panel"><div className="card detail-card ship-select-card">
@@ -180,7 +185,7 @@ function ContractDetail({ contract, ships, eligibleShips, acceptReason, offeredD
       <div className="kv"><span>ETA</span><span>{etaLabel}</span></div>
       {selectedShip.kind === "powered" && <p>積込後に出港し、港へ到着する時刻の予測です（荷卸し前）。閲覧用で、受注時に保存する記録ETAの変更は今回含みません。</p>}
       <div className="kv"><span>到着期限</span><span>{deadlineLabel}</span></div>
-      <div className="kv"><span>提示報酬</span><span>{contract.offeredReward}G</span></div>
+      <div className="kv"><span>報酬</span><span>{contract.offeredReward.toLocaleString("ja-JP")} G</span></div>
       <div className="confirmation-actions">
         <button className="btn btn-secondary" type="button" onClick={() => setShowConfirmation(false)}>キャンセル</button>
         <button className="btn btn-primary" type="button" disabled={!canAccept} onClick={() => onAccept(selectedShip.id, speed ?? selectedShip.cruisingSpeedKnots)}>受注する</button>

@@ -1,0 +1,22 @@
+.contract-offer-card{padding:12px}
+.contract-offer-main{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:start}
+.contract-offer-icon{display:flex;align-items:center;justify-content:center;width:32px;height:36px;color:var(--gold)}
+.contract-offer-content{min-width:0}
+.contract-offer-card .contract-card-heading{align-items:start}
+.contract-offer-card h3{font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.contract-offer-meta,.contract-offer-timing{margin-top:4px;font-size:12px;line-height:1.5;color:var(--sub);overflow-wrap:anywhere}
+.contract-offer-timing{font-size:11px}
+.contract-acceptance-badge{display:inline-block;max-width:100%;margin-top:8px;padding:4px 10px;border:1px solid transparent;border-radius:999px;font-size:12px;line-height:1.5;font-weight:600;white-space:normal;overflow-wrap:anywhere;text-align:left}
+.contract-acceptance-badge.is-available{color:#166534;background:#dcfce7;border-color:#86efac}
+.contract-acceptance-badge.is-unavailable{color:#991b1b;background:#fee2e2;border-color:#fca5a5}
+.contract-offer-footer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.contract-offer-deadline{min-width:0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.contract-offer-reward{text-align:right;white-space:nowrap}
+.contract-offer-amount{display:block;margin-top:2px;font-size:20px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums}
+.contract-offer-card:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.contract-detail-overview .contract-detail-capacity{margin:14px 0}
+.contract-detail-overview .contract-detail-capacity .requirement-value{font-size:clamp(24px,7vw,32px);line-height:1.2;overflow-wrap:anywhere}
+.contract-detail-overview .contract-detail-capacity .requirement-item{min-width:0}
+.contract-detail-reward{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.contract-detail-reward .label{font-size:12px;color:var(--sub)}
+.contract-detail-reward .value{font-size:22px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right}
