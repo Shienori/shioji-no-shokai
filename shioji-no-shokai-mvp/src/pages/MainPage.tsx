@@ -14,6 +14,8 @@ import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
 import { SettlementModal } from "../components/settlement/SettlementModal";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
+import { getCargoById } from "../data/cargos";
+import { calculateCPlanOfferedReward } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { calculateVoyageProgress } from "../domain/voyage";
 import { settleContract } from "../domain/settlement";
@@ -32,16 +34,26 @@ export function MainPage() {
   const acceptContract = useGameStore((state) => state.acceptContract);
   const selectedPortId = gameState.selectedPortId;
   const offeredContracts = gameState.portOffers[selectedPortId] ?? [];
+  // Display-only copies. Review signatures continue using original templates below.
   const contracts = offeredContracts
-    .map((offer) => ({ offerId: offer.id, template: getContractTemplateById(offer.templateId) }))
+    .map((offer) => ({ offerId: offer.id, template: { ...getContractTemplateById(offer.templateId), offeredReward: offer.offeredReward } }))
     .filter((item) => getRouteById(item.template.routeId).fromPortId === selectedPortId);
   const tutorialAccepted = gameState.acceptedContractIds.includes(tutorialWheatContract.id)
     || gameState.acceptedContract?.templateId === tutorialWheatContract.id
     || gameState.tutorialCompleted;
-  const fixedContract = selectedPortId === "port_selene" && !tutorialAccepted ? tutorialWheatContract : null;
+  const showTutorial = selectedPortId === "port_selene" && !tutorialAccepted;
+  // Transitional: match the current tutorial acceptance calculation exactly.
+  // Replace with a persisted fixed offer when the store is migrated.
+  const tutorialReward = showTutorial ? calculateCPlanOfferedReward(
+    tutorialWheatContract,
+    getCargoById(tutorialWheatContract.cargoId),
+    getRouteById(tutorialWheatContract.routeId),
+  ) : null;
+  const fixedContract = showTutorial && tutorialReward !== null ? { ...tutorialWheatContract, offeredReward: tutorialReward } : null;
   const selectedOffer = offeredContracts.find((offer) => offer.id === selectedContractId) ?? null;
   const selectedContract = selectedOffer ? getContractTemplateById(selectedOffer.templateId)
-    : fixedContract && selectedContractId === fixedContract.id ? fixedContract : null;
+    : fixedContract && selectedContractId === tutorialWheatContract.id ? tutorialWheatContract : null;
+  const selectedRewardAmount = selectedOffer?.offeredReward ?? tutorialReward;
   const selectedShip = selectedShipId === null ? null : gameState.ships.find((ship) => ship.id === selectedShipId) ?? null;
   const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
   const acceptanceChecks = selectedContract ? gameState.ships.map((ship) => ({ ship, check: evaluateContractAcceptance(selectedContract, ship, gameState, Date.now(), selectedOffer?.id) })) : [];
@@ -72,8 +84,8 @@ export function MainPage() {
     setActiveTab("fleet");
     return result;
   };
-  if (selectedContract && selectedContractId !== null && !planningOpen) return <div className="phone">
-    <ContractDetailScreen key={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
+  if (selectedContract && selectedContractId !== null && selectedRewardAmount !== null && !planningOpen) return <div className="phone">
+    <ContractDetailScreen key={selectedContractId} contract={{ ...selectedContract, offeredReward: selectedRewardAmount }} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
   </div>;
   if (selectedShip && !planningOpen) return <div className="phone">
     <ShipDetailScreen displayClock={displayClock} ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
@@ -92,6 +104,6 @@ export function MainPage() {
       <button className="btn btn-secondary" type="button" disabled={voyage?.plannedNavigation !== undefined} title={voyage?.plannedNavigation !== undefined ? "確定計画の航海中は固定ETA・進行状態を保護するため旧スキップを無効にしています" : undefined} onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
       <button className="btn btn-secondary" type="button" onClick={() => useGameStore.getState().resetGame()}>デバッグ: 初期化</button>
     </div>
-    {planningOpen && selectedContract && selectedContractId !== null && <PlannedContractDetailScreen key={selectedContractId} offerId={selectedContractId} contract={selectedContract} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed, review) => handleAccept(selectedContractId, shipId, speed, review)} onClose={() => selectContract(null)} />}
+    {planningOpen && selectedContract && selectedContractId !== null && selectedRewardAmount !== null && <PlannedContractDetailScreen key={selectedContractId} offerId={selectedContractId} contract={selectedContract} rewardAmount={selectedRewardAmount} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed, review) => handleAccept(selectedContractId, shipId, speed, review)} onClose={() => selectContract(null)} />}
   </div>;
 }
