@@ -11,7 +11,8 @@ export interface SettlementDetail {
   cargoLabel: string;
   arrivedOnTime: boolean;
   arrivalLateHours: number;
-  fuelCostGold: number | null;
+  fuelConsumedTons: number | null;
+  fuelRemainingTons: number | null;
 }
 
 export interface SettlementPageProps {
