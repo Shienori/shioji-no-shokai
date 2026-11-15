@@ -137,22 +137,6 @@ export function MainPage() {
     return result;
   };
 
-  if (isSettlementOpen && settlementSnapshot) {
-    return (
-      <div className="phone">
-        <SettlementPage
-          voyageLabel={settlementSnapshot.voyageLabel}
-          contractLabel={settlementSnapshot.contractLabel}
-          shipName={settlementSnapshot.shipName}
-          status={isSettlementCompleted ? "settled" : "settlementPending"}
-          returnTo={settlementReturnTo}
-          onSettle={handleSettlement}
-          onBack={handleSettlementBack}
-        />
-      </div>
-    );
-  }
-
   if (selectedContract && selectedContractId !== null && selectedRewardAmount !== null && !planningOpen) return <div className="phone">
     <ContractDetailScreen key={selectedContractId} contract={{ ...selectedContract, offeredReward: selectedRewardAmount }} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
   </div>;
@@ -166,7 +150,8 @@ export function MainPage() {
       <AppHeader />
       <TabBar activeTab={activeTab} onChange={setActiveTab} />
       <main className="page"><div className="page-body">
-        {activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} gameState={gameState} ships={gameState.ships} onSelectContract={selectContract} onOpenSettlement={openSettlementFromContracts} />
+        {isSettlementOpen && settlementSnapshot ? <SettlementPage voyageLabel={settlementSnapshot.voyageLabel} contractLabel={settlementSnapshot.contractLabel} shipName={settlementSnapshot.shipName} status={isSettlementCompleted ? "settled" : "settlementPending"} returnTo={settlementReturnTo} onSettle={handleSettlement} onBack={handleSettlementBack} />
+          : activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} gameState={gameState} ships={gameState.ships} onSelectContract={selectContract} onOpenSettlement={openSettlementFromContracts} />
           : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
           : <FleetPanel displayClock={displayClock} ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} onOpenSettlement={openSettlementFromFleet} />}
       </div></main>
