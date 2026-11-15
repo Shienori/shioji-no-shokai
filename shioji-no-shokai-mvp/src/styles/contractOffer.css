@@ -20,3 +20,6 @@
 .contract-detail-reward{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .contract-detail-reward .label{font-size:12px;color:var(--sub)}
 .contract-detail-reward .value{font-size:22px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right}
+.fleet-card-actions{display:flex;gap:8px;margin-top:12px}
+.fleet-card-actions .btn-primary{flex:1}
+.fleet-card-actions .ship-detail-button{flex:1}
