@@ -35,12 +35,14 @@ export function createVoyageForAcceptedContract(
   ship: Ship,
   operationTime: number,
   currentRealTime: number,
+  selectedSpeedKnots: number = ship.standardSpeedKnots ?? ship.cruisingSpeedKnots,
 ): Voyage {
   return createVoyageForContract(
     contract,
     ship,
     operationTime,
     currentRealTime,
+    selectedSpeedKnots,
   );
 }
 

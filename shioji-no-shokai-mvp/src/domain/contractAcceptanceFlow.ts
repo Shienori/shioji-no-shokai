@@ -48,6 +48,7 @@ export function createVoyageForContract(
   ship: Ship,
   operationTime: number,
   currentRealTime: number,
+  selectedSpeedKnots: number = ship.standardSpeedKnots ?? ship.cruisingSpeedKnots,
 ): Voyage {
   const voyage = createVoyage(
     contract,
@@ -61,7 +62,7 @@ export function createVoyageForContract(
       ship,
       getRouteById(contract.routeId),
       getHeavyLoadSpeedFactor(contract, ship),
-      ship.cruisingSpeedKnots,
+      selectedSpeedKnots,
     );
   }
 

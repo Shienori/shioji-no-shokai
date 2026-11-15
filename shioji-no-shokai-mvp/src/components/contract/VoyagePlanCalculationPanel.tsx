@@ -20,7 +20,13 @@ export interface SpeedSelectionPanelProps {
 export function SpeedSelectionPanel({ ship, speed, onSpeedChange }: SpeedSelectionPanelProps) {
   return <section className="card" aria-label="速力の決定" data-selected-speed={speed}>
     <h3>速力の決定</h3>
-    <PlanSpeedSelector cruisingSpeedKnots={ship.cruisingSpeedKnots} maxSpeedKnots={ship.maxSpeedKnots} selectedSpeedKnots={speed} onChange={onSpeedChange} />
+    <PlanSpeedSelector
+      economicalSpeedKnots={ship.economicalSpeedKnots}
+      standardSpeedKnots={ship.standardSpeedKnots}
+      maxSpeedKnots={ship.maxSpeedKnots}
+      selectedSpeedKnots={speed}
+      onChange={onSpeedChange}
+    />
   </section>;
 }
 

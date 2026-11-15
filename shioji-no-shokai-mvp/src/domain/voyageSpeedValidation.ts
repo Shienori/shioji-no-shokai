@@ -2,7 +2,7 @@ import type { Ship } from "./types";
 
 type ShipSpeedLimits = Pick<
   Ship,
-  "cruisingSpeedKnots" | "maxSpeedKnots"
+  "economicalSpeedKnots" | "standardSpeedKnots" | "cruisingSpeedKnots" | "maxSpeedKnots"
 >;
 
 /**
@@ -13,7 +13,13 @@ export function isSelectedSpeedWithinLimits(
   ship: ShipSpeedLimits,
   speed: number,
 ): boolean {
+  const allowedSpeeds = [
+    ship.economicalSpeedKnots,
+    ship.standardSpeedKnots,
+    ship.cruisingSpeedKnots,
+    ship.maxSpeedKnots,
+  ];
+
   return Number.isSafeInteger(speed) &&
-    speed >= ship.cruisingSpeedKnots &&
-    speed <= ship.maxSpeedKnots;
+    allowedSpeeds.includes(speed);
 }

@@ -33,7 +33,12 @@ export const shionamiDesignV1 = {
     referenceSpeedKnots: 6,
     referenceConsumptionTonsPerVoyageHour: 0.2,
   },
-  speed: { cruisingKnots: 6, continuousMaxKnots: 7 },
+  speed: {
+    economicalKnots: 5,
+    standardKnots: 6,
+    cruisingKnots: 6,
+    continuousMaxKnots: 7,
+  },
   validationStatus: "concept-only",
 } as const;
 

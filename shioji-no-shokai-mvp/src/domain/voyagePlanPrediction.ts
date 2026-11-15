@@ -69,9 +69,12 @@ export function assessPlanFuel(availableTons: number, requiredTons: number): Pla
 export function predictVoyagePlan(input: VoyagePlanPredictionInput): VoyagePlanPrediction {
   const { route, ship, selectedSpeedKnots: speed } = input;
   if (ship.kind !== "powered" || !isValidShipFuel(ship.fuel)) throw new RangeError("Valid powered ship fuel required");
-  if (!Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
-      !Number.isSafeInteger(ship.maxSpeedKnots) || !Number.isSafeInteger(speed) ||
-      speed < ship.cruisingSpeedKnots || speed > ship.maxSpeedKnots) throw new RangeError("Speed outside ship limits");
+  if (!Number.isSafeInteger(ship.economicalSpeedKnots) || ship.economicalSpeedKnots <= 0 ||
+      !Number.isSafeInteger(ship.standardSpeedKnots) || ship.standardSpeedKnots <= 0 ||
+      !Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
+      !Number.isSafeInteger(ship.maxSpeedKnots) ||
+      !Number.isSafeInteger(speed) ||
+      ![ship.economicalSpeedKnots, ship.standardSpeedKnots, ship.cruisingSpeedKnots, ship.maxSpeedKnots].includes(speed)) throw new RangeError("Speed outside ship limits");
   if (!Number.isSafeInteger(input.baseRealTime) || !validTime(input.baseRealTime)) throw new RangeError("Invalid base time");
   nonNegative(input.loadingDurationOperationMs, "loading duration");
   if (!Number.isFinite(GAME_TIME_MULTIPLIER) || GAME_TIME_MULTIPLIER <= 0) throw new RangeError("Invalid time multiplier");
