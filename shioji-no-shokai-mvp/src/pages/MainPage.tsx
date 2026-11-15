@@ -20,6 +20,12 @@ import { calculateCPlanOfferedReward } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { calculateVoyageProgress } from "../domain/voyage";
 
+interface SettlementSnapshot {
+  voyageLabel: string;
+  contractLabel: string;
+  shipName: string;
+}
+
 export function MainPage() {
   const gameState = useGameStore((state) => state.gameState);
   const displayClock = { realTimeMs: gameState.currentGameTime, operationTimeMs: gameState.operationTime };
@@ -33,7 +39,9 @@ export function MainPage() {
   const acceptContract = useGameStore((state) => state.acceptContract);
 
   const [settlementReturnTo, setSettlementReturnTo] = useState<SettlementReturnTarget>("contracts");
+  const [isSettlementOpen, setIsSettlementOpen] = useState(false);
   const [isSettlementCompleted, setIsSettlementCompleted] = useState(false);
+  const [settlementSnapshot, setSettlementSnapshot] = useState<SettlementSnapshot | null>(null);
 
   const selectedPortId = gameState.selectedPortId;
   const offeredContracts = gameState.portOffers[selectedPortId] ?? [];
@@ -63,16 +71,6 @@ export function MainPage() {
   const voyage = gameState.activeVoyage;
   const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
-  const showSettlementPage = shouldShowSettlement && gameState.acceptedContract !== null && voyage !== null;
-  const settlementMemo = voyage
-    ? gameState.voyageMemos.find(
-        (memo) =>
-          memo.contractId === voyage.contractId &&
-          memo.shipId === voyage.shipId,
-      )
-    : null;
-  const settlementVoyageLabel = settlementMemo?.label ?? "V.001";
-  const settlementContractLabel = settlementMemo?.cargoLabel ?? "依頼情報を確認できません";
   const planningOpen = selectedContract !== null && selectedContractId !== null && gameState.ships.length > 0 && gameState.ships.every(ship => ship.kind === "powered");
   const background = useRef<HTMLDivElement>(null);
 
@@ -83,12 +81,36 @@ export function MainPage() {
     return () => element.removeAttribute("inert");
   }, [planningOpen]);
 
+  const createSettlementSnapshot = (): SettlementSnapshot => {
+    const memo = voyage
+      ? gameState.voyageMemos.find(
+          (item) =>
+            item.contractId === voyage.contractId &&
+            item.shipId === voyage.shipId,
+        )
+      : null;
+
+    const ship = gameState.ships.find(
+      (item) => item.id === voyage?.shipId,
+    );
+
+    return {
+      voyageLabel: memo?.label ?? "V.001",
+      contractLabel: memo?.cargoLabel ?? "依頼情報を確認できません",
+      shipName: ship?.name ?? "",
+    };
+  };
+
   const openSettlementFromContracts = () => {
     setSettlementReturnTo("contracts");
+    setSettlementSnapshot(createSettlementSnapshot());
+    setIsSettlementOpen(true);
   };
 
   const openSettlementFromFleet = () => {
     setSettlementReturnTo("fleet");
+    setSettlementSnapshot(createSettlementSnapshot());
+    setIsSettlementOpen(true);
   };
 
   const handleSettlement = () => {
@@ -97,6 +119,7 @@ export function MainPage() {
   };
 
   const handleSettlementBack = () => {
+    setIsSettlementOpen(false);
     setIsSettlementCompleted(false);
     setActiveTab(settlementReturnTo);
   };
@@ -114,15 +137,13 @@ export function MainPage() {
     return result;
   };
 
-  if (showSettlementPage) {
-    const settlementShip = gameState.ships.find((ship) => ship.id === voyage!.shipId);
-
+  if (isSettlementOpen && settlementSnapshot) {
     return (
       <div className="phone">
         <SettlementPage
-          voyageLabel={settlementVoyageLabel}
-          contractLabel={settlementContractLabel}
-          shipName={settlementShip?.name ?? ""}
+          voyageLabel={settlementSnapshot.voyageLabel}
+          contractLabel={settlementSnapshot.contractLabel}
+          shipName={settlementSnapshot.shipName}
           status={isSettlementCompleted ? "settled" : "settlementPending"}
           returnTo={settlementReturnTo}
           onSettle={handleSettlement}
