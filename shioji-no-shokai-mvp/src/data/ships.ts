@@ -8,6 +8,8 @@ export const initialShip: Ship = {
   role: "general_cargo",
   maxCargoVolume: 10,
   maxCargoWeight: 20,
+  economicalSpeedKnots: 5,
+  standardSpeedKnots: 6,
   cruisingSpeedKnots: 6,
   maxSpeedKnots: 7,
   engineType: "初期蒸気機関",
