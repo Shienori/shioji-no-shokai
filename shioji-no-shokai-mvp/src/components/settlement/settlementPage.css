@@ -1,0 +1,104 @@
+.settlement-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.settlement-header {
+  text-align: center;
+}
+
+.settlement-report-label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.settlement-title {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.settlement-status-card,
+.settlement-notice-card,
+.settlement-completed-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--panel);
+}
+
+.settlement-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  background: rgba(105, 209, 156, 0.12);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settlement-contract-label {
+  margin: 12px 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.settlement-ship-label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.settlement-notice-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.settlement-notice-sub {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.settlement-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.settlement-actions .btn {
+  margin-top: 0;
+}
+
+.settlement-confirm-button {
+  padding: 16px;
+  font-size: 16px;
+}
+
+.settlement-completed-card {
+  text-align: center;
+}
+
+.settlement-completed-card h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: var(--text);
+}
+
+.settlement-completed-card p {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sub);
+}
