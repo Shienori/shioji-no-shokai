@@ -1140,11 +1140,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       voyage,
     );
 
-    const settledVoyage: Voyage = {
-      ...voyage,
-      settled: true,
-    };
-
     const settledShip = state.ships.find(
       (item) => item.id === voyage.shipId,
     );
@@ -1184,7 +1179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const next: GameState = {
       ...state,
       money: state.money + settlement.finalPayout,
-      activeVoyage: settledVoyage,
+      activeVoyage: null,
       acceptedContract: null,
       ships: state.ships.map((item) =>
         item.id === updatedShip.id ? updatedShip : item,
