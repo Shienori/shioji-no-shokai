@@ -2,6 +2,8 @@ import type { AcceptedContract, Cargo, ContractTemplate, ContractRewardBreakdown
 import { GAME_TIME_MULTIPLIER } from "../data/gameConstants";
 import { ceilTo30Minutes } from "./time";
 import { calculateCargoQ, calculateCPlanReward } from "./reward";
+import { calculateOfferedReward } from "./offeredReward";
+import { getShortestRouteDistanceNm } from "./routeDistance";
 import { createContractInstanceId } from "./contractIdentity";
 import { createContractWindForecast } from "./contractWindForecast";
 import { getCargoLotById } from "../data/cargoLots";
@@ -23,21 +25,8 @@ export interface ContractSchedule {
   deadlineAt: number;
 }
 
-function toCargo(cargoLot: ReturnType<typeof getCargoLotById>): Cargo {
-  return {
-    id: cargoLot.id,
-    name: cargoLot.name,
-    commodity: cargoLot.commodity,
-    packaging: cargoLot.packagingLabel as Cargo["packaging"],
-    category: cargoLot.category,
-    unitPrice: cargoLot.unitPrice,
-    unitVolume: cargoLot.volumeM3PerLot,
-    weightPerUnit: cargoLot.weightTonsPerLot,
-    loadingTimeMsPerUnit: cargoLot.loadingTimeMsPerLot,
-    unloadingTimeMsPerUnit: cargoLot.unloadingTimeMsPerLot,
-  };
-}
-
+// Transitional legacy entry point for tutorial and older callers only.
+// Normal offer generation uses calculateOfferedReward below.
 export function calculateCPlanOfferedReward(
   template: ContractTemplate,
   cargo: Cargo,
@@ -57,12 +46,17 @@ export function createOfferedContract(
   route: Route,
   generatedAt: number,
 ): OfferedContract {
+  if (template.routeId !== route.id) throw new Error("Offer route identity mismatch");
   const [minimum, maximum] = TIME_ALLOWANCE_RANGES[template.difficulty ?? "normal"];
   const upperBound = template.difficulty === "easy" ? maximum : maximum - Number.EPSILON * maximum;
   const timeAllowanceRatio = Math.min(upperBound, minimum + Math.random() * (maximum - minimum));
   const baseVoyageHours = route.distance / BASE_SPEED_KNOTS;
   const deadlineHours = baseVoyageHours * timeAllowanceRatio + OFFER_BUFFER_HOURS;
-  const cargo = toCargo(getCargoLotById(template.cargoId));
+  const offeredReward = calculateOfferedReward({
+    cargoId: template.cargoId,
+    quantityLots: template.quantity,
+    baseDistanceNm: getShortestRouteDistanceNm(route.fromPortId, route.toPortId),
+  });
 
   return {
     id: createContractInstanceId("offer"),
@@ -70,11 +64,7 @@ export function createOfferedContract(
     generatedAt,
     deadlineAt: ceilTo30Minutes(generatedAt + deadlineHours * HOUR_MS / GAME_TIME_MULTIPLIER),
     timeAllowanceRatio,
-    offeredReward: calculateCPlanOfferedReward(
-      template,
-      cargo,
-      route,
-    ),
+    offeredReward,
   };
 }
 

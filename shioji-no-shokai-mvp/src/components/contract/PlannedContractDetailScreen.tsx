@@ -6,6 +6,7 @@ import { createConfirmedPlanReview } from "../../domain/confirmedPlanReview";
 import { calculateContractSchedule } from "../../domain/contractSchedule";
 import { getCargoPresentation, getLotCapacityForDisplay } from "../../domain/cargoPresentation";
 import { getCargoForContract } from "../../domain/lotContract";
+import { getShortestRouteDistanceNm } from "../../domain/routeDistance";
 import { isSelectedSpeedWithinLimits } from "../../domain/voyageSpeedValidation";
 import { getRouteById } from "../../data/routes";
 import { getPortById } from "../../data/ports";
@@ -18,6 +19,7 @@ import { VoyagePlanReviewDetails } from "./VoyagePlanConfirmation";
 import { SpeedSelectionPanel, FuelCalculationPanel } from "./VoyagePlanCalculationPanel";
 import { PortRefuelPanel } from "../fleet/PortRefuelPanel";
 import "../../styles/voyagePlanFlow.css";
+import "../../styles/contractOffer.css";
 
 type PlanStep = 1 | 2 | 3;
 const steps = ["依頼・船選択", "航海計画", "最終確認"] as const;
@@ -27,7 +29,7 @@ export function getVoyagePlanNextStep(step: PlanStep, canProceed: boolean): Plan
 export function getVoyagePlanPreviousStep(step: PlanStep): PlanStep { return Math.max(1, step - 1) as PlanStep; }
 const date = (time: number) => formatDateTime(ceilTo1Minute(time));
 
-export function PlannedContractDetailScreen({ offerId, contract, ships, eligibleShips, acceptReason, offeredDeadlineAt, onAccept, onClose }: Props) {
+export function PlannedContractDetailScreen({ offerId, contract, rewardAmount, ships, eligibleShips, acceptReason, offeredDeadlineAt, onAccept, onClose }: Props) {
   const money = useGameStore(state => state.gameState.money);
   const [step, setStep] = useState<PlanStep>(1);
   const [shipId, setShipId] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
   const [routeEdited, setRouteEdited] = useState(false);
   const [baseTime, setBaseTime] = useState(() => Date.now());
   const [confirmation, setConfirmation] = useState<ConfirmedPlanReview | null>(null);
+  const [reviewedRewardAmount, setReviewedRewardAmount] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -51,6 +54,14 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
   const speed = selectedSpeed ?? ship?.cruisingSpeedKnots;
   const endpoints = getRouteById(contract.routeId);
   const cargo = getCargoPresentation(contract);
+  const distanceLabel = useMemo(() => {
+    try { return `${getShortestRouteDistanceNm(endpoints.fromPortId, endpoints.toPortId).toLocaleString("ja-JP")} 海里`; }
+    catch { return "計算できません"; }
+  }, [endpoints.fromPortId, endpoints.toPortId]);
+  const validReward = typeof rewardAmount === "number" && Number.isSafeInteger(rewardAmount) && rewardAmount >= 0;
+  const rewardLabel = validReward ? `${rewardAmount.toLocaleString("ja-JP")} G` : "報酬を確認できません";
+  const overviewCanAccept = validReward && !!cargo && ships.some(item => item.kind === "powered" && eligibleShips.some(candidate => candidate.id === item.id));
+  const overviewReason = !validReward ? "報酬を確認できません" : !cargo ? "貨物情報を確認できません" : acceptReason ?? "受注条件を満たす船がありません";
   const autoRefuelParams = ship && speed !== undefined ? {
     ship,
     speed,
@@ -83,6 +94,7 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
   }
   function back() { setStep(getVoyagePlanPreviousStep(step)); setConfirmation(null); setMessage(""); }
   function forward() {
+    if (!validReward) { setMessage("報酬を確認できないため受注できません。"); return; }
     const next = getVoyagePlanNextStep(step, step === 1 ? canUseShip : canConfirm);
     if (next === step) return;
     if (next !== 3) { setStep(next); setMessage(""); return; }
@@ -91,17 +103,23 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
       const now = Date.now();
       const deadline = offeredDeadlineAt ?? calculateContractSchedule(contract, endpoints, now).deadlineAt;
       setConfirmation(createConfirmedPlanReview(offerId, contract, ship, preview.route, speed, now, deadline));
+      setReviewedRewardAmount(rewardAmount);
       setBaseTime(now); setStep(3); setMessage("");
     } catch { setMessage("最終確認を作成できません。提示・航路・船・燃料を確認してください。"); }
   }
   function confirm() {
-    if (step !== 3 || !confirmation || locked.current) return;
+    if (step !== 3 || !confirmation || locked.current || !validReward) return;
+    if (reviewedRewardAmount !== rewardAmount) {
+      setConfirmation(null); setReviewedRewardAmount(null); setStep(2);
+      setMessage("報酬が変更されました。最終確認を作り直してください。");
+      return;
+    }
     locked.current = true;
     let accepted = false;
     try {
       const result = onAccept(confirmation.shipId, confirmation.selectedSpeedKnots, confirmation);
       if (result?.kind === "reviewRequired") {
-        setConfirmation(result.review); setBaseTime(result.review.baseRealTime);
+        setConfirmation(result.review); setReviewedRewardAmount(rewardAmount); setBaseTime(result.review.baseRealTime);
         setMessage("条件が変わりました。更新した計画を確認し、もう一度確定してください。まだ受注していません。");
         body.current?.scrollTo({ top: 0 }); dialog.current?.focus();
       } else if (result?.kind === "accepted") {
@@ -129,12 +147,21 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
       <div ref={body} className="voyage-flow-body">
         {discardOpen && <section aria-label="編集内容の破棄確認"><h3>編集内容を破棄しますか？</h3><p>船・航路・補油設定・速力を破棄して依頼板へ戻ります。まだ受注していません。</p></section>}
         <section className="voyage-flow-panel" data-flow-step="1" hidden={discardOpen || step !== 1}>
-          <div className="card"><h3>依頼詳細</h3>
-            <p>依頼主：{findShipperById(contract.shipperId)?.name ?? "不明な依頼主"}</p>
-            <details><summary>依頼主について</summary><p>{findShipperById(contract.shipperId)?.description}</p></details>
-            <p>{cargo?.label ?? "貨物情報を確認できません"} ／ {cargo?.packagingLabel}</p><p>重量 {cargo?.weightLabel} ／ 容積 {cargo?.volumeLabel}</p>
-            <p>{getPortById(endpoints.fromPortId).name} → {getPortById(endpoints.toPortId).name}</p>
-            <p>提示報酬 {contract.offeredReward}G ／ 到着期限 {date(offeredDeadlineAt ?? calculateContractSchedule(contract, endpoints, baseTime).deadlineAt)}</p>
+          <div className="card contract-detail-overview">
+            <div className="contract-offer-main">
+              <span className="contract-offer-icon" aria-hidden="true"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 9 16 3 28 9v14l-12 6-12-6V9Z" /><path d="m4 9 12 6 12-6M16 15v14M10 6l12 6v6" /></svg></span>
+              <div className="contract-offer-content"><h3>{cargo?.cargo.name ?? "貨物情報確認不可"}の輸送</h3><p className="contract-offer-meta">{getPortById(endpoints.fromPortId).name} → {getPortById(endpoints.toPortId).name}</p></div>
+            </div>
+            <span className={`contract-acceptance-badge ${overviewCanAccept ? "is-available" : "is-unavailable"}`}>{overviewCanAccept ? "受注可能" : "受注不可"}{!overviewCanAccept && `：${overviewReason}`}</span>
+            <div className="kv"><span>依頼主</span><span>{findShipperById(contract.shipperId)?.name ?? "不明な依頼主"}</span></div>
+            <div className="kv"><span>貨物・数量</span><span>{cargo?.label ?? "貨物情報を確認できません"}</span></div>
+            <div className="kv"><span>距離</span><span>{distanceLabel}</span></div>
+            <div className="kv"><span>到着期限</span><span>{date(offeredDeadlineAt ?? calculateContractSchedule(contract, endpoints, baseTime).deadlineAt)}</span></div>
+            <div className="requirement-grid contract-detail-capacity">
+              <div className="requirement-item"><span className="requirement-label">必要重量</span><span className="requirement-value">{cargo?.weightLabel ?? "確認不可"}</span></div>
+              <div className="requirement-item"><span className="requirement-label">必要容積</span><span className="requirement-value">{cargo?.volumeLabel ?? "確認不可"}</span></div>
+            </div>
+            <div className="contract-detail-reward"><span className="label">報酬</span><span className="value">{rewardLabel}</span></div>
           </div>
           <div className="card"><h3>使用する船</h3><div className="ship-select-list">{ships.map(item => {
             const eligible = !!cargo && item.kind === "powered" && eligibleShips.some(candidate => candidate.id === item.id);
@@ -154,15 +181,15 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
           {ship && speed !== undefined && <FuelCalculationPanel ship={ship} speed={speed} review={preview} money={money} onRefresh={() => { setBaseTime(Date.now()); setConfirmation(null); setMessage(""); }} />}
         </section>
         <section className="voyage-flow-panel" data-flow-step="3" hidden={discardOpen || step !== 3}>
-          <h3>最終受注確認</h3>{confirmation && <><p>速力：{confirmation.selectedSpeedKnots === confirmation.ship.cruisingSpeedKnots ? "ECO" : "MAX"} · {confirmation.selectedSpeedKnots}ノット</p><VoyagePlanReviewDetails review={confirmation} money={money} /></>}
+          <h3>最終受注確認</h3>{confirmation && <><div className="kv"><span>報酬</span><span>{reviewedRewardAmount !== null ? `${reviewedRewardAmount.toLocaleString("ja-JP")} G` : "報酬を確認できません"}</span></div><p>速力：{confirmation.selectedSpeedKnots === confirmation.ship.cruisingSpeedKnots ? "ECO" : "MAX"} · {confirmation.selectedSpeedKnots}ノット</p><VoyagePlanReviewDetails review={confirmation} money={money} /></>}
         </section>
         {!discardOpen && <p role="status" aria-live="polite">{message}</p>}
       </div>
       <footer className="voyage-flow-footer">
         <div className="voyage-flow-actions" hidden={!discardOpen}><button type="button" className="btn btn-secondary" onClick={() => setDiscardOpen(false)}>編集を続ける</button><button type="button" className="btn btn-primary" onClick={onClose}>破棄して閉じる</button></div>
-        <div className="voyage-flow-actions" hidden={discardOpen || step !== 1}><button type="button" className="btn btn-secondary" onClick={requestClose}>依頼板へ戻る</button><button type="button" className="btn btn-primary" disabled={!canUseShip || !cargo} onClick={forward}>航海計画へ</button></div>
-        <div className="voyage-flow-actions" hidden={discardOpen || step !== 2}><button type="button" className="btn btn-secondary" onClick={back}>依頼詳細へ戻る</button><button type="button" className="btn btn-primary" disabled={!canConfirm} onClick={forward}>最終確認へ</button></div>
-        <div className="voyage-flow-actions" hidden={discardOpen || step !== 3}><button type="button" className="btn btn-secondary" disabled={finished} onClick={back}>航海計画へ戻る</button><button type="button" className="btn btn-primary" disabled={!confirmation || finished} onClick={confirm}>{confirmation?.prediction.hasFuelShortage ? "燃料不足の警告を確認して受注を確定" : "この計画で受注を確定"}</button></div>
+        <div className="voyage-flow-actions" hidden={discardOpen || step !== 1}><button type="button" className="btn btn-secondary" onClick={requestClose}>依頼板へ戻る</button><button type="button" className="btn btn-primary" disabled={!canUseShip || !cargo || !validReward} onClick={forward}>航海計画へ</button></div>
+        <div className="voyage-flow-actions" hidden={discardOpen || step !== 2}><button type="button" className="btn btn-secondary" onClick={back}>依頼詳細へ戻る</button><button type="button" className="btn btn-primary" disabled={!canConfirm || !validReward} onClick={forward}>最終確認へ</button></div>
+        <div className="voyage-flow-actions" hidden={discardOpen || step !== 3}><button type="button" className="btn btn-secondary" disabled={finished} onClick={back}>航海計画へ戻る</button><button type="button" className="btn btn-primary" disabled={!confirmation || finished || !validReward} onClick={confirm}>{confirmation?.prediction.hasFuelShortage ? "燃料不足の警告を確認して受注を確定" : "この計画で受注を確定"}</button></div>
       </footer>
       {refuelShip && <div className="voyage-flow-backdrop" style={{ zIndex: 1300 }}>
         <div className="modal refuel-modal" role="dialog" aria-modal="true" aria-labelledby="refuel-modal-title">
@@ -176,7 +203,7 @@ export function PlannedContractDetailScreen({ offerId, contract, ships, eligible
 }
 
 interface Props {
-  offerId: string; contract: ContractTemplate; ships: Ship[]; eligibleShips: Ship[];
+  offerId: string; contract: ContractTemplate; rewardAmount: number; ships: Ship[]; eligibleShips: Ship[];
   acceptReason: string | null; offeredDeadlineAt: number | null;
   onAccept: (shipId: string, speed: number, review: ConfirmedPlanReview) => PlanAcceptanceResult | void;
   onClose: () => void;
