@@ -12,19 +12,21 @@ import { WorldMapTab } from "../components/map/WorldMapTab";
 import { FleetPanel } from "../components/fleet/FleetPanel";
 import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
 import { SettlementPage } from "../components/settlement/SettlementPage";
-import type { SettlementDetail, SettlementReturnTarget } from "../components/settlement/SettlementPageTypes";
+import type { SettlementAmounts, SettlementDetail, SettlementReturnTarget } from "../components/settlement/SettlementPageTypes";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
 import { calculateCPlanOfferedReward } from "../domain/contractSchedule";
 import { evaluateContractAcceptance } from "../domain/contractAcceptance";
 import { calculateVoyageProgress } from "../domain/voyage";
+import { settleContract } from "../domain/settlement";
 
 interface SettlementSnapshot {
   voyageLabel: string;
   contractLabel: string;
   shipName: string;
   rewardAmount: number;
+  amounts: SettlementAmounts;
   details: SettlementDetail;
 }
 
@@ -100,11 +102,34 @@ export function MainPage() {
       ? getRouteById(gameState.acceptedContract.routeId)
       : null;
 
+    const settlementResult = gameState.acceptedContract && voyage
+      ? settleContract(gameState.acceptedContract, voyage)
+      : null;
+
+    const amounts: SettlementAmounts = settlementResult
+      ? {
+          offeredReward: settlementResult.offeredReward,
+          latePenalty: settlementResult.latePenalty,
+          receivedReward: settlementResult.receivedReward,
+          expense: settlementResult.expense,
+          guaranteeAmount: settlementResult.guaranteeAmount,
+          finalPayout: settlementResult.finalPayout,
+        }
+      : {
+          offeredReward: 0,
+          latePenalty: 0,
+          receivedReward: 0,
+          expense: 0,
+          guaranteeAmount: 0,
+          finalPayout: 0,
+        };
+
     return {
       voyageLabel: memo?.label ?? "V.001",
       contractLabel: memo?.cargoLabel ?? "依頼情報を確認できません",
       shipName: ship?.name ?? "",
       rewardAmount: gameState.acceptedContract?.reward.offeredReward ?? 0,
+      amounts,
       details: {
         routeLabel: route
           ? `${route.fromPortId} → ${route.toPortId}`
@@ -167,7 +192,7 @@ export function MainPage() {
       <AppHeader />
       <TabBar activeTab={activeTab} onChange={setActiveTab} />
       <main className="page"><div className="page-body">
-        {isSettlementOpen && settlementSnapshot ? <SettlementPage voyageLabel={settlementSnapshot.voyageLabel} contractLabel={settlementSnapshot.contractLabel} shipName={settlementSnapshot.shipName} rewardAmount={settlementSnapshot.rewardAmount} details={settlementSnapshot.details} status={isSettlementCompleted ? "settled" : "settlementPending"} returnTo={settlementReturnTo} onSettle={handleSettlement} onBack={handleSettlementBack} />
+        {isSettlementOpen && settlementSnapshot ? <SettlementPage voyageLabel={settlementSnapshot.voyageLabel} contractLabel={settlementSnapshot.contractLabel} shipName={settlementSnapshot.shipName} rewardAmount={settlementSnapshot.rewardAmount} amounts={settlementSnapshot.amounts} details={settlementSnapshot.details} status={isSettlementCompleted ? "settled" : "settlementPending"} returnTo={settlementReturnTo} onSettle={handleSettlement} onBack={handleSettlementBack} />
           : activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} gameState={gameState} ships={gameState.ships} onSelectContract={selectContract} onOpenSettlement={openSettlementFromContracts} />
           : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
           : <FleetPanel displayClock={displayClock} ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} onOpenSettlement={openSettlementFromFleet} />}
