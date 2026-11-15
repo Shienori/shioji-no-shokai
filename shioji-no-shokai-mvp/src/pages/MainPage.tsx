@@ -12,7 +12,7 @@ import { WorldMapTab } from "../components/map/WorldMapTab";
 import { FleetPanel } from "../components/fleet/FleetPanel";
 import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
 import { SettlementPage } from "../components/settlement/SettlementPage";
-import type { SettlementReturnTarget } from "../components/settlement/SettlementPageTypes";
+import type { SettlementDetail, SettlementReturnTarget } from "../components/settlement/SettlementPageTypes";
 import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
 import { getCargoById } from "../data/cargos";
@@ -24,6 +24,8 @@ interface SettlementSnapshot {
   voyageLabel: string;
   contractLabel: string;
   shipName: string;
+  rewardAmount: number;
+  details: SettlementDetail;
 }
 
 export function MainPage() {
@@ -94,10 +96,25 @@ export function MainPage() {
       (item) => item.id === voyage?.shipId,
     );
 
+    const route = gameState.acceptedContract
+      ? getRouteById(gameState.acceptedContract.routeId)
+      : null;
+
     return {
       voyageLabel: memo?.label ?? "V.001",
       contractLabel: memo?.cargoLabel ?? "依頼情報を確認できません",
       shipName: ship?.name ?? "",
+      rewardAmount: gameState.acceptedContract?.offeredReward ?? 0,
+      details: {
+        routeLabel: route
+          ? `${route.fromPortId} → ${route.toPortId}`
+          : "航路情報を確認できません",
+        cargoLabel: memo?.cargoLabel ?? "積荷情報を確認できません",
+        arrivedOnTime: voyage?.isOnTime ?? true,
+        arrivalLateHours: voyage?.arrivalLateHours ?? 0,
+        fuelConsumedTons: voyage?.fuelNavigation?.fuelConsumedTons ?? null,
+        fuelRemainingTons: ship?.fuel?.remainingTons ?? null,
+      },
     };
   };
 
@@ -150,7 +167,7 @@ export function MainPage() {
       <AppHeader />
       <TabBar activeTab={activeTab} onChange={setActiveTab} />
       <main className="page"><div className="page-body">
-        {isSettlementOpen && settlementSnapshot ? <SettlementPage voyageLabel={settlementSnapshot.voyageLabel} contractLabel={settlementSnapshot.contractLabel} shipName={settlementSnapshot.shipName} status={isSettlementCompleted ? "settled" : "settlementPending"} returnTo={settlementReturnTo} onSettle={handleSettlement} onBack={handleSettlementBack} />
+        {isSettlementOpen && settlementSnapshot ? <SettlementPage voyageLabel={settlementSnapshot.voyageLabel} contractLabel={settlementSnapshot.contractLabel} shipName={settlementSnapshot.shipName} rewardAmount={settlementSnapshot.rewardAmount} details={settlementSnapshot.details} status={isSettlementCompleted ? "settled" : "settlementPending"} returnTo={settlementReturnTo} onSettle={handleSettlement} onBack={handleSettlementBack} />
           : activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} gameState={gameState} ships={gameState.ships} onSelectContract={selectContract} onOpenSettlement={openSettlementFromContracts} />
           : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
           : <FleetPanel displayClock={displayClock} ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} onOpenSettlement={openSettlementFromFleet} />}
