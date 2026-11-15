@@ -35,9 +35,12 @@ export function createPlannedVoyageState(input: CreatePlannedVoyageStateInput): 
   if (ship.kind !== "powered" || !isValidShipFuel(ship.fuel)) throw new Error("Valid powered ship fuel required");
   if (ship.currentPortId !== input.route.departurePortId) throw new Error("Ship is not at departure port");
   if (ship.activeContractId !== null && ship.activeContractId !== voyage.contractId) throw new Error("Ship has another contract");
-  if (!Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
-      !Number.isSafeInteger(ship.maxSpeedKnots) || ship.maxSpeedKnots < ship.cruisingSpeedKnots ||
-      !Number.isSafeInteger(speed) || speed < ship.cruisingSpeedKnots || speed > ship.maxSpeedKnots) throw new RangeError("Selected speed outside ship limits");
+  if (!Number.isSafeInteger(ship.economicalSpeedKnots) || ship.economicalSpeedKnots <= 0 ||
+      !Number.isSafeInteger(ship.standardSpeedKnots) || ship.standardSpeedKnots <= 0 ||
+      !Number.isSafeInteger(ship.cruisingSpeedKnots) || ship.cruisingSpeedKnots <= 0 ||
+      !Number.isSafeInteger(ship.maxSpeedKnots) ||
+      !Number.isSafeInteger(speed) ||
+      ![ship.economicalSpeedKnots, ship.standardSpeedKnots, ship.cruisingSpeedKnots, ship.maxSpeedKnots].includes(speed)) throw new RangeError("Selected speed outside ship limits");
   if (!Number.isFinite(loadSpeedFactor) || loadSpeedFactor <= 0 || loadSpeedFactor > 1) throw new RangeError("Invalid load factor");
   const route: ConfirmedVoyageRoute = {
     schemaVersion: input.route.schemaVersion,
