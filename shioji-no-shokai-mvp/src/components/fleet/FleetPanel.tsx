@@ -17,6 +17,7 @@ interface FleetPanelProps {
   contract: AcceptedContract | null;
   operationTime: number;
   onSelectShip: (shipId: string) => void;
+  onOpenSettlement: () => void;
 }
 
 function getSeaLabel(hexId: string) {
@@ -37,7 +38,7 @@ const STATUS_LABELS = {
   unloading: "揚荷中",
 } as const;
 
-export function FleetPanel({ ships, voyage, contract, operationTime, displayClock, onSelectShip }: FleetPanelProps) {
+export function FleetPanel({ ships, voyage, contract, operationTime, displayClock, onSelectShip, onOpenSettlement }: FleetPanelProps) {
   const legacyVoyage = voyage?.plannedNavigation !== undefined ? null : voyage;
   const legacyContract = voyage?.plannedNavigation !== undefined ? null : contract;
   const route = legacyContract ? getRouteById(legacyContract.routeId) : null;
@@ -66,7 +67,7 @@ export function FleetPanel({ ships, voyage, contract, operationTime, displayCloc
           const shipVoyage = voyage?.shipId === ship.id ? voyage : null;
           const shipContract = shipVoyage && contract?.id === shipVoyage.contractId ? contract : null;
           if (shipVoyage?.plannedNavigation !== undefined) {
-            return <PlannedFleetShipCard clock={displayClock} key={ship.id} ship={ship} voyage={shipVoyage} contract={shipContract} onSelectShip={onSelectShip} />;
+            return <PlannedFleetShipCard clock={displayClock} key={ship.id} ship={ship} voyage={shipVoyage} contract={shipContract} onSelectShip={onSelectShip} onOpenSettlement={onOpenSettlement} />;
           }
           const capacity = getLotCapacityForDisplay(ship);
           const progress = shipVoyage && shipContract
@@ -82,6 +83,7 @@ export function FleetPanel({ ships, voyage, contract, operationTime, displayCloc
           const contractLabel = shipContract
             ? cargo && fromPort && toPort ? `${cargo.label}／${fromPort.name}→${toPort.name}` : "貨物データ確認不可"
             : "なし";
+          const canSettle = shipVoyage?.phase === "completed" && !shipVoyage.settled;
 
           return (
             <div key={ship.id} className="contract-card fleet-card">
@@ -135,13 +137,25 @@ export function FleetPanel({ ships, voyage, contract, operationTime, displayCloc
                 </div>
               </div>
 
-              <button
-                className="ship-detail-button"
-                type="button"
-                onClick={() => onSelectShip(ship.id)}
-              >
-                詳細
-              </button>
+              <div className="fleet-card-actions">
+                {canSettle && (
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={onOpenSettlement}
+                  >
+                    精算へ
+                  </button>
+                )}
+
+                <button
+                  className="ship-detail-button"
+                  type="button"
+                  onClick={() => onSelectShip(ship.id)}
+                >
+                  詳細
+                </button>
+              </div>
             </div>
           );
         })}
