@@ -156,6 +156,17 @@ export function MainPage() {
   };
 
   const handleSettlement = () => {
+    const state = useGameStore.getState().gameState;
+
+    console.log("清算ボタン押下", {
+      phase: state.activeVoyage?.phase,
+      settled: state.activeVoyage?.settled,
+      hasContract: Boolean(state.acceptedContract),
+      isPlannedVoyage:
+        state.activeVoyage?.plannedNavigation !== undefined,
+      fuelPrepayment: state.activeVoyage?.fuelPrepayment,
+    });
+
     useGameStore.getState().settleContract();
     setIsSettlementCompleted(true);
   };
