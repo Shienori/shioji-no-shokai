@@ -6,12 +6,15 @@ export function SettlementPage({
   voyageLabel,
   contractLabel,
   shipName,
+  rewardAmount,
+  details,
   status,
   returnTo,
   onSettle,
   onBack,
 }: SettlementPageProps) {
   const [isSettling, setIsSettling] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const isSettled = status === "settled";
 
@@ -70,6 +73,16 @@ export function SettlementPage({
             <p className="settlement-ship-label">
               {shipName} ・ 荷卸し完了
             </p>
+
+            <div className="settlement-reward">
+              <span className="settlement-reward-label">
+                報酬金額
+              </span>
+
+              <span className="settlement-reward-value">
+                {rewardAmount.toLocaleString("ja-JP")} G
+              </span>
+            </div>
           </section>
 
           <section className="settlement-notice-card">
@@ -77,10 +90,59 @@ export function SettlementPage({
               この航海の結果は、精算後に航海日誌へ記録されます。
             </p>
 
-            <p className="settlement-notice-sub">
-              金額・内訳は表示しません。
-            </p>
+            <button
+              type="button"
+              className="btn btn-secondary settlement-detail-toggle"
+              onClick={() => setIsDetailOpen(!isDetailOpen)}
+            >
+              {isDetailOpen ? "詳細を閉じる" : "航海の詳細を見る"}
+            </button>
           </section>
+
+          {isDetailOpen && (
+            <section className="settlement-detail-card">
+              <h3>航海の詳細</h3>
+
+              <dl className="settlement-detail-list">
+                <div>
+                  <dt>航路</dt>
+                  <dd>{details.routeLabel}</dd>
+                </div>
+
+                <div>
+                  <dt>積荷</dt>
+                  <dd>{details.cargoLabel}</dd>
+                </div>
+
+                <div>
+                  <dt>到着状況</dt>
+                  <dd>
+                    {details.arrivedOnTime
+                      ? "期限内に到着"
+                      : `到着遅延 ${details.arrivalLateHours}時間`}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>燃料費</dt>
+                  <dd>
+                    {details.fuelCostGold === null
+                      ? "—"
+                      : `${details.fuelCostGold.toLocaleString("ja-JP")} G`}
+                  </dd>
+                </div>
+              </dl>
+
+              <button
+                type="button"
+                className="btn btn-primary settlement-confirm-button"
+                onClick={handleSettle}
+                disabled={isSettling}
+              >
+                精算する
+              </button>
+            </section>
+          )}
 
           <div className="settlement-actions">
             <button
