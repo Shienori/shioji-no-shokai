@@ -6,6 +6,15 @@ export type SettlementReturnTarget =
   | "contracts"
   | "fleet";
 
+export interface SettlementAmounts {
+  offeredReward: number;
+  latePenalty: number;
+  receivedReward: number;
+  expense: number;
+  guaranteeAmount: number;
+  finalPayout: number;
+}
+
 export interface SettlementDetail {
   routeLabel: string;
   cargoLabel: string;
@@ -20,6 +29,7 @@ export interface SettlementPageProps {
   contractLabel: string;
   shipName: string;
   rewardAmount: number;
+  amounts: SettlementAmounts;
   details: SettlementDetail;
   status: SettlementPageStatus;
   returnTo: SettlementReturnTarget;
