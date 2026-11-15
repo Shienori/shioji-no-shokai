@@ -51,7 +51,7 @@ export function PlannedContractDetailScreen({ offerId, contract, rewardAmount, s
     setRoute(value); setRouteEdited(edited); setConfirmation(null); setMessage("");
   }, []);
   const ship = ships.find(item => item.id === shipId) ?? null;
-  const speed = selectedSpeed ?? ship?.cruisingSpeedKnots;
+  const speed = selectedSpeed ?? ship?.standardSpeedKnots ?? ship?.cruisingSpeedKnots;
   const endpoints = getRouteById(contract.routeId);
   const cargo = getCargoPresentation(contract);
   const distanceLabel = useMemo(() => {
@@ -76,7 +76,9 @@ export function PlannedContractDetailScreen({ offerId, contract, rewardAmount, s
     } catch { return null; }
   }, [offerId, contract, ship, route, speed, offeredDeadlineAt, endpoints, baseTime]);
   const canUseShip = ship !== null && ship.kind === "powered" && eligibleShips.some(item => item.id === ship.id) && (ship.fuel?.remainingTons ?? 0) > 0;
-  const canConfirm = canUseShip && preview !== null && ship !== null && speed !== undefined && (speed === ship.cruisingSpeedKnots || speed === ship.maxSpeedKnots) && isSelectedSpeedWithinLimits(ship, speed);
+  const canConfirm = canUseShip && preview !== null && ship !== null && speed !== undefined &&
+    (speed === ship.economicalSpeedKnots || speed === ship.standardSpeedKnots || speed === ship.maxSpeedKnots) &&
+    isSelectedSpeedWithinLimits(ship, speed);
   useEffect(() => {
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
@@ -181,7 +183,7 @@ export function PlannedContractDetailScreen({ offerId, contract, rewardAmount, s
           {ship && speed !== undefined && <FuelCalculationPanel ship={ship} speed={speed} review={preview} money={money} onRefresh={() => { setBaseTime(Date.now()); setConfirmation(null); setMessage(""); }} />}
         </section>
         <section className="voyage-flow-panel" data-flow-step="3" hidden={discardOpen || step !== 3}>
-          <h3>最終受注確認</h3>{confirmation && <><div className="kv"><span>報酬</span><span>{reviewedRewardAmount !== null ? `${reviewedRewardAmount.toLocaleString("ja-JP")} G` : "報酬を確認できません"}</span></div><p>速力：{confirmation.selectedSpeedKnots === confirmation.ship.cruisingSpeedKnots ? "ECO" : "MAX"} · {confirmation.selectedSpeedKnots}ノット</p><VoyagePlanReviewDetails review={confirmation} money={money} /></>}
+          <h3>最終受注確認</h3>{confirmation && <><div className="kv"><span>報酬</span><span>{reviewedRewardAmount !== null ? `${reviewedRewardAmount.toLocaleString("ja-JP")} G` : "報酬を確認できません"}</span></div><p>速力：{confirmation.selectedSpeedKnots === confirmation.ship.economicalSpeedKnots ? "節約" : confirmation.selectedSpeedKnots === confirmation.ship.standardSpeedKnots ? "標準" : "全速"} · {confirmation.selectedSpeedKnots}ノット</p><VoyagePlanReviewDetails review={confirmation} money={money} /></>}
         </section>
         {!discardOpen && <p role="status" aria-live="polite">{message}</p>}
       </div>
