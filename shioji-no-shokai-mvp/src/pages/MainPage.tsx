@@ -64,6 +64,15 @@ export function MainPage() {
   const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
   const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
   const showSettlementPage = shouldShowSettlement && gameState.acceptedContract !== null && voyage !== null;
+  const settlementMemo = voyage
+    ? gameState.voyageMemos.find(
+        (memo) =>
+          memo.contractId === voyage.contractId &&
+          memo.shipId === voyage.shipId,
+      )
+    : null;
+  const settlementVoyageLabel = settlementMemo?.label ?? "V.001";
+  const settlementContractLabel = settlementMemo?.cargoLabel ?? "依頼情報を確認できません";
   const planningOpen = selectedContract !== null && selectedContractId !== null && gameState.ships.length > 0 && gameState.ships.every(ship => ship.kind === "powered");
   const background = useRef<HTMLDivElement>(null);
 
@@ -111,8 +120,8 @@ export function MainPage() {
     return (
       <div className="phone">
         <SettlementPage
-          voyageLabel={voyage!.label ?? "V.001"}
-          contractLabel={gameState.acceptedContract!.label}
+          voyageLabel={settlementVoyageLabel}
+          contractLabel={settlementContractLabel}
           shipName={settlementShip?.name ?? ""}
           status={isSettlementCompleted ? "settled" : "settlementPending"}
           returnTo={settlementReturnTo}
