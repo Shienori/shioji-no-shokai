@@ -104,7 +104,7 @@ export function MainPage() {
       voyageLabel: memo?.label ?? "V.001",
       contractLabel: memo?.cargoLabel ?? "依頼情報を確認できません",
       shipName: ship?.name ?? "",
-      rewardAmount: gameState.acceptedContract?.offeredReward ?? 0,
+      rewardAmount: gameState.acceptedContract?.reward.offeredReward ?? 0,
       details: {
         routeLabel: route
           ? `${route.fromPortId} → ${route.toPortId}`
