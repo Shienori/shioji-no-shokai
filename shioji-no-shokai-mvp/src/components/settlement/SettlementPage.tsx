@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { SettlementPageProps } from "./SettlementPageTypes";
 import "./settlementPage.css";
 
@@ -7,27 +6,17 @@ export function SettlementPage({
   contractLabel,
   shipName,
   rewardAmount,
+  amounts,
   details,
   status,
   returnTo,
   onSettle,
   onBack,
 }: SettlementPageProps) {
-  const [isSettling, setIsSettling] = useState(false);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-
   const isSettled = status === "settled";
   const hasFuel =
     details.fuelConsumedTons !== null &&
     details.fuelRemainingTons !== null;
-
-  const handleSettle = () => {
-    if (isSettling || isSettled) return;
-
-    setIsSettling(true);
-    onSettle();
-    setIsSettling(false);
-  };
 
   const returnLabel =
     returnTo === "contracts"
@@ -63,99 +52,92 @@ export function SettlementPage({
           </button>
         </section>
       ) : (
-        <>
-          <section className="settlement-status-card">
-            <span className="settlement-status-badge">
-              精算可能
-            </span>
+        <section className="settlement-detail-card">
+          <div className="settlement-amounts-box">
+            <h3>金額の計算</h3>
 
-            <h2 className="settlement-contract-label">
-              {contractLabel}
-            </h2>
+            <dl className="settlement-amount-list">
+              <div>
+                <dt>契約報酬</dt>
+                <dd>{amounts.offeredReward.toLocaleString("ja-JP")} G</dd>
+              </div>
 
-            <p className="settlement-ship-label">
-              {shipName} ・ 荷卸し完了
-            </p>
+              <div>
+                <dt>遅延ペナルティ</dt>
+                <dd>-{amounts.latePenalty.toLocaleString("ja-JP")} G</dd>
+              </div>
 
-            <div className="settlement-reward">
-              <span className="settlement-reward-label">
-                報酬金額
-              </span>
+              <div>
+                <dt>受取報酬</dt>
+                <dd>{amounts.receivedReward.toLocaleString("ja-JP")} G</dd>
+              </div>
 
-              <span className="settlement-reward-value">
-                {rewardAmount.toLocaleString("ja-JP")} G
-              </span>
-            </div>
-          </section>
+              <div>
+                <dt>経費</dt>
+                <dd>-{amounts.expense.toLocaleString("ja-JP")} G</dd>
+              </div>
 
-          <section className="settlement-notice-card">
-            <p>
-              この航海の結果は、精算後に航海日誌へ記録されます。
-            </p>
-
-            <button
-              type="button"
-              className="btn btn-secondary settlement-detail-toggle"
-              onClick={() => setIsDetailOpen(!isDetailOpen)}
-            >
-              {isDetailOpen ? "詳細を閉じる" : "航海の詳細を見る"}
-            </button>
-          </section>
-
-          {isDetailOpen && (
-            <section className="settlement-detail-card">
-              <h3>航海の詳細</h3>
-
-              <dl className="settlement-detail-list">
+              {amounts.guaranteeAmount > 0 && (
                 <div>
-                  <dt>航路</dt>
-                  <dd>{details.routeLabel}</dd>
-                </div>
-
-                <div>
-                  <dt>積荷</dt>
-                  <dd>{details.cargoLabel}</dd>
-                </div>
-
-                <div>
-                  <dt>到着状況</dt>
-                  <dd>
-                    {details.arrivedOnTime
-                      ? "期限内に到着"
-                      : `到着遅延 ${details.arrivalLateHours}時間`}
-                  </dd>
-                </div>
-              </dl>
-
-              {hasFuel && (
-                <div className="settlement-fuel-card">
-                  <h4>燃料</h4>
-
-                  <p className="settlement-fuel-values">
-                    消費 {details.fuelConsumedTons!.toFixed(1)} t
-                    ／
-                    残量 {details.fuelRemainingTons!.toFixed(1)} t
-                  </p>
+                  <dt>最低利益保証</dt>
+                  <dd>+{amounts.guaranteeAmount.toLocaleString("ja-JP")} G</dd>
                 </div>
               )}
+            </dl>
 
-              <button
-                type="button"
-                className="btn btn-primary settlement-confirm-button"
-                onClick={handleSettle}
-                disabled={isSettling}
-              >
-                精算する
-              </button>
-            </section>
+            <div className="settlement-final-payout">
+              <span className="settlement-final-payout-label">
+                最終受取額
+              </span>
+
+              <span className="settlement-final-payout-value">
+                {amounts.finalPayout.toLocaleString("ja-JP")} G
+              </span>
+            </div>
+          </div>
+
+          <div className="settlement-voyage-box">
+            <h3>航海の詳細</h3>
+
+            <dl className="settlement-detail-list">
+              <div>
+                <dt>航路</dt>
+                <dd>{details.routeLabel}</dd>
+              </div>
+
+              <div>
+                <dt>積荷</dt>
+                <dd>{details.cargoLabel}</dd>
+              </div>
+
+              <div>
+                <dt>到着状況</dt>
+                <dd>
+                  {details.arrivedOnTime
+                    ? "期限内に到着"
+                    : `到着遅延 ${details.arrivalLateHours}時間`}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          {hasFuel && (
+            <div className="settlement-fuel-box">
+              <h3>燃料</h3>
+
+              <p className="settlement-fuel-values">
+                消費 {details.fuelConsumedTons!.toFixed(1)} t
+                ／
+                残量 {details.fuelRemainingTons!.toFixed(1)} t
+              </p>
+            </div>
           )}
 
           <div className="settlement-actions">
             <button
               type="button"
               className="btn btn-primary settlement-confirm-button"
-              onClick={handleSettle}
-              disabled={isSettling}
+              onClick={onSettle}
             >
               精算する
             </button>
@@ -168,7 +150,7 @@ export function SettlementPage({
               {returnLabel}
             </button>
           </div>
-        </>
+        </section>
       )}
     </div>
   );
