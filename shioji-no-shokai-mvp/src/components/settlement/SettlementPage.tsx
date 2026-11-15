@@ -17,6 +17,9 @@ export function SettlementPage({
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const isSettled = status === "settled";
+  const hasFuel =
+    details.fuelConsumedTons !== null &&
+    details.fuelRemainingTons !== null;
 
   const handleSettle = () => {
     if (isSettling || isSettled) return;
@@ -122,16 +125,19 @@ export function SettlementPage({
                       : `到着遅延 ${details.arrivalLateHours}時間`}
                   </dd>
                 </div>
-
-                <div>
-                  <dt>燃料費</dt>
-                  <dd>
-                    {details.fuelCostGold === null
-                      ? "—"
-                      : `${details.fuelCostGold.toLocaleString("ja-JP")} G`}
-                  </dd>
-                </div>
               </dl>
+
+              {hasFuel && (
+                <div className="settlement-fuel-card">
+                  <h4>燃料</h4>
+
+                  <p className="settlement-fuel-values">
+                    消費 {details.fuelConsumedTons!.toFixed(1)} t
+                    ／
+                    残量 {details.fuelRemainingTons!.toFixed(1)} t
+                  </p>
+                </div>
+              )}
 
               <button
                 type="button"
