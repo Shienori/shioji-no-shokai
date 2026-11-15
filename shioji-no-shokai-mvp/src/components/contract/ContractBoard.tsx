@@ -21,6 +21,7 @@ interface ContractBoardProps {
   ships?: Ship[];
   // Normal requests use offer IDs; the fixed tutorial uses its template ID.
   onSelectContract: (selectionId: string) => void;
+  onOpenSettlement: () => void;
 }
 
 function formatRefreshCountdown(remainingMs: number): string {
@@ -44,6 +45,7 @@ export function ContractBoard({
   gameState,
   ships,
   onSelectContract,
+  onOpenSettlement,
 }: ContractBoardProps) {
   const [showActiveContract, setShowActiveContract] = useState(false);
   const selectedPort = getPortById(selectedPortId);
@@ -57,6 +59,7 @@ export function ContractBoard({
   const estimatedArrivalLabel = voyage?.phase === "sailing" ? formatDateTime(ceilTo1Minute(Date.now() + remainingMs)) : "";
   const sailingProgress = voyage?.phase === "sailing" ? progress : voyage && (voyage.phase === "unloading" || voyage.phase === "completed") ? 1 : 0;
   const refreshRemainingMs = Math.max(0, nextRefreshAt - currentTime);
+  const canSettle = voyage?.phase === "completed" && !voyage.settled;
 
   return (
     <section className="contract-board">
@@ -76,7 +79,11 @@ export function ContractBoard({
           <div className="contract-card active-contract-card">
             <div className="contract-card-heading">
               <h3>進行中の依頼</h3>
-              <button className="btn btn-secondary" type="button" onClick={() => setShowActiveContract((value) => !value)}>{showActiveContract ? "閉じる" : "見る"}</button>
+              {canSettle ? (
+                <button className="btn btn-primary" type="button" onClick={onOpenSettlement}>精算へ</button>
+              ) : (
+                <button className="btn btn-secondary" type="button" onClick={() => setShowActiveContract((value) => !value)}>{showActiveContract ? "閉じる" : "見る"}</button>
+              )}
             </div>
             {showActiveContract && (<>
               <p className="contract-card-route">{fromPort.name}<span className="contract-route-arrow">→</span>{toPort.name}</p>
