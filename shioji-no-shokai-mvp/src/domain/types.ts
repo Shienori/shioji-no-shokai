@@ -1,3 +1,9 @@
+import type { RouteSeaForecast } from "./seaCondition";
+import type { ContractWindForecastSnapshot } from "./contractWindForecast";
+import type { RouteWindLeg } from "./routeWind";
+import type { CargoLotSnapshot } from "./cargoLotUnits";
+import type { PlannedVoyageState } from "./plannedVoyageState";
+
 export type PortId = string;
 export type RouteId = string;
 export type CargoId = string;
@@ -20,12 +26,6 @@ export type ShipKind = "sailing" | "powered";
 export type ShipStatus = "docked" | "loading" | "sailing" | "unloading";
 export type VoyagePhase = "loading" | "sailing" | "unloading" | "completed";
 export type ContractDifficulty = "easy" | "normal" | "hard";
-
-import type { RouteSeaForecast } from "./seaCondition";
-import type { ContractWindForecastSnapshot } from "./contractWindForecast";
-import type { RouteWindLeg } from "./routeWind";
-import type { CargoLotSnapshot } from "./cargoLotUnits";
-import type { PlannedVoyageState } from "./plannedVoyageState";
 
 export type FuelType = "coal";
 export type FuelTons = number;
@@ -87,7 +87,7 @@ export interface ContractTemplate { id: ContractId; shipperId: ShipperId; routeI
 export interface ContractRewardBreakdown { cargoValue: Gold; voyageDistanceAllowance: Gold; otherAdjustment: Gold; offeredReward: Gold; }
 export interface OfferedContract { id: string; templateId: ContractId; generatedAt: RealTimeMs; deadlineAt: RealTimeMs; timeAllowanceRatio: number; offeredReward: Gold; }
 export interface AcceptedContract { id: ContractId; templateId: ContractId; shipperId: ShipperId; routeId: RouteId; cargoId: CargoId; quantity: number; reward: ContractRewardBreakdown; acceptedAt: RealTimeMs; deadlineAt: RealTimeMs; seaForecast?: RouteSeaForecast; windForecastSnapshot?: ContractWindForecastSnapshot; windForecastSnapshotIssue?: "invalid"; cargoLotSnapshot?: CargoLotSnapshot; }
-export interface Ship { id: ShipId; name: string; kind: ShipKind; role: ShipRole; maxCargoVolume: CargoVolume; maxCargoWeight: CargoWeight; cruisingSpeedKnots: number; maxSpeedKnots: number; engineType: string; engineOutput: string; currentPortId: PortId; currentHexId: string; status: ShipStatus; activeContractId: ContractId | null; fuel?: ShipFuelState; }
+export interface Ship { id: ShipId; name: string; kind: ShipKind; role: ShipRole; maxCargoVolume: CargoVolume; maxCargoWeight: CargoWeight; economicalSpeedKnots: number; standardSpeedKnots: number; cruisingSpeedKnots: number; maxSpeedKnots: number; engineType: string; engineOutput: string; currentPortId: PortId; currentHexId: string; status: ShipStatus; activeContractId: ContractId | null; fuel?: ShipFuelState; }
 export interface Voyage { id: string; shipId: ShipId; contractId: ContractId; phase: VoyagePhase; loadingStartedAt: OperationTimeMs; loadingCompletedAt: OperationTimeMs; departedAt: OperationTimeMs; departedRealTime: RealTimeMs; lastProcessedRealTime: RealTimeMs; currentSeaHexIndex: number; distanceIntoHexNm: number; shipSpeedKnots: number; forecastEtaRealTime: RealTimeMs; estimatedArrivalAt: OperationTimeMs; arrivalDeadlineAt: OperationTimeMs; arrivedAt: OperationTimeMs | null; arrivalLateHours: number; isOnTime: boolean; unloadingStartedAt: OperationTimeMs | null; unloadingCompletedAt: OperationTimeMs | null; completedAtWorldTime: RealTimeMs | null; settled: boolean; fuelNavigation?: VoyageFuelNavigation; fuelPrepayment?: FuelPrepayment;
   plannedNavigation?: PlannedVoyageState;
 }
