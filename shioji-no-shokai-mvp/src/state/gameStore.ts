@@ -1070,4 +1070,141 @@ export const useGameStore = create<GameStore>((set, get) => ({
       cargoLabel:
         `${cargoSnapshot.cargoName} ` +
         `${cargoSnapshot.quantityLots}ロット`,
-      cargoLotSnapshot: { ...cargoSnapshot
+      cargoLotSnapshot: { ...cargoSnapshot },
+      acceptedAt: currentRealTime,
+      acceptedOperationTime: current.operationTime,
+      plannedEtaRealTime: voyage.forecastEtaRealTime,
+      actualArrivalRealTime: null,
+      etaDiffMinutes: null,
+      settlement: null,
+    };
+
+    const next: GameState = {
+      ...current,
+      currentGameTime: currentRealTime,
+      lastRealTimeSyncedAt: currentRealTime,
+      money: current.money - fuelPrepaidGold,
+      ships: current.ships.map((item) =>
+        item.id === shipId ? updatedShip : item,
+      ),
+      activeVoyage: voyage,
+      acceptedContract,
+      portOffers,
+      acceptedContractIds: [
+        ...current.acceptedContractIds,
+        acceptedContract.id,
+      ],
+      voyageMemos: [
+        ...current.voyageMemos,
+        voyageMemo,
+      ],
+      tutorialCompleted: isTutorial
+        ? true
+        : current.tutorialCompleted,
+    };
+
+    saveGame(next);
+    set({
+      gameState: next,
+      selectedContractId: null,
+    });
+
+    return { kind: "accepted" };
+  },
+
+  settleContract: () => {
+    const current = get().gameState;
+    const voyage = current.activeVoyage;
+    const contract = current.acceptedContract;
+
+    if (
+      !voyage ||
+      !contract ||
+      voyage.settled ||
+      voyage.phase !== "completed"
+    ) {
+      return;
+    }
+
+    // 計画航海の前払金は進行処理側で精算済みであること。
+    if (
+      voyage.plannedNavigation !== undefined &&
+      voyage.fuelPrepayment?.status === "pending"
+    ) {
+      return;
+    }
+
+    const state = preserveActiveMemoCargo(current);
+    const settlement = settleContract(
+      contract,
+      voyage,
+    );
+
+    const settledVoyage: Voyage = {
+      ...voyage,
+      settled: true,
+    };
+
+    const settledShip = state.ships.find(
+      (item) => item.id === voyage.shipId,
+    );
+
+    if (!settledShip) return;
+
+    const route = getRouteById(contract.routeId);
+
+    const updatedShip: Ship = {
+      ...settledShip,
+      status: "docked",
+      activeContractId: null,
+      currentPortId: route.toPortId,
+      currentHexId: getPortHexId(route.toPortId),
+    };
+
+    const voyageMemos = state.voyageMemos.map((memo) =>
+      memo.contractId === contract.id &&
+      memo.shipId === voyage.shipId &&
+      memo.acceptedAt === contract.acceptedAt &&
+      memo.settlement === null
+        ? {
+            ...memo,
+            settlement: {
+              offeredReward: settlement.offeredReward,
+              latePenalty: settlement.latePenalty,
+              receivedReward: settlement.receivedReward,
+              expense: settlement.expense,
+              fuelCost: settlement.fuelCostGold,
+              guaranteeAmount: settlement.guaranteeAmount,
+              finalPayout: settlement.finalPayout,
+            },
+          }
+        : memo,
+    );
+
+    const next: GameState = {
+      ...state,
+      money: state.money + settlement.finalPayout,
+      activeVoyage: settledVoyage,
+      acceptedContract: null,
+      ships: state.ships.map((item) =>
+        item.id === updatedShip.id ? updatedShip : item,
+      ),
+      voyageMemos,
+    };
+
+    saveGame(next);
+    set({ gameState: next });
+  },
+
+  resetGame: () => {
+    const next = createInitialGameState();
+
+    saveGame(next);
+    set({
+      gameState: next,
+      selectedContractId: null,
+      selectedShipId: null,
+      activeTab: "contracts",
+    });
+  },
+}));
