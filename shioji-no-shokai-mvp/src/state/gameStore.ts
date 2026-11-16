@@ -1318,7 +1318,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         error,
         {
           offerId,
-          shipId,
           selectedSpeedKnots,
           ...diagnosticState(current),
         },
