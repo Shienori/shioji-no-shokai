@@ -910,7 +910,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         "補油エラー",
         error,
         {
-          shipId,
           requestedTons,
           ...diagnosticState(current),
         },
@@ -963,7 +962,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       let template: ContractTemplate;
-
+      
       try {
         template = isTutorial
           ? tutorialWheatContract
@@ -1319,7 +1318,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         error,
         {
           offerId,
-          shipId,
           selectedSpeedKnots,
           ...diagnosticState(current),
         },
@@ -1363,119 +1361,111 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    try {
-      const state = preserveActiveMemoCargo(current);
+      try {
+        const state = preserveActiveMemoCargo(current);
 
-      logDebug(
-        "domain/settlement.settleContract",
-        "精算額計算",
-        {
-          contractId: contract.id,
-        },
-      );
-
-      const settlement = settleContract(
-        contract,
-        voyage,
-      );
-
-      const settledShip = state.ships.find(
-        (item) => item.id === voyage.shipId,
-      );
-
-      if (!settledShip) {
-        logWarn(
-          "settleContract",
-          "対象の船が見つかりません",
+        logDebug(
+          "domain/settlement.settleContract",
+          "精算額計算",
           {
-            shipId: voyage.shipId,
+            contractId: contract.id,
           },
         );
-        return;
+
+        const settlement = settleContract(
+          contract,
+          voyage,
+        );
+
+        const settledVoyage: Voyage = {
+          ...voyage,
+          settled: true,
+        };
+
+        const settledShip = state.ships.find(
+          (item) => item.id === voyage.shipId,
+        );
+
+        if (!settledShip) {
+          logWarn(
+            "settleContract",
+            "対象の船が見つかりません",
+            {
+              shipId: voyage.shipId,
+            },
+          );
+          return;
+        }
+
+        const route = getRouteById(contract.routeId);
+
+        const updatedShip: Ship = {
+          ...settledShip,
+          status: "docked",
+          activeContractId: null,
+          currentPortId: route.toPortId,
+          currentHexId: getPortHexId(route.toPortId),
+        };
+
+        const voyageMemos = state.voyageMemos.map((memo) =>
+          memo.contractId === contract.id &&
+          memo.shipId === voyage.shipId &&
+          memo.acceptedAt === contract.acceptedAt &&
+          memo.settlement === null
+            ? {
+                ...memo,
+                settlement: {
+                  offeredReward: settlement.offeredReward,
+                  latePenalty: settlement.latePenalty,
+                  receivedReward: settlement.receivedReward,
+                  expense: settlement.expense,
+                  fuelCost: settlement.fuelCostGold,
+                  guaranteeAmount: settlement.guaranteeAmount,
+                  finalPayout: settlement.finalPayout,
+                },
+              }
+            : memo,
+        );
+
+        const next: GameState = {
+          ...state,
+          money: state.money + settlement.finalPayout,
+          activeVoyage: settledVoyage,
+          acceptedContract: null,
+          ships: state.ships.map((item) =>
+            item.id === updatedShip.id ? updatedShip : item,
+          ),
+          voyageMemos,
+        };
+
+        persist(next, "settleContract");
+        set({ gameState: next });
+
+        logInfo("settleContract", "精算成功", {
+          contractId: contract.id,
+          finalPayout: settlement.finalPayout,
+          money: next.money,
+        });
+      } catch (error) {
+        logError(
+          "settleContract",
+          "精算失敗",
+          error,
+          diagnosticState(current),
+        );
+        throw error;
       }
-
-      const route = getRouteById(contract.routeId);
-
-      const updatedShip: Ship = {
-        ...settledShip,
-        status: "docked",
-        activeContractId: null,
-        currentPortId: route.toPortId,
-        currentHexId: getPortHexId(route.toPortId),
-      };
-
-      const voyageMemos = state.voyageMemos.map((memo) =>
-        memo.contractId === contract.id &&
-        memo.shipId === voyage.shipId &&
-        memo.acceptedAt === contract.acceptedAt &&
-        memo.settlement === null
-          ? {
-              ...memo,
-              settlement: {
-                offeredReward: settlement.offeredReward,
-                latePenalty: settlement.latePenalty,
-                receivedReward: settlement.receivedReward,
-                expense: settlement.expense,
-                fuelCost: settlement.fuelCostGold,
-                guaranteeAmount: settlement.guaranteeAmount,
-                finalPayout: settlement.finalPayout,
-              },
-            }
-          : memo,
-      );
-
-      const next: GameState = {
-        ...state,
-        money: state.money + settlement.finalPayout,
-        activeVoyage: null,
-        acceptedContract: null,
-        ships: state.ships.map((item) =>
-          item.id === updatedShip.id ? updatedShip : item,
-        ),
-        voyageMemos,
-      };
-
-      persist(next, "settleContract");
-      set({ gameState: next });
-
-      logInfo("settleContract", "精算成功", {
-        contractId: contract.id,
-        finalPayout: settlement.finalPayout,
-        money: next.money,
-      });
-    } catch (error) {
-      logError(
-        "settleContract",
-        "精算失敗",
-        error,
-        diagnosticState(current),
-      );
-      throw error;
-    }
-  },
+    },
 
   resetGame: () => {
-    logInfo("resetGame", "ゲームを初期化");
+    const next = createInitialGameState();
 
-    try {
-      const next = createInitialGameState();
-      persist(next, "resetGame");
-
-      set({
-        gameState: next,
-        selectedContractId: null,
-        selectedShipId: null,
-        activeTab: "contracts",
-      });
-
-      logInfo("resetGame", "初期化成功");
-    } catch (error) {
-      logError(
-        "resetGame",
-        "初期化失敗",
-        error,
-      );
-      throw error;
-    }
+    saveGame(next);
+    set({
+      gameState: next,
+      selectedContractId: null,
+      selectedShipId: null,
+      activeTab: "contracts",
+    });
   },
 }));

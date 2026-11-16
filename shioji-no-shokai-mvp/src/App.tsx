@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { MainPage } from "./pages/MainPage";
+import MainPage from "./pages/MainPage";
 import { useGameStore } from "./state/gameStore";
 
 export default function App() {
