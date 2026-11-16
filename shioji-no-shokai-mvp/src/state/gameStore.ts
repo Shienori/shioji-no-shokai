@@ -58,12 +58,17 @@ import { loadGame, saveGame } from "../domain/save";
 import {
   GAME_TIME_MULTIPLIER,
   FUEL_PRICE_GOLD_PER_TON,
-  SAVE_KEY,
   SAVE_VERSION,
   STARTING_MONEY,
 } from "../data/gameConstants";
 import { getHexById, getPortHexId } from "../data/hexMap";
 import { getRouteHexIds } from "../domain/routePath";
+import {
+  logDebug,
+  logError,
+  logInfo,
+  logWarn,
+} from "./debugLog";
 
 const CONTRACT_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const FIXED_CONTRACT_ID = tutorialWheatContract.id;
@@ -88,6 +93,39 @@ interface GameStore {
   ) => PlanAcceptanceResult | void;
   settleContract: () => void;
   resetGame: () => void;
+}
+
+function diagnosticState(state: GameState) {
+  return {
+    money: state.money,
+    operationTime: state.operationTime,
+    contractId: state.acceptedContract?.id,
+    voyageContractId: state.activeVoyage?.contractId,
+    shipId: state.activeVoyage?.shipId,
+    phase: state.activeVoyage?.phase,
+    settled: state.activeVoyage?.settled,
+    isPlannedVoyage:
+      state.activeVoyage?.plannedNavigation !== undefined,
+    fuelPrepayment: state.activeVoyage?.fuelPrepayment
+      ? { ...state.activeVoyage.fuelPrepayment }
+      : null,
+  };
+}
+
+function persist(state: GameState, caller: string): void {
+  try {
+    saveGame(state);
+
+    if (caller !== "tick") {
+      logDebug("saveGame", "保存成功", { caller });
+    }
+  } catch (error) {
+    logError("saveGame", "保存失敗", error, {
+      caller,
+      ...diagnosticState(state),
+    });
+    throw error;
+  }
 }
 
 function getNextRefreshTime(now: number): number {
@@ -249,6 +287,7 @@ function getShipCurrentHexId(
   const goalHexId = getPortHexId(route.toPortId);
 
   if (voyage.phase === "loading") return startHexId;
+
   if (
     voyage.phase === "unloading" ||
     voyage.phase === "completed"
@@ -737,7 +776,6 @@ const initialGameState: GameState = loadedGameState
         defaultGameState.nextRefreshAt,
     }
   : defaultGameState;
-
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: initialGameState,
   selectedContractId: null,
@@ -748,33 +786,58 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const current = get().gameState;
     const currentRealTime = Date.now();
 
-    let next: GameState = {
-      ...current,
-      currentGameTime: currentRealTime,
-      operationTime: current.activeVoyage
-        ? advanceOperationTime(
-            current.operationTime,
-            current.lastRealTimeSyncedAt,
-            currentRealTime,
-          )
-        : current.operationTime,
-      lastRealTimeSyncedAt: currentRealTime,
-    };
+    try {
+      let next: GameState = {
+        ...current,
+        currentGameTime: currentRealTime,
+        operationTime: current.activeVoyage
+          ? advanceOperationTime(
+              current.operationTime,
+              current.lastRealTimeSyncedAt,
+              currentRealTime,
+            )
+          : current.operationTime,
+        lastRealTimeSyncedAt: currentRealTime,
+      };
 
-    if (
-      next.activeVoyage &&
-      (
-        next.acceptedContract ||
-        next.activeVoyage.plannedNavigation !== undefined
-      )
-    ) {
-      next = progressVoyageIfActive(next, currentRealTime);
-      next = syncActiveShipPosition(next);
+      if (
+        next.activeVoyage &&
+        (
+          next.acceptedContract ||
+          next.activeVoyage.plannedNavigation !== undefined
+        )
+      ) {
+        next = progressVoyageIfActive(next, currentRealTime);
+        next = syncActiveShipPosition(next);
+      }
+
+      next = refreshContractsIfDue(next, currentRealTime);
+
+      persist(next, "tick");
+      set({ gameState: next });
+
+      if (
+        current.activeVoyage?.phase !==
+        next.activeVoyage?.phase
+      ) {
+        logInfo(
+          "progressVoyageIfActive",
+          "航海状態が変化",
+          {
+            before: current.activeVoyage?.phase,
+            after: next.activeVoyage?.phase,
+          },
+        );
+      }
+    } catch (error) {
+      logError(
+        "tick",
+        "自動更新失敗（状態は確定しません）",
+        error,
+        diagnosticState(current),
+      );
+      throw error;
     }
-
-    next = refreshContractsIfDue(next, currentRealTime);
-    saveGame(next);
-    set({ gameState: next });
   },
 
   selectContract: (contractId) =>
@@ -800,7 +863,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       (item) => item.id === shipId,
     );
 
-    if (!ship) return;
+    if (!ship) {
+      logWarn("refuelShip", "対象の船が見つかりません", {
+        shipId,
+      });
+      return;
+    }
+
+    logInfo("refuelShip", "補油を開始", {
+      shipId,
+      requestedTons,
+    });
 
     try {
       const result = calculateManualRefuel(
@@ -808,7 +881,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         requestedTons,
       );
 
-      if (result.cost > current.money) return;
+      if (result.cost > current.money) {
+        logWarn("refuelShip", "資金不足で補油できません", {
+          cost: result.cost,
+          money: current.money,
+        });
+        return;
+      }
 
       const next: GameState = {
         ...current,
@@ -818,13 +897,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ),
       };
 
-      saveGame(next);
+      persist(next, "refuelShip");
       set({ gameState: next });
-    } catch {
-      return;
+
+      logInfo("refuelShip", "補油成功", {
+        shipId,
+        cost: result.cost,
+      });
+    } catch (error) {
+      logError(
+        "refuelShip",
+        "補油エラー",
+        error,
+        {
+          shipId,
+          requestedTons,
+          ...diagnosticState(current),
+        },
+      );
     }
   },
-
   acceptContract: (
     offerId,
     shipId,
@@ -834,93 +926,176 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const current = get().gameState;
     const currentRealTime = Date.now();
 
-    if (current.acceptedContract || current.activeVoyage) {
-      return;
-    }
-
-    const isTutorial = offerId === FIXED_CONTRACT_ID;
-    const offeredContract = isTutorial
-      ? undefined
-      : (
-          current.portOffers[current.selectedPortId] ?? []
-        ).find((offer) => offer.id === offerId);
-
-    if (!isTutorial && !offeredContract) return;
-
-    let template: ContractTemplate;
+    logInfo("acceptContract", "受注を開始", {
+      offerId,
+      shipId,
+      selectedSpeedKnots,
+      hasReview: reviewedPlan !== undefined,
+    });
 
     try {
-      template = isTutorial
-        ? tutorialWheatContract
-        : getContractTemplateById(
-            offeredContract!.templateId,
-          );
-    } catch {
-      return;
-    }
-
-    if (!isTutorial && template.id === FIXED_CONTRACT_ID) {
-      return;
-    }
-
-    const ship = current.ships.find(
-      (item) => item.id === shipId,
-    );
-    if (!ship) return;
-
-    const speed =
-      selectedSpeedKnots === undefined
-        ? ship.standardSpeedKnots ?? ship.cruisingSpeedKnots
-        : selectedSpeedKnots;
-
-    if (
-      !Number.isSafeInteger(ship.cruisingSpeedKnots) ||
-      ship.cruisingSpeedKnots <= 0 ||
-      !Number.isSafeInteger(ship.maxSpeedKnots) ||
-      !isSelectedSpeedWithinLimits(ship, speed) ||
-      (
-        ship.kind !== "powered" &&
-        speed !== ship.cruisingSpeedKnots
-      )
-    ) {
-      return;
-    }
-
-    const acceptance = evaluateContractAcceptance(
-      template,
-      ship,
-      current,
-      currentRealTime,
-      offeredContract?.id,
-    );
-
-    if (!acceptance.canAccept) return;
-
-    const route = getRouteById(template.routeId);
-    const deadlineAt = isTutorial
-      ? calculateContractSchedule(
-          template,
-          route,
-          currentRealTime,
-        ).deadlineAt
-      : offeredContract!.deadlineAt;
-
-    if (reviewedPlan !== undefined) {
-      if (
-        !reviewedPlan ||
-        SAVE_VERSION !== 9 ||
-        ship.kind !== "powered" ||
-        reviewedPlan.offerId !== offerId ||
-        reviewedPlan.templateId !== template.id ||
-        reviewedPlan.shipId !== shipId ||
-        reviewedPlan.selectedSpeedKnots !== speed ||
-        !Number.isSafeInteger(reviewedPlan.baseRealTime) ||
-        reviewedPlan.baseRealTime > currentRealTime
-      ) {
+      if (current.acceptedContract || current.activeVoyage) {
+        logWarn(
+          "acceptContract",
+          "進行中の航海があるため受注できません",
+          diagnosticState(current),
+        );
         return;
       }
 
+      const isTutorial = offerId === FIXED_CONTRACT_ID;
+      const offeredContract = isTutorial
+        ? undefined
+        : (
+            current.portOffers[current.selectedPortId] ?? []
+          ).find((offer) => offer.id === offerId);
+
+      if (!isTutorial && !offeredContract) {
+        logWarn(
+          "acceptContract",
+          "対象の依頼が見つかりません",
+          {
+            offerId,
+            selectedPortId: current.selectedPortId,
+          },
+        );
+        return;
+      }
+
+      let template: ContractTemplate;
+      
       try {
+        template = isTutorial
+          ? tutorialWheatContract
+          : getContractTemplateById(
+              offeredContract!.templateId,
+            );
+      } catch (error) {
+        logError(
+          "acceptContract",
+          "依頼テンプレートの取得に失敗",
+          error,
+          {
+            offerId,
+            templateId: offeredContract?.templateId,
+          },
+        );
+        return;
+      }
+
+      if (!isTutorial && template.id === FIXED_CONTRACT_ID) {
+        logWarn(
+          "acceptContract",
+          "チュートリアル依頼は通常受注できません",
+          {
+            offerId,
+          },
+        );
+        return;
+      }
+
+      const ship = current.ships.find(
+        (item) => item.id === shipId,
+      );
+
+      if (!ship) {
+        logWarn(
+          "acceptContract",
+          "対象の船が見つかりません",
+          {
+            shipId,
+          },
+        );
+        return;
+      }
+
+      const speed =
+        selectedSpeedKnots === undefined
+          ? ship.standardSpeedKnots ?? ship.cruisingSpeedKnots
+          : selectedSpeedKnots;
+
+      if (
+        !Number.isSafeInteger(ship.cruisingSpeedKnots) ||
+        ship.cruisingSpeedKnots <= 0 ||
+        !Number.isSafeInteger(ship.maxSpeedKnots) ||
+        !isSelectedSpeedWithinLimits(ship, speed) ||
+        (
+          ship.kind !== "powered" &&
+          speed !== ship.cruisingSpeedKnots
+        )
+      ) {
+        logWarn(
+          "acceptContract",
+          "速度条件を満たしていません",
+          {
+            shipId,
+            speed,
+            cruisingSpeedKnots: ship.cruisingSpeedKnots,
+            maxSpeedKnots: ship.maxSpeedKnots,
+          },
+        );
+        return;
+      }
+
+      const acceptance = evaluateContractAcceptance(
+        template,
+        ship,
+        current,
+        currentRealTime,
+        offeredContract?.id,
+      );
+
+      if (!acceptance.canAccept) {
+        logWarn(
+          "acceptContract",
+          "受注条件を満たしていません",
+          {
+            offerId,
+            shipId,
+            reason: acceptance.reason,
+          },
+        );
+        return;
+      }
+
+      const route = getRouteById(template.routeId);
+      const deadlineAt = isTutorial
+        ? calculateContractSchedule(
+            template,
+            route,
+            currentRealTime,
+          ).deadlineAt
+        : offeredContract!.deadlineAt;
+
+      if (reviewedPlan !== undefined) {
+        if (
+          !reviewedPlan ||
+          SAVE_VERSION !== 9 ||
+          ship.kind !== "powered" ||
+          reviewedPlan.offerId !== offerId ||
+          reviewedPlan.templateId !== template.id ||
+          reviewedPlan.shipId !== shipId ||
+          reviewedPlan.selectedSpeedKnots !== speed ||
+          !Number.isSafeInteger(reviewedPlan.baseRealTime) ||
+          reviewedPlan.baseRealTime > currentRealTime
+        ) {
+          logWarn(
+            "acceptContract",
+            "計画の検証に失敗しました",
+            {
+              offerId,
+              shipId,
+              speed,
+            },
+          );
+          return;
+        }
+
+        logDebug(
+          "createConfirmedPlanReview",
+          "計画を再検証",
+        );
+
         const fresh = createConfirmedPlanReview(
           offerId,
           template,
@@ -938,48 +1113,69 @@ export const useGameStore = create<GameStore>((set, get) => ({
             reviewedPlan.deadlineAt !== deadlineAt
           )
         ) {
+          logWarn(
+            "acceptContract",
+            "計画の再確認が必要です",
+            {
+              offerId,
+              shipId,
+            },
+          );
+
           return {
             kind: "reviewRequired",
             review: fresh,
           };
         }
-      } catch {
+      }
+
+      const cargo = getCargoById(template.cargoId);
+      const acceptedContract = createAcceptedContract(
+        template,
+        route,
+        cargo,
+        currentRealTime,
+        deadlineAt,
+        offeredContract?.offeredReward,
+      );
+
+      const cargoSnapshot =
+        readCargoLotSnapshot(acceptedContract);
+
+      if (!cargoSnapshot) {
+        logWarn(
+          "acceptContract",
+          "貨物情報を作成できません",
+          {
+            offerId,
+            templateId: template.id,
+          },
+        );
         return;
       }
-    }
 
-    const cargo = getCargoById(template.cargoId);
-    const acceptedContract = createAcceptedContract(
-      template,
-      route,
-      cargo,
-      currentRealTime,
-      deadlineAt,
-      offeredContract?.offeredReward,
-    );
+      const departureRefuel =
+        reviewedPlan !== undefined
+          ? applyDepartureFreeRefuel(
+              ship,
+              reviewedPlan.route,
+            )
+          : { ship, refuel: null };
 
-    const cargoSnapshot =
-      readCargoLotSnapshot(acceptedContract);
-    if (!cargoSnapshot) return;
+      const plannedShip = departureRefuel.ship;
+      const voyageShip: Ship = {
+        ...plannedShip,
+        cruisingSpeedKnots: speed,
+      };
 
-    const departureRefuel =
-      reviewedPlan !== undefined
-        ? applyDepartureFreeRefuel(
-            ship,
-            reviewedPlan.route,
-          )
-        : { ship, refuel: null };
+      let voyage: Voyage;
 
-    const plannedShip = departureRefuel.ship;
-    const voyageShip: Ship = {
-      ...plannedShip,
-      cruisingSpeedKnots: speed,
-    };
+      if (reviewedPlan !== undefined) {
+        logDebug(
+          "createConfirmedPlanVoyage",
+          "計画航海作成",
+        );
 
-    let voyage: Voyage;
-
-    if (reviewedPlan !== undefined) {
-      try {
         voyage = createConfirmedPlanVoyage({
           contract: acceptedContract,
           ship: plannedShip,
@@ -987,135 +1183,158 @@ export const useGameStore = create<GameStore>((set, get) => ({
           selectedSpeedKnots: speed,
           operationTime: current.operationTime,
         });
-      } catch {
-        return;
-      }
-    } else {
-      voyage = createVoyage(
-        acceptedContract,
-        voyageShip,
-        current.operationTime,
-        currentRealTime,
-      );
-
-      if (ship.kind === "powered") {
-        voyage.fuelNavigation = createCoalVoyageNavigation(
-          ship,
-          route,
-          getHeavyLoadSpeedFactor(acceptedContract, ship),
-          speed,
+      } else {
+        voyage = createVoyage(
+          acceptedContract,
+          voyageShip,
+          current.operationTime,
+          currentRealTime,
         );
+
+        if (ship.kind === "powered") {
+          voyage.fuelNavigation = createCoalVoyageNavigation(
+            ship,
+            route,
+            getHeavyLoadSpeedFactor(acceptedContract, ship),
+            speed,
+          );
+        }
       }
-    }
 
-    let fuelPrepaidGold: number;
-
-    try {
-      fuelPrepaidGold =
+      const fuelPrepaidGold =
         ship.kind === "powered"
           ? calculatePlannedFuelPrepayment(voyage)
           : 0;
-    } catch {
-      return;
-    }
 
-    if (
-      !Number.isFinite(current.money) ||
-      current.money < 0 ||
-      fuelPrepaidGold > current.money
-    ) {
-      return;
-    }
-
-    if (fuelPrepaidGold > 0) {
-      voyage = {
-        ...voyage,
-        fuelPrepayment: {
-          status: "pending",
-          prepaidGold: fuelPrepaidGold,
-          consumedGold: 0,
-          refundedGold: 0,
-        },
-      };
-    }
-
-    const updatedShip: Ship = {
-      ...plannedShip,
-      status: "loading",
-      currentHexId: getPortHexId(route.fromPortId),
-      activeContractId: acceptedContract.id,
-    };
-
-    const portOffers = { ...current.portOffers };
-
-    if (offeredContract) {
-      portOffers[current.selectedPortId] =
-        replenishAcceptedOffer(
-          current,
-          current.selectedPortId,
-          offeredContract.id,
+      if (
+        !Number.isFinite(current.money) ||
+        current.money < 0 ||
+        fuelPrepaidGold > current.money
+      ) {
+        logWarn(
+          "acceptContract",
+          "資金不足で燃料前払いができません",
+          {
+            money: current.money,
+            fuelPrepaidGold,
+          },
         );
+        return;
+      }
+
+      if (fuelPrepaidGold > 0) {
+        voyage = {
+          ...voyage,
+          fuelPrepayment: {
+            status: "pending",
+            prepaidGold: fuelPrepaidGold,
+            consumedGold: 0,
+            refundedGold: 0,
+          },
+        };
+      }
+
+      const updatedShip: Ship = {
+        ...plannedShip,
+        status: "loading",
+        currentHexId: getPortHexId(route.fromPortId),
+        activeContractId: acceptedContract.id,
+      };
+
+      const portOffers = { ...current.portOffers };
+
+      if (offeredContract) {
+        portOffers[current.selectedPortId] =
+          replenishAcceptedOffer(
+            current,
+            current.selectedPortId,
+            offeredContract.id,
+          );
+      }
+
+      const voyageNumber = current.voyageMemos.length + 1;
+      const voyageMemo: VoyageMemo = {
+        voyageNumber,
+        label: `V.${String(voyageNumber).padStart(2, "0")}`,
+        contractId: acceptedContract.id,
+        shipId: ship.id,
+        shipName: ship.name,
+        routeLabel:
+          `${getPortById(route.fromPortId).name} → ` +
+          `${getPortById(route.toPortId).name}`,
+        cargoLabel:
+          `${cargoSnapshot.cargoName} ` +
+          `${cargoSnapshot.quantityLots}ロット`,
+        cargoLotSnapshot: { ...cargoSnapshot },
+        acceptedAt: currentRealTime,
+        acceptedOperationTime: current.operationTime,
+        plannedEtaRealTime: voyage.forecastEtaRealTime,
+        actualArrivalRealTime: null,
+        etaDiffMinutes: null,
+        settlement: null,
+      };
+
+      const next: GameState = {
+        ...current,
+        currentGameTime: currentRealTime,
+        lastRealTimeSyncedAt: currentRealTime,
+        money: current.money - fuelPrepaidGold,
+        ships: current.ships.map((item) =>
+          item.id === shipId ? updatedShip : item,
+        ),
+        activeVoyage: voyage,
+        acceptedContract,
+        portOffers,
+        acceptedContractIds: [
+          ...current.acceptedContractIds,
+          acceptedContract.id,
+        ],
+        voyageMemos: [
+          ...current.voyageMemos,
+          voyageMemo,
+        ],
+        tutorialCompleted: isTutorial
+          ? true
+          : current.tutorialCompleted,
+      };
+
+      persist(next, "acceptContract");
+      set({
+        gameState: next,
+        selectedContractId: null,
+      });
+
+      logInfo("acceptContract", "受注成功", {
+        offerId,
+        shipId,
+        contractId: acceptedContract.id,
+        fuelPrepaidGold,
+      });
+
+      return { kind: "accepted" };
+    } catch (error) {
+      logError(
+        "acceptContract",
+        "受注失敗",
+        error,
+        {
+          offerId,
+          shipId,
+          selectedSpeedKnots,
+          ...diagnosticState(current),
+        },
+      );
+      throw error;
     }
-
-    const voyageNumber = current.voyageMemos.length + 1;
-    const voyageMemo: VoyageMemo = {
-      voyageNumber,
-      label: `V.${String(voyageNumber).padStart(2, "0")}`,
-      contractId: acceptedContract.id,
-      shipId: ship.id,
-      shipName: ship.name,
-      routeLabel:
-        `${getPortById(route.fromPortId).name} → ` +
-        `${getPortById(route.toPortId).name}`,
-      cargoLabel:
-        `${cargoSnapshot.cargoName} ` +
-        `${cargoSnapshot.quantityLots}ロット`,
-      cargoLotSnapshot: { ...cargoSnapshot },
-      acceptedAt: currentRealTime,
-      acceptedOperationTime: current.operationTime,
-      plannedEtaRealTime: voyage.forecastEtaRealTime,
-      actualArrivalRealTime: null,
-      etaDiffMinutes: null,
-      settlement: null,
-    };
-
-    const next: GameState = {
-      ...current,
-      currentGameTime: currentRealTime,
-      lastRealTimeSyncedAt: currentRealTime,
-      money: current.money - fuelPrepaidGold,
-      ships: current.ships.map((item) =>
-        item.id === shipId ? updatedShip : item,
-      ),
-      activeVoyage: voyage,
-      acceptedContract,
-      portOffers,
-      acceptedContractIds: [
-        ...current.acceptedContractIds,
-        acceptedContract.id,
-      ],
-      voyageMemos: [
-        ...current.voyageMemos,
-        voyageMemo,
-      ],
-      tutorialCompleted: isTutorial
-        ? true
-        : current.tutorialCompleted,
-    };
-
-    saveGame(next);
-    set({
-      gameState: next,
-      selectedContractId: null,
-    });
-
-    return { kind: "accepted" };
   },
-
   settleContract: () => {
     const current = get().gameState;
     const voyage = current.activeVoyage;
     const contract = current.acceptedContract;
+
+    logInfo("settleContract", "精算を開始", {
+      ...diagnosticState(current),
+    });
 
     if (
       !voyage ||
@@ -1123,6 +1342,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       voyage.settled ||
       voyage.phase !== "completed"
     ) {
+      logWarn(
+        "settleContract",
+        "精算できる状態ではありません",
+        diagnosticState(current),
+      );
       return;
     }
 
@@ -1131,70 +1355,109 @@ export const useGameStore = create<GameStore>((set, get) => ({
       voyage.plannedNavigation !== undefined &&
       voyage.fuelPrepayment?.status === "pending"
     ) {
+      logWarn(
+        "settleContract",
+        "計画航海の燃料前払金が未精算です",
+        diagnosticState(current),
+      );
       return;
     }
 
-    const state = preserveActiveMemoCargo(current);
-    const settlement = settleContract(
-      contract,
-      voyage,
-    );
+      try {
+        const state = preserveActiveMemoCargo(current);
 
-    const settledVoyage: Voyage = {
-      ...voyage,
-      settled: true,
-    };
+        logDebug(
+          "domain/settlement.settleContract",
+          "精算額計算",
+          {
+            contractId: contract.id,
+          },
+        );
 
-    const settledShip = state.ships.find(
-      (item) => item.id === voyage.shipId,
-    );
+        const settlement = settleContract(
+          contract,
+          voyage,
+        );
 
-    if (!settledShip) return;
+        const settledVoyage: Voyage = {
+          ...voyage,
+          settled: true,
+        };
 
-    const route = getRouteById(contract.routeId);
+        const settledShip = state.ships.find(
+          (item) => item.id === voyage.shipId,
+        );
 
-    const updatedShip: Ship = {
-      ...settledShip,
-      status: "docked",
-      activeContractId: null,
-      currentPortId: route.toPortId,
-      currentHexId: getPortHexId(route.toPortId),
-    };
-
-    const voyageMemos = state.voyageMemos.map((memo) =>
-      memo.contractId === contract.id &&
-      memo.shipId === voyage.shipId &&
-      memo.acceptedAt === contract.acceptedAt &&
-      memo.settlement === null
-        ? {
-            ...memo,
-            settlement: {
-              offeredReward: settlement.offeredReward,
-              latePenalty: settlement.latePenalty,
-              receivedReward: settlement.receivedReward,
-              expense: settlement.expense,
-              fuelCost: settlement.fuelCostGold,
-              guaranteeAmount: settlement.guaranteeAmount,
-              finalPayout: settlement.finalPayout,
+        if (!settledShip) {
+          logWarn(
+            "settleContract",
+            "対象の船が見つかりません",
+            {
+              shipId: voyage.shipId,
             },
-          }
-        : memo,
-    );
+          );
+          return;
+        }
 
-    const next: GameState = {
-      ...state,
-      money: state.money + settlement.finalPayout,
-      activeVoyage: settledVoyage,
-      acceptedContract: null,
-      ships: state.ships.map((item) =>
-        item.id === updatedShip.id ? updatedShip : item,
-      ),
-      voyageMemos,
-    };
+        const route = getRouteById(contract.routeId);
 
-    saveGame(next);
-    set({ gameState: next });
-  },
+        const updatedShip: Ship = {
+          ...settledShip,
+          status: "docked",
+          activeContractId: null,
+          currentPortId: route.toPortId,
+          currentHexId: getPortHexId(route.toPortId),
+        };
+
+        const voyageMemos = state.voyageMemos.map((memo) =>
+          memo.contractId === contract.id &&
+          memo.shipId === voyage.shipId &&
+          memo.acceptedAt === contract.acceptedAt &&
+          memo.settlement === null
+            ? {
+                ...memo,
+                settlement: {
+                  offeredReward: settlement.offeredReward,
+                  latePenalty: settlement.latePenalty,
+                  receivedReward: settlement.receivedReward,
+                  expense: settlement.expense,
+                  fuelCost: settlement.fuelCostGold,
+                  guaranteeAmount: settlement.guaranteeAmount,
+                  finalPayout: settlement.finalPayout,
+                },
+              }
+            : memo,
+        );
+
+        const next: GameState = {
+          ...state,
+          money: state.money + settlement.finalPayout,
+          activeVoyage: settledVoyage,
+          acceptedContract: null,
+          ships: state.ships.map((item) =>
+            item.id === updatedShip.id ? updatedShip : item,
+          ),
+          voyageMemos,
+        };
+
+        persist(next, "settleContract");
+        set({ gameState: next });
+
+        logInfo("settleContract", "精算成功", {
+          contractId: contract.id,
+          finalPayout: settlement.finalPayout,
+          money: next.money,
+        });
+      } catch (error) {
+        logError(
+          "settleContract",
+          "精算失敗",
+          error,
+          diagnosticState(current),
+        );
+        throw error;
+      }
+    },
 
   resetGame: () => {
     const next = createInitialGameState();
