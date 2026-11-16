@@ -6,6 +6,9 @@ import {
   logInfo,
   logWarn,
 } from "../state/debugLog";
+import { getContractTemplateById } from "../data/contracts";
+import { getCargoById } from "../data/cargos";
+import { getRouteById } from "../data/routes";
 
 export default function MainPage() {
   const {
@@ -38,6 +41,7 @@ export default function MainPage() {
     }, 1000);
 
     return () => {
+      window.setInterval;
       window.clearInterval(interval);
     };
   }, [tick]);
@@ -53,8 +57,15 @@ export default function MainPage() {
     (offer) => offer.id === selectedContractId,
   );
 
+  const selectedTemplate = selectedContract
+    ? getContractTemplateById(selectedContract.templateId)
+    : null;
+
   const activeVoyage = gameState.activeVoyage;
   const activeContract = gameState.acceptedContract;
+  const activeRoute = activeContract
+    ? getRouteById(activeContract.routeId)
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -136,50 +147,63 @@ export default function MainPage() {
             </h2>
 
             <div className="grid gap-3 md:grid-cols-3">
-              {currentPortOffers.map((offer) => (
-                <button
-                  key={offer.id}
-                  type="button"
-                  onClick={() => {
-                    logDebug(
-                      "MainPage",
-                      "依頼を選択",
-                      { offerId: offer.id },
-                    );
-                    selectContract(offer.id);
-                  }}
-                  className={
-                    selectedContractId === offer.id
-                      ? "rounded-lg border border-sky-500 bg-slate-900 p-4 text-left"
-                      : "rounded-lg border border-slate-800 bg-slate-900 p-4 text-left"
-                  }
-                >
-                  <p className="text-sm font-semibold">
-                    {offer.title}
-                  </p>
+              {currentPortOffers.map((offer) => {
+                const template =
+                  getContractTemplateById(
+                    offer.templateId,
+                  );
+                const cargo = getCargoById(
+                  template.cargoId,
+                );
 
-                  <p className="mt-1 text-xs text-slate-400">
-                    報酬: {offer.offeredReward}G
-                  </p>
+                return (
+                  <button
+                    key={offer.id}
+                    type="button"
+                    onClick={() => {
+                      logDebug(
+                        "MainPage",
+                        "依頼を選択",
+                        { offerId: offer.id },
+                      );
+                      selectContract(offer.id);
+                    }}
+                    className={
+                      selectedContractId === offer.id
+                        ? "rounded-lg border border-sky-500 bg-slate-900 p-4 text-left"
+                        : "rounded-lg border border-slate-800 bg-slate-900 p-4 text-left"
+                    }
+                  >
+                    <p className="text-sm font-semibold">
+                      {cargo.name}
+                    </p>
 
-                  <p className="mt-1 text-xs text-slate-400">
-                    期限:
-                    {new Date(
-                      offer.deadlineAt,
-                    ).toLocaleString()}
-                  </p>
-                </button>
-              ))}
+                    <p className="mt-1 text-xs text-slate-400">
+                      報酬: {offer.offeredReward}G
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      期限:
+                      {new Date(
+                        offer.deadlineAt,
+                      ).toLocaleString()}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
 
-            {selectedContract && (
+            {selectedContract && selectedTemplate && (
               <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
                 <h3 className="font-semibold">
-                  {selectedContract.title}
+                  {getCargoById(
+                    selectedTemplate.cargoId,
+                  ).name}
                 </h3>
 
                 <p className="mt-2 text-sm text-slate-300">
-                  {selectedContract.description}
+                  報酬:{" "}
+                  {selectedContract.offeredReward}G
                 </p>
 
                 <div className="mt-4">
@@ -309,7 +333,7 @@ export default function MainPage() {
                         );
                       }
                     }}
-                    className="mt-3 rounded bg-sky-600 px-3 py-1.5 text-sm font-semibold"
+                    className="mt-3 rounded bg-sky-600 px-4 py-2 text-sm font-semibold"
                   >
                     10t補油
                   </button>
@@ -364,7 +388,10 @@ export default function MainPage() {
             </h2>
 
             <p className="mt-1 text-sm text-amber-200">
-              依頼: {activeContract.title}
+              依頼:{" "}
+              {getCargoById(
+                activeContract.cargoId,
+              ).name}
             </p>
 
             <p className="mt-1 text-sm text-amber-200">
@@ -372,11 +399,11 @@ export default function MainPage() {
             </p>
 
             <p className="mt-1 text-sm text-amber-200">
-              出発港: {activeContract.route.fromPortId}
+              出発港: {activeRoute?.fromPortId}
             </p>
 
             <p className="mt-1 text-sm text-amber-200">
-              到着港: {activeContract.route.toPortId}
+              到着港: {activeRoute?.toPortId}
             </p>
 
             <button
@@ -426,7 +453,7 @@ export default function MainPage() {
                 );
               }
             }}
-            className="rounded border border-red-500/50 bg-red-500/10 px-3 py-1.5 text-sm text-red-300"
+            className="rounded border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-300"
           >
             ゲームを初期化
           </button>
