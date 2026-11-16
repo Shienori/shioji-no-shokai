@@ -432,8 +432,6 @@ export default function MainPage() {
           </button>
         </div>
       </main>
-
-      <DebugLogPanel />
     </div>
   );
 }
