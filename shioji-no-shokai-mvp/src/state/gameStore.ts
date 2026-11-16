@@ -776,7 +776,6 @@ const initialGameState: GameState = loadedGameState
         defaultGameState.nextRefreshAt,
     }
   : defaultGameState;
-
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: initialGameState,
   selectedContractId: null,
@@ -911,13 +910,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         "補油エラー",
         error,
         {
+          shipId,
           requestedTons,
           ...diagnosticState(current),
         },
       );
     }
   },
-
   acceptContract: (
     offerId,
     shipId,
@@ -1320,6 +1319,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         error,
         {
           offerId,
+          shipId,
           selectedSpeedKnots,
           ...diagnosticState(current),
         },
@@ -1327,7 +1327,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       throw error;
     }
   },
-
   settleContract: () => {
     const current = get().gameState;
     const voyage = current.activeVoyage;
@@ -1394,6 +1393,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         );
         return;
       }
+
+      const route = getRouteById(contract.routeId);
+
+      const updatedShip: Ship = {
+        ...settledShip,
+        status: "docked",
+        activeContractId: null,
+        currentPortId: route.toPortId,
+        currentHexId: getPortHexId(route.toPortId),
+      };
+
 
       const route = getRouteById(contract.routeId);
 
