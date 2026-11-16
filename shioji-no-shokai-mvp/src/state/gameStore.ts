@@ -910,7 +910,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         "補油エラー",
         error,
         {
-          shipId,
           requestedTons,
           ...diagnosticState(current),
         },
