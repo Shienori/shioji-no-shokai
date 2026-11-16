@@ -1,464 +1,206 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "../state/gameStore";
-import {
-  logDebug,
-  logError,
-  logInfo,
-  logWarn,
-} from "../state/debugLog";
-import { getContractTemplateById } from "../data/contracts";
-import { getCargoById } from "../data/cargos";
+import { debugSkipThirtyMinutes } from "../state/debugTimeSkip";
+import { NextVoyageBoundaryButton } from "../components/debug/NextVoyageBoundaryButton";
+import { AppHeader } from "../components/layout/AppHeader";
+import { TabBar } from "../components/layout/TabBar";
+import { ContractBoard } from "../components/contract/ContractBoard";
+import { ContractDetailScreen } from "../components/contract/ContractDetailScreen";
+import { PlannedContractDetailScreen } from "../components/contract/PlannedContractDetailScreen";
+import type { ConfirmedPlanReview } from "../domain/confirmedPlanReview";
+import { WorldMapTab } from "../components/map/WorldMapTab";
+import { FleetPanel } from "../components/fleet/FleetPanel";
+import { ShipDetailScreen } from "../components/fleet/ShipDetailScreen";
+import { SettlementPage } from "../components/settlement/SettlementPage";
+import type { SettlementAmounts, SettlementDetail, SettlementReturnTarget } from "../components/settlement/SettlementPageTypes";
+import { getContractTemplateById, tutorialWheatContract } from "../data/contracts";
 import { getRouteById } from "../data/routes";
+import { getCargoById } from "../data/cargos";
+import { calculateCPlanOfferedReward } from "../domain/contractSchedule";
+import { evaluateContractAcceptance } from "../domain/contractAcceptance";
+import { calculateVoyageProgress } from "../domain/voyage";
+import { settleContract } from "../domain/settlement";
 
-export default function MainPage() {
-  const {
-    gameState,
-    selectedContractId,
-    selectedShipId,
-    activeTab,
-    tick,
-    selectContract,
-    selectShip,
-    setActiveTab,
-    selectPort,
-    refuelShip,
-    acceptContract,
-    settleContract,
-    resetGame,
-  } = useGameStore();
+interface SettlementSnapshot {
+  voyageLabel: string;
+  contractLabel: string;
+  shipName: string;
+  rewardAmount: number;
+  amounts: SettlementAmounts;
+  details: SettlementDetail;
+}
+
+export function MainPage() {
+  const gameState = useGameStore((state) => state.gameState);
+  const displayClock = { realTimeMs: gameState.currentGameTime, operationTimeMs: gameState.operationTime };
+  const activeTab = useGameStore((state) => state.activeTab);
+  const selectedContractId = useGameStore((state) => state.selectedContractId);
+  const selectedShipId = useGameStore((state) => state.selectedShipId);
+  const setActiveTab = useGameStore((state) => state.setActiveTab);
+  const selectContract = useGameStore((state) => state.selectContract);
+  const selectShip = useGameStore((state) => state.selectShip);
+  const selectPort = useGameStore((state) => state.selectPort);
+  const acceptContract = useGameStore((state) => state.acceptContract);
+
+  const [settlementReturnTo, setSettlementReturnTo] = useState<SettlementReturnTarget>("contracts");
+  const [isSettlementOpen, setIsSettlementOpen] = useState(false);
+  const [isSettlementCompleted, setIsSettlementCompleted] = useState(false);
+  const [settlementSnapshot, setSettlementSnapshot] = useState<SettlementSnapshot | null>(null);
+
+  const selectedPortId = gameState.selectedPortId;
+  const offeredContracts = gameState.portOffers[selectedPortId] ?? [];
+  const contracts = offeredContracts
+    .map((offer) => ({ offerId: offer.id, template: { ...getContractTemplateById(offer.templateId), offeredReward: offer.offeredReward } }))
+    .filter((item) => getRouteById(item.template.routeId).fromPortId === selectedPortId);
+  const tutorialAccepted = gameState.acceptedContractIds.includes(tutorialWheatContract.id)
+    || gameState.acceptedContract?.templateId === tutorialWheatContract.id
+    || gameState.tutorialCompleted;
+  const showTutorial = selectedPortId === "port_selene" && !tutorialAccepted;
+  const tutorialReward = showTutorial ? calculateCPlanOfferedReward(
+    tutorialWheatContract,
+    getCargoById(tutorialWheatContract.cargoId),
+    getRouteById(tutorialWheatContract.routeId),
+  ) : null;
+  const fixedContract = showTutorial && tutorialReward !== null ? { ...tutorialWheatContract, offeredReward: tutorialReward } : null;
+  const selectedOffer = offeredContracts.find((offer) => offer.id === selectedContractId) ?? null;
+  const selectedContract = selectedOffer ? getContractTemplateById(selectedOffer.templateId)
+    : fixedContract && selectedContractId === tutorialWheatContract.id ? tutorialWheatContract : null;
+  const selectedRewardAmount = selectedOffer?.offeredReward ?? tutorialReward;
+  const selectedShip = selectedShipId === null ? null : gameState.ships.find((ship) => ship.id === selectedShipId) ?? null;
+  const selectedRoute = selectedContract ? getRouteById(selectedContract.routeId) : null;
+  const acceptanceChecks = selectedContract ? gameState.ships.map((ship) => ({ ship, check: evaluateContractAcceptance(selectedContract, ship, gameState, Date.now(), selectedOffer?.id) })) : [];
+  const eligibleShips = acceptanceChecks.filter((item) => item.check.canAccept).map((item) => item.ship);
+  const acceptReason = !selectedContract || !selectedRoute ? null
+    : acceptanceChecks.find((item) => !item.check.canAccept)?.check.reason ?? null;
+  const voyage = gameState.activeVoyage;
+  const progress = voyage && gameState.acceptedContract ? calculateVoyageProgress(voyage, gameState.acceptedContract, gameState.operationTime) : 0;
+  const shouldShowSettlement = voyage?.phase === "completed" && !voyage.settled;
+  const planningOpen = selectedContract !== null && selectedContractId !== null && gameState.ships.length > 0 && gameState.ships.every(ship => ship.kind === "powered");
+  const background = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      try {
-        tick();
-      } catch (error) {
-        logError(
-          "MainPage.useEffect",
-          "tick実行中にエラー",
-          error,
-        );
-      }
-    }, 1000);
+    const element = background.current;
+    if (!element) return;
+    if (planningOpen) element.setAttribute("inert", ""); else element.removeAttribute("inert");
+    return () => element.removeAttribute("inert");
+  }, [planningOpen]);
 
-    return () => {
-      window.setInterval;
-      window.clearInterval(interval);
+  const createSettlementSnapshot = (): SettlementSnapshot => {
+    const memo = voyage
+      ? gameState.voyageMemos.find(
+          (item) =>
+            item.contractId === voyage.contractId &&
+            item.shipId === voyage.shipId,
+        )
+      : null;
+
+    const ship = gameState.ships.find(
+      (item) => item.id === voyage?.shipId,
+    );
+
+    const route = gameState.acceptedContract
+      ? getRouteById(gameState.acceptedContract.routeId)
+      : null;
+
+    const settlementResult = gameState.acceptedContract && voyage
+      ? settleContract(gameState.acceptedContract, voyage)
+      : null;
+
+    const amounts: SettlementAmounts = settlementResult
+      ? {
+          offeredReward: settlementResult.offeredReward,
+          latePenalty: settlementResult.latePenalty,
+          receivedReward: settlementResult.receivedReward,
+          expense: settlementResult.expense,
+          guaranteeAmount: settlementResult.guaranteeAmount,
+          finalPayout: settlementResult.finalPayout,
+        }
+      : {
+          offeredReward: 0,
+          latePenalty: 0,
+          receivedReward: 0,
+          expense: 0,
+          guaranteeAmount: 0,
+          finalPayout: 0,
+        };
+
+    return {
+      voyageLabel: memo?.label ?? "V.001",
+      contractLabel: memo?.cargoLabel ?? "依頼情報を確認できません",
+      shipName: ship?.name ?? "",
+      rewardAmount: gameState.acceptedContract?.reward.offeredReward ?? 0,
+      amounts,
+      details: {
+        routeLabel: route
+          ? `${route.fromPortId} → ${route.toPortId}`
+          : "航路情報を確認できません",
+        cargoLabel: memo?.cargoLabel ?? "積荷情報を確認できません",
+        arrivedOnTime: voyage?.isOnTime ?? true,
+        arrivalLateHours: voyage?.arrivalLateHours ?? 0,
+        fuelConsumedTons: voyage?.fuelNavigation?.fuelConsumedTons ?? null,
+        fuelRemainingTons: ship?.fuel?.remainingTons ?? null,
+      },
     };
-  }, [tick]);
+  };
 
-  const currentPortOffers =
-    gameState.portOffers[gameState.selectedPortId] ?? [];
+  const openSettlementFromContracts = () => {
+    setSettlementReturnTo("contracts");
+    setSettlementSnapshot(createSettlementSnapshot());
+    setIsSettlementOpen(true);
+  };
 
-  const selectedShip = gameState.ships.find(
-    (ship) => ship.id === selectedShipId,
-  );
+  const openSettlementFromFleet = () => {
+    setSettlementReturnTo("fleet");
+    setSettlementSnapshot(createSettlementSnapshot());
+    setIsSettlementOpen(true);
+  };
 
-  const selectedContract = currentPortOffers.find(
-    (offer) => offer.id === selectedContractId,
-  );
+  const handleSettlement = () => {
+    useGameStore.getState().settleContract();
+    setIsSettlementCompleted(true);
+  };
 
-  const selectedTemplate = selectedContract
-    ? getContractTemplateById(selectedContract.templateId)
-    : null;
+  const handleSettlementBack = () => {
+    setIsSettlementOpen(false);
+    setIsSettlementCompleted(false);
+    setActiveTab(settlementReturnTo);
+  };
 
-  const activeVoyage = gameState.activeVoyage;
-  const activeContract = gameState.acceptedContract;
-  const activeRoute = activeContract
-    ? getRouteById(activeContract.routeId)
-    : null;
+  const handleAccept = (selectionId: string, shipId: string, selectedSpeedKnots: number, review?: ConfirmedPlanReview) => {
+    const before = useGameStore.getState().gameState;
+    if (before.selectedPortId !== selectedPortId) { selectContract(null); return; }
+    const result = acceptContract(selectionId, shipId, selectedSpeedKnots, review);
+    if (result?.kind === "reviewRequired") return result;
+    const after = useGameStore.getState().gameState;
+    if (after.acceptedContract === before.acceptedContract || after.activeVoyage === before.activeVoyage) return;
+    selectContract(null);
+    selectShip(null);
+    setActiveTab("fleet");
+    return result;
+  };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-900/80 px-4 py-3">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg font-bold">
-              潮路の商會
-            </h1>
+  if (selectedContract && selectedContractId !== null && selectedRewardAmount !== null && !planningOpen) return <div className="phone">
+    <ContractDetailScreen key={selectedContractId} contract={{ ...selectedContract, offeredReward: selectedRewardAmount }} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed) => handleAccept(selectedContractId, shipId, speed)} onClose={() => selectContract(null)} />
+  </div>;
 
-            <p className="text-xs text-slate-400">
-              所持金: {gameState.money}G
-            </p>
-          </div>
+  if (selectedShip && !planningOpen) return <div className="phone">
+    <ShipDetailScreen displayClock={displayClock} ship={selectedShip} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} voyageMemos={gameState.voyageMemos} onBack={() => selectShip(null)} />
+  </div>;
 
-          <nav className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                logDebug(
-                  "MainPage",
-                  "契約タブへ切替",
-                );
-                setActiveTab("contracts");
-              }}
-              className={
-                activeTab === "contracts"
-                  ? "rounded bg-sky-600 px-3 py-1.5 text-sm font-semibold"
-                  : "rounded bg-slate-800 px-3 py-1.5 text-sm"
-              }
-            >
-              依頼
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                logDebug(
-                  "MainPage",
-                  "船団タブへ切替",
-                );
-                setActiveTab("fleet");
-              }}
-              className={
-                activeTab === "fleet"
-                  ? "rounded bg-sky-600 px-3 py-1.5 text-sm font-semibold"
-                  : "rounded bg-slate-800 px-3 py-1.5 text-sm"
-              }
-            >
-              船団
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                logDebug(
-                  "MainPage",
-                  "海図タブへ切替",
-                );
-                setActiveTab("chart");
-              }}
-              className={
-                activeTab === "chart"
-                  ? "rounded bg-sky-600 px-3 py-1.5 text-sm font-semibold"
-                  : "rounded bg-slate-800 px-3 py-1.5 text-sm"
-              }
-            >
-              海図
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {activeTab === "contracts" && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold">
-              港の依頼
-            </h2>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              {currentPortOffers.map((offer) => {
-                const template =
-                  getContractTemplateById(
-                    offer.templateId,
-                  );
-                const cargo = getCargoById(
-                  template.cargoId,
-                );
-
-                return (
-                  <button
-                    key={offer.id}
-                    type="button"
-                    onClick={() => {
-                      logDebug(
-                        "MainPage",
-                        "依頼を選択",
-                        { offerId: offer.id },
-                      );
-                      selectContract(offer.id);
-                    }}
-                    className={
-                      selectedContractId === offer.id
-                        ? "rounded-lg border border-sky-500 bg-slate-900 p-4 text-left"
-                        : "rounded-lg border border-slate-800 bg-slate-900 p-4 text-left"
-                    }
-                  >
-                    <p className="text-sm font-semibold">
-                      {cargo.name}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      報酬: {offer.offeredReward}G
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      期限:
-                      {new Date(
-                        offer.deadlineAt,
-                      ).toLocaleString()}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedContract && selectedTemplate && (
-              <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-                <h3 className="font-semibold">
-                  {getCargoById(
-                    selectedTemplate.cargoId,
-                  ).name}
-                </h3>
-
-                <p className="mt-2 text-sm text-slate-300">
-                  報酬:{" "}
-                  {selectedContract.offeredReward}G
-                </p>
-
-                <div className="mt-4">
-                  <p className="text-xs text-slate-400">
-                    船を選択
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {gameState.ships.map((ship) => (
-                      <button
-                        key={ship.id}
-                        type="button"
-                        onClick={() => {
-                          logDebug(
-                            "MainPage",
-                            "船を選択",
-                            { shipId: ship.id },
-                          );
-                          selectShip(ship.id);
-                        }}
-                        className={
-                          selectedShipId === ship.id
-                            ? "rounded border border-sky-500 bg-slate-800 px-3 py-1.5 text-sm"
-                            : "rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm"
-                        }
-                      >
-                        {ship.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={
-                    !selectedShip ||
-                    Boolean(gameState.activeVoyage) ||
-                    Boolean(gameState.acceptedContract)
-                  }
-                  onClick={() => {
-                    if (!selectedShip) {
-                      logWarn(
-                        "MainPage",
-                        "船が選択されていません",
-                      );
-                      return;
-                    }
-
-                    logInfo(
-                      "MainPage",
-                      "受注ボタンを押下",
-                      {
-                        offerId: selectedContract.id,
-                        shipId: selectedShip.id,
-                      },
-                    );
-
-                    try {
-                      acceptContract(
-                        selectedContract.id,
-                        selectedShip.id,
-                      );
-                    } catch (error) {
-                      logError(
-                        "MainPage",
-                        "受注処理でエラー",
-                        error,
-                      );
-                    }
-                  }}
-                  className="mt-4 rounded bg-emerald-600 px-4 py-2 text-sm font-semibold disabled:opacity-50"
-                >
-                  この依頼を受注する
-                </button>
-              </div>
-            )}
-          </section>
-        )}
-
-        {activeTab === "fleet" && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold">
-              船団
-            </h2>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {gameState.ships.map((ship) => (
-                <div
-                  key={ship.id}
-                  className="rounded-lg border border-slate-800 bg-slate-900 p-4"
-                >
-                  <p className="font-semibold">
-                    {ship.name}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    状態: {ship.status}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    現在港: {ship.currentPortId}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    燃料: {ship.fuel?.remainingTons ?? 0} /
-                    {ship.fuel?.capacityTons ?? 0} t
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      logInfo(
-                        "MainPage",
-                        "補油ボタンを押下",
-                        {
-                          shipId: ship.id,
-                        },
-                      );
-
-                      try {
-                        refuelShip(ship.id, 10);
-                      } catch (error) {
-                        logError(
-                          "MainPage",
-                          "補油処理でエラー",
-                          error,
-                        );
-                      }
-                    }}
-                    className="mt-3 rounded bg-sky-600 px-4 py-2 text-sm font-semibold"
-                  >
-                    10t補油
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {activeTab === "chart" && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold">
-              海図
-            </h2>
-
-            <p className="text-sm text-slate-300">
-              現在の港: {gameState.selectedPortId}
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(gameState.portOffers).map(
-                (portId) => (
-                  <button
-                    key={portId}
-                    type="button"
-                    onClick={() => {
-                      logDebug(
-                        "MainPage",
-                        "港を選択",
-                        { portId },
-                      );
-                      selectPort(portId);
-                    }}
-                    className={
-                      gameState.selectedPortId === portId
-                        ? "rounded border border-sky-500 bg-slate-800 px-3 py-1.5 text-sm"
-                        : "rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm"
-                    }
-                  >
-                    {portId}
-                  </button>
-                ),
-              )}
-            </div>
-          </section>
-        )}
-
-        {activeVoyage && activeContract && (
-          <section className="mt-8 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
-            <h2 className="text-lg font-bold">
-              航海中
-            </h2>
-
-            <p className="mt-1 text-sm text-amber-200">
-              依頼:{" "}
-              {getCargoById(
-                activeContract.cargoId,
-              ).name}
-            </p>
-
-            <p className="mt-1 text-sm text-amber-200">
-              状態: {activeVoyage.phase}
-            </p>
-
-            <p className="mt-1 text-sm text-amber-200">
-              出発港: {activeRoute?.fromPortId}
-            </p>
-
-            <p className="mt-1 text-sm text-amber-200">
-              到着港: {activeRoute?.toPortId}
-            </p>
-
-            <button
-              type="button"
-              disabled={
-                activeVoyage.phase !== "completed"
-              }
-              onClick={() => {
-                logInfo(
-                  "MainPage",
-                  "精算ボタンを押下",
-                );
-
-                try {
-                  settleContract();
-                } catch (error) {
-                  logError(
-                    "MainPage",
-                    "精算処理でエラー",
-                    error,
-                  );
-                }
-              }}
-              className="mt-3 rounded bg-emerald-600 px-4 py-2 text-sm font-semibold disabled:opacity-50"
-            >
-              精算する
-            </button>
-          </section>
-        )}
-
-        <div className="mt-8 flex justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              logWarn(
-                "MainPage",
-                "リセットボタンを押下",
-              );
-
-              try {
-                resetGame();
-              } catch (error) {
-                logError(
-                  "MainPage",
-                  "リセット処理でエラー",
-                  error,
-                );
-              }
-            }}
-            className="rounded border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-          >
-            ゲームを初期化
-          </button>
-        </div>
-      </main>
+  return <div className="phone">
+    <div ref={background} aria-hidden={planningOpen ? true : undefined}>
+      <AppHeader />
+      <TabBar activeTab={activeTab} onChange={setActiveTab} />
+      <main className="page"><div className="page-body">
+        {isSettlementOpen && settlementSnapshot ? <SettlementPage voyageLabel={settlementSnapshot.voyageLabel} contractLabel={settlementSnapshot.contractLabel} shipName={settlementSnapshot.shipName} rewardAmount={settlementSnapshot.rewardAmount} amounts={settlementSnapshot.amounts} details={settlementSnapshot.details} status={isSettlementCompleted ? "settled" : "settlementPending"} returnTo={settlementReturnTo} onSettle={handleSettlement} onBack={handleSettlementBack} />
+          : activeTab === "contracts" ? <ContractBoard selectedPortId={selectedPortId} onSelectPort={(portId) => { selectContract(null); selectPort(portId); }} fixedContract={fixedContract} contracts={contracts} nextRefreshAt={gameState.nextRefreshAt} currentTime={Date.now()} acceptedContract={gameState.acceptedContract} voyage={voyage} progress={progress} operationTime={gameState.operationTime} gameState={gameState} ships={gameState.ships} onSelectContract={selectContract} onOpenSettlement={openSettlementFromContracts} />
+          : activeTab === "chart" ? <WorldMapTab ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} />
+          : <FleetPanel displayClock={displayClock} ships={gameState.ships} voyage={voyage} contract={gameState.acceptedContract} operationTime={gameState.operationTime} onSelectShip={selectShip} onOpenSettlement={openSettlementFromFleet} />}
+      </div></main>
+      <NextVoyageBoundaryButton voyage={voyage} planningOpen={planningOpen} />
+      <button className="btn btn-secondary" type="button" disabled={voyage?.plannedNavigation !== undefined} title={voyage?.plannedNavigation !== undefined ? "確定計画の航海中は固定ETA・進行状態を保護するため旧スキップを無効にしています" : undefined} onClick={debugSkipThirtyMinutes}>デバッグ: 待ち時間を30分スキップ</button>
+      <button className="btn btn-secondary" type="button" onClick={() => useGameStore.getState().resetGame()}>デバッグ: 初期化</button>
     </div>
-  );
+    {planningOpen && selectedContract && selectedContractId !== null && selectedRewardAmount !== null && <PlannedContractDetailScreen key={selectedContractId} offerId={selectedContractId} contract={selectedContract} rewardAmount={selectedRewardAmount} ships={gameState.ships} eligibleShips={eligibleShips} acceptReason={acceptReason} offeredDeadlineAt={selectedOffer?.deadlineAt ?? null} onAccept={(shipId, speed, review) => handleAccept(selectedContractId, shipId, speed, review)} onClose={() => selectContract(null)} />}
+  </div>;
 }
