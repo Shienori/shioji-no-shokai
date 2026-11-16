@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useGameStore } from "../state/gameStore";
-import DebugLogPanel from "../components/DebugLogPanel";
 import {
   logDebug,
   logError,
