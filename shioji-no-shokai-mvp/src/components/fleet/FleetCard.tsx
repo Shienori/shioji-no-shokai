@@ -1,13 +1,10 @@
 import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
 import { getPortById } from "../../data/ports";
 import { getRouteById } from "../../data/routes";
-import { getCargoPresentation } from "../../domain/cargoPresentation";
 import { getHexById } from "../../data/hexMap";
 import { ceilTo1Minute, formatDateTime } from "../../domain/time";
 import { calculateVoyageProgress } from "../../domain/voyage";
-import { getSeaConditionAt } from "../../domain/seaCondition";
 import { getPlannedShipPresentation } from "../../domain/plannedShipPresentation";
-import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
 import "./FleetCard.css";
 
 interface FleetCardProps {
@@ -15,7 +12,6 @@ interface FleetCardProps {
   voyage: Voyage | null;
   contract: AcceptedContract | null;
   operationTime: number;
-  displayClock: VoyageDisplayClock;
   onSelectShip: (shipId: string) => void;
   onOpenSettlement: () => void;
 }
@@ -38,19 +34,17 @@ export function FleetCard({
   voyage,
   contract,
   operationTime,
-  displayClock,
   onSelectShip,
   onOpenSettlement,
 }: FleetCardProps) {
   const isPlanned = voyage?.plannedNavigation !== undefined;
   const route = contract ? getRouteById(contract.routeId) : null;
-  const cargo = contract ? getCargoPresentation(contract) : null;
   const fromPort = route ? getPortById(route.fromPortId) : null;
   const toPort = route ? getPortById(route.toPortId) : null;
   const canSettle = voyage?.phase === "completed" && !voyage.settled;
   const hasArrived = voyage?.phase === "completed";
 
-  let statusLabel = voyage ? STATUS_LABELS[voyage.phase] : STATUS_LABELS[ship.status];
+  let statusLabel: string = voyage ? STATUS_LABELS[voyage.phase] : STATUS_LABELS[ship.status];
   let progress = 0;
   let currentLocation = "";
   let routeLabel = "-";
