@@ -43,7 +43,6 @@ export function FleetPanel({
               voyage={shipVoyage}
               contract={shipContract}
               operationTime={operationTime}
-              displayClock={displayClock}
               onSelectShip={onSelectShip}
               onOpenSettlement={onOpenSettlement}
             />
