@@ -36,7 +36,7 @@ const CONDITION_LABELS = {
 } as const;
 
 const STATUS_LABELS = {
-  docked: "停泊中",
+  docked: "待機中",
   loading: "積込中",
   sailing: "航海中",
   unloading: "揚荷中",
@@ -113,50 +113,68 @@ export function ShipDetailScreen({ ship, voyage: activeVoyage, contract: activeC
       {hasPlannedVoyage && voyage ? <PlannedShipVoyageStatus clock={displayClock} ship={ship} voyage={voyage} contract={contract} /> : <section className="contract-card fleet-card">
         <h3>現在状況</h3>
         <div className="contract-card-route"><span>現在位置</span><span className="contract-route-arrow">→</span><span>{currentLocation}</span></div>
-        <div className="contract-card-route"><span>海況</span><span className="contract-route-arrow">→</span><span>{currentCondition ? CONDITION_LABELS[currentCondition] : "-"}</span></div>
         <div className="progress-block">
           <div className="progress-heading"><span>進捗状況</span><span>{Math.round(progress * 100)}%</span></div>
           <div className="progress"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>
         </div>
         <div className="contract-facts">
-          <div><span className="contract-fact-label">受注依頼</span><span className="contract-fact-value">{contract ? cargo && fromPort && toPort ? `${cargo.label}／${fromPort.name}→${toPort.name}` : "貨物データ確認不可" : "なし"}</span></div>
-          {contract && <>
-            <div><span className="contract-fact-label">貨物重量</span><span className="contract-fact-value">{cargo?.weightLabel ?? "確認不可"}</span></div>
-            <div><span className="contract-fact-label">貨物容積</span><span className="contract-fact-value">{cargo?.volumeLabel ?? "確認不可"}</span></div>
-          </>}
           <div><span className="contract-fact-label">ETA</span><span className="contract-fact-value">{etaLabel}</span></div>
           <div><span className="contract-fact-label">期限</span><span className="contract-fact-value">{deadlineLabel}</span></div>
         </div>
-        <div className="voyage-route-map">
-          <HexMap
-            ships={[{ name: ship.name, hexId: ship.currentHexId }]}
-            routeHexIds={routeHexIds}
-            currentHexId={ship.currentHexId}
-          />
-        </div>
       </section>}
 
-      <PortRefuelPanel key={ship.id} shipId={ship.id} />
-      <ShipDesignPanel shipId={ship.id} />
+      <details className="ship-detail-fold">
+        <summary>依頼と航路を表示</summary>
+        <section className="contract-card fleet-card">
+          <div className="contract-card-route"><span>受注依頼</span><span className="contract-route-arrow">→</span><span>{contract ? cargo && fromPort && toPort ? `${cargo.label}／${fromPort.name}→${toPort.name}` : "貨物データ確認不可" : "なし"}</span></div>
+          {contract && <>
+            <div className="contract-facts">
+              <div><span className="contract-fact-label">貨物重量</span><span className="contract-fact-value">{cargo?.weightLabel ?? "確認不可"}</span></div>
+              <div><span className="contract-fact-label">貨物容積</span><span className="contract-fact-value">{cargo?.volumeLabel ?? "確認不可"}</span></div>
+            </div>
+          </>}
+          <div className="contract-card-route"><span>海況</span><span className="contract-route-arrow">→</span><span>{currentCondition ? CONDITION_LABELS[currentCondition] : "-"}</span></div>
+          <div className="voyage-route-map">
+            <HexMap
+              ships={[{ name: ship.name, hexId: ship.currentHexId }]}
+              routeHexIds={routeHexIds}
+              currentHexId={ship.currentHexId}
+            />
+          </div>
+        </section>
+      </details>
 
-      <section className="contract-card fleet-card">
-        <h3>現在の運用データ</h3>
-        <div className="contract-facts">
-          <div><span className="contract-fact-label">船種</span><span className="contract-fact-value">{ship.kind === "sailing" ? "帆船" : "動力船"}</span></div>
-          <div><span className="contract-fact-label">用途</span><span className="contract-fact-value">一般貨物船</span></div>
-          <div><span className="contract-fact-label">新規受注の貨物容積上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoVolumeM3, "m³") : "未設定"}</span></div>
-          <div><span className="contract-fact-label">新規受注の貨物重量上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoWeightTons, "t") : "未設定"}</span></div>
-          <div><span className="contract-fact-label">巡航速度</span><span className="contract-fact-value">{ship.cruisingSpeedKnots}ノット</span></div>
-          <div><span className="contract-fact-label">最大速度</span><span className="contract-fact-value">{ship.maxSpeedKnots}ノット</span></div>
-          <div><span className="contract-fact-label">機関</span><span className="contract-fact-value">{ship.engineType}／{ship.engineOutput}</span></div>
-        </div>
-        {cargo?.legacy && <details>
-          <summary>進行中の旧契約の上限</summary>
-          <div className="kv"><span>貨物重量上限</span><span>{ship.maxCargoWeight}（旧重量単位）</span></div>
-          <div className="kv"><span>貨物容積上限</span><span>{ship.maxCargoVolume}（旧容積単位）</span></div>
-          <p className="contract-card-detail">この契約は旧単位の条件を維持します。t・m³へ自動換算しません。</p>
-        </details>}
-      </section>
+      <details className="ship-detail-fold">
+        <summary>燃料を表示</summary>
+        <PortRefuelPanel key={ship.id} shipId={ship.id} />
+      </details>
+
+      <details className="ship-detail-fold">
+        <summary>船の性能を表示</summary>
+        <ShipDesignPanel shipId={ship.id} />
+      </details>
+
+      <details className="ship-detail-fold">
+        <summary>船の基本情報を表示</summary>
+        <section className="contract-card fleet-card">
+          <h3>現在の運用データ</h3>
+          <div className="contract-facts">
+            <div><span className="contract-fact-label">船種</span><span className="contract-fact-value">{ship.kind === "sailing" ? "帆船" : "動力船"}</span></div>
+            <div><span className="contract-fact-label">用途</span><span className="contract-fact-value">一般貨物船</span></div>
+            <div><span className="contract-fact-label">新規受注の貨物容積上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoVolumeM3, "m³") : "未設定"}</span></div>
+            <div><span className="contract-fact-label">新規受注の貨物重量上限</span><span className="contract-fact-value">{capacity ? formatCargoMeasure(capacity.maxCargoWeightTons, "t") : "未設定"}</span></div>
+            <div><span className="contract-fact-label">巡航速度</span><span className="contract-fact-value">{ship.cruisingSpeedKnots}ノット</span></div>
+            <div><span className="contract-fact-label">最大速度</span><span className="contract-fact-value">{ship.maxSpeedKnots}ノット</span></div>
+            <div><span className="contract-fact-label">機関</span><span className="contract-fact-value">{ship.engineType}／{ship.engineOutput}</span></div>
+          </div>
+          {cargo?.legacy && <details>
+            <summary>進行中の旧契約の上限</summary>
+            <div className="kv"><span>貨物重量上限</span><span>{ship.maxCargoWeight}（旧重量単位）</span></div>
+            <div className="kv"><span>貨物容積上限</span><span>{ship.maxCargoVolume}（旧容積単位）</span></div>
+            <p className="contract-card-detail">この契約は旧単位の条件を維持します。t・m³へ自動換算しません。</p>
+          </details>}
+        </section>
+      </details>
 
       <button className="btn btn-secondary voyage-memo-btn" type="button" onClick={() => {
         setSelectedVoyageNumber(null);
