@@ -1,5 +1,4 @@
 import type { AcceptedContract, Ship, Voyage } from "../../domain/types";
-import { PlannedFleetShipCard } from "./PlannedFleetShipCard";
 import { FleetCard } from "./FleetCard";
 import type { VoyageDisplayClock } from "../../domain/voyageTimePresentation";
 
@@ -37,20 +36,6 @@ export function FleetPanel({
           const shipVoyage = voyage?.shipId === ship.id ? voyage : null;
           const shipContract = shipVoyage && contract?.id === shipVoyage.contractId ? contract : null;
 
-          if (shipVoyage?.plannedNavigation !== undefined) {
-            return (
-              <PlannedFleetShipCard
-                clock={displayClock}
-                key={ship.id}
-                ship={ship}
-                voyage={shipVoyage}
-                contract={shipContract}
-                onSelectShip={onSelectShip}
-                onOpenSettlement={onOpenSettlement}
-              />
-            );
-          }
-
           return (
             <FleetCard
               key={ship.id}
@@ -58,6 +43,7 @@ export function FleetPanel({
               voyage={shipVoyage}
               contract={shipContract}
               operationTime={operationTime}
+              displayClock={displayClock}
               onSelectShip={onSelectShip}
               onOpenSettlement={onOpenSettlement}
             />
